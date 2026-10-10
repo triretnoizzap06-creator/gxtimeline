@@ -230,7 +230,6 @@ begin
 exception when duplicate_object then null;
 end $$;
 
--- ───────────────────────── First admin ─────────────────────────
--- Replace the email below with yours, then run this line (or run it separately later).
--- insert into public.site_admins (email, role) values ('your.email@example.com', 'admin')
---   on conflict (email) do update set role = 'admin';
+insert into public.site_admins (email, role)
+values ('triretnoizzap06@gmail.com', 'admin')
+on conflict (email) do update set role = 'admin';
