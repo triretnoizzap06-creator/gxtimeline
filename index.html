@@ -44,6 +44,10 @@
 </div>
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
+<!-- Database config (served by /api/config from Vercel env vars). Missing locally → local mode. -->
+<script src="/api/config"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="sync.js"></script>
 <script src="data/budget-seed.js"></script>
 <script src="app.js"></script>
 </body>

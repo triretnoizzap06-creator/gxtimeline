@@ -6,6 +6,46 @@ var STORE_KEY = 'gx27.dashboard.v3';
 var UI_KEY = 'gx27.ui.v2';
 var EVENT_DATE = '2026-11-21';
 var PREP_DEADLINES = ['2026-10-13','2026-10-16','2026-10-20','2026-10-23','2026-10-24','2026-10-26','2026-10-30'];
+var DEFAULT_LOGO = 'assets/globalxtreme-logo.png';
+var SETTINGS_DEFAULT = {
+  siteTitle: 'GX27 Operations',
+  siteSubtitle: 'Festival of Connectivity · 21 Nov 2026',
+  eventName: 'GX 27 Festival of Connectivity',
+  eventDate: EVENT_DATE,
+  prepDeadlines: PREP_DEADLINES.slice(),
+  timelineSubtitle: 'Pre-event programs hingga Festival of Connectivity · Oktober–November 2026',
+  timelineTagline: 'One journey · Four programs · One celebration',
+  logoUrl: '',
+  budgetSheetUrl: ''
+};
+// 'local'  = no database configured: edits stay in this browser (original behaviour)
+// 'public' = visitors: read-only view of the published content
+// 'admin'  = /admin: signed-in editors/admins edit the draft, Save + Publish
+var MODE = 'local';
+function canEdit() { return MODE === 'local' || (MODE === 'admin' && !!window.GX27Admin && window.GX27Admin.canEdit()); }
+function normalizeDb(d) {
+  d = d && typeof d === 'object' ? d : {};
+  if (!Array.isArray(d.tasks)) d.tasks = [];
+  if (!Array.isArray(d.finance)) d.finance = [];
+  var s = {}, k;
+  for (k in SETTINGS_DEFAULT) s[k] = SETTINGS_DEFAULT[k];
+  if (d.settings && typeof d.settings === 'object') for (k in d.settings) if (d.settings[k] !== undefined && d.settings[k] !== null) s[k] = d.settings[k];
+  if (!Array.isArray(s.prepDeadlines)) s.prepDeadlines = SETTINGS_DEFAULT.prepDeadlines.slice();
+  d.settings = s;
+  return d;
+}
+function logoSrc() { return (db && db.settings && db.settings.logoUrl) || DEFAULT_LOGO; }
+function applySettings() {
+  var s = db.settings || SETTINGS_DEFAULT;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s.eventDate || '')) EVENT_DATE = s.eventDate;
+  PREP_DEADLINES = (s.prepDeadlines || []).filter(function (x) { return /^\d{4}-\d{2}-\d{2}$/.test(x); }).sort();
+  var title = s.siteTitle || SETTINGS_DEFAULT.siteTitle;
+  var nameEl = document.querySelector('.brand .name');
+  if (nameEl) nameEl.innerHTML = /^GX27/.test(title) ? 'GX<span>27</span>' + esc(title.slice(4)) : esc(title);
+  var subEl = document.querySelector('.brand .sub'); if (subEl) subEl.textContent = s.siteSubtitle || '';
+  var logoEl = document.querySelector('.brand .logo'); if (logoEl && logoEl.getAttribute('src') !== logoSrc()) logoEl.setAttribute('src', logoSrc());
+  document.title = title + (MODE === 'admin' ? ' · Admin' : '');
+}
 var TASK_STATUS = ['Not Started','In Progress','Pending Approval','Blocked','Done'];
 var CATEGORIES = ['Program Milestone','Preparation','Procurement','Production','Coordination','Event Day'];
 var PAY_STATUS = ['Pending Payment','DP Paid','Full Paid'];
@@ -104,7 +144,7 @@ function seed() {
     f.createdAt = f.updatedAt = Date.now();
     finance.push(f);
   });
-  return { version: 3, seq: n, tasks: tasks, finance: finance, meta: SHEET_SEED.meta, savedAt: Date.now() };
+  return { version: 3, seq: n, tasks: tasks, finance: finance, meta: SHEET_SEED.meta, settings: JSON.parse(JSON.stringify(SETTINGS_DEFAULT)), savedAt: Date.now() };
 }
 
 /* ================= Utilities ================= */
@@ -164,7 +204,7 @@ function opts(list, sel, emptyLabel) {
 
 /* ================= Store ================= */
 var storageOK = true, storageError = '';
-var db = load();
+var db = normalizeDb({ tasks: [], finance: [] });
 function load() {
   try {
     var raw = localStorage.getItem(STORE_KEY);
@@ -178,10 +218,16 @@ function load() {
 }
 function persist(d) {
   d.savedAt = Date.now();
+  if (MODE === 'admin') return window.GX27Admin ? window.GX27Admin.markDirty(d) : false;
+  if (MODE === 'public') return true;
   try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); return true; }
   catch (e) { storageOK = false; storageError = 'Could not save to browser storage. Changes in this session may be lost on refresh.'; return false; }
 }
-function commit(msg) { var ok = persist(db); render(); if (msg) toast(ok ? msg : 'Change kept for this session only — storage unavailable', !ok); }
+function commit(msg) {
+  if (!canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
+  var ok = persist(db); render();
+  if (msg) toast(ok ? msg + (MODE === 'admin' ? ' · klik Save untuk menyimpan ke database' : '') : 'Change kept for this session only — storage unavailable', !ok);
+}
 function nextId(prefix) { db.seq = (db.seq || 0) + 1; return prefix + String(db.seq).padStart(3, '0'); }
 function taskById(id) { for (var i = 0; i < db.tasks.length; i++) if (db.tasks[i].id === id) return db.tasks[i]; return null; }
 function finById(id) { for (var i = 0; i < db.finance.length; i++) if (db.finance[i].id === id) return db.finance[i]; return null; }
@@ -198,7 +244,7 @@ function loadUI() {
     finQ: '', finWs: '', finPay: '', finInv: '', calMonth: '2026-10' };
   try { var raw = localStorage.getItem(UI_KEY); if (raw) { var p = JSON.parse(raw); for (var k in p) d[k] = p[k]; } } catch (e) {}
   var h = (location.hash || '').replace('#', '');
-  if (['timeline','overview','tasks','finance','calendar'].indexOf(h) > -1) d.page = h;
+  if (['timeline','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
   return d;
 }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
@@ -277,21 +323,29 @@ function taskStats() {
 /* ================= Rendering ================= */
 var main = document.getElementById('main');
 function render() {
+  db = normalizeDb(db);
   var focusId = document.activeElement && document.activeElement.id, selStart = null;
   try { selStart = document.activeElement.selectionStart; } catch (e) {}
+  applySettings();
+  document.body.classList.toggle('readonly', !canEdit());
+  document.body.classList.toggle('mode-admin', MODE === 'admin');
   document.querySelectorAll('#nav button').forEach(function (b) { b.setAttribute('aria-current', b.dataset.page === ui.page ? 'page' : 'false'); });
   var st = taskStats();
   document.getElementById('navTaskCount').textContent = st.total;
   document.getElementById('navOverdue').textContent = st.overdue ? st.overdue + ' overdue' : '';
   var dl = daysBetween(todayISO(), EVENT_DATE);
   document.getElementById('countdown').innerHTML = dl >= 0
-    ? '<div class="d">' + dl + '</div><div class="l">' + (dl === 1 ? 'day' : 'days') + ' to Event Day · 21 Nov</div>'
-    : '<div class="d">Done</div><div class="l">Event Day was 21 Nov 2026</div>';
+    ? '<div class="d">' + dl + '</div><div class="l">' + (dl === 1 ? 'day' : 'days') + ' to Event Day · ' + fmtDate(EVENT_DATE, true) + '</div>'
+    : '<div class="d">Done</div><div class="l">Event Day was ' + fmtDate(EVENT_DATE) + '</div>';
   document.getElementById('storeNote').textContent = storageOK ? 'Saved in this browser · last save ' + new Date(db.savedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Storage unavailable';
   var banner = storageError ? '<div class="banner' + (storageOK ? ' warn' : '') + '" role="alert">' + esc(storageError) + '</div>' : '';
-  var html = '';
+  var html = '', Admin = MODE === 'admin' ? window.GX27Admin : null;
+  var gate = Admin ? Admin.gate() : '';
+  if (gate) { main.innerHTML = gate; saveUI(); if (Admin.afterRender) Admin.afterRender(); return; }
+  if (ui.page === 'admin' && !Admin) ui.page = 'timeline';
   try {
-    if (ui.page === 'timeline') html = renderMaster();
+    if (ui.page === 'admin') html = Admin.renderPage();
+    else if (ui.page === 'timeline') html = renderMaster();
     else if (ui.page === 'overview') html = renderOverview();
     else if (ui.page === 'tasks') html = renderTasks();
     else if (ui.page === 'finance') html = renderFinance();
@@ -300,8 +354,10 @@ function render() {
     console.error(e);
     html = '<div class="banner" role="alert">Something went wrong drawing this page (' + esc(e.message) + '). Your data is still saved. Try another page or refresh.</div>';
   }
-  main.innerHTML = banner + html;
+  main.innerHTML = (Admin ? Admin.barHtml() : '') + banner + html;
+  if (!canEdit()) main.querySelectorAll('[data-inline]').forEach(function (el) { el.disabled = true; });
   saveUI();
+  if (Admin && Admin.afterRender) Admin.afterRender();
   if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
 }
 
@@ -312,7 +368,6 @@ function pageHead(title, sub, actions) {
 
 /* ---------- Master Timeline ---------- */
 var PROGRAMS = ['GX Connect','GX Got Talent','Mobile Legends','HYROX'];
-var LOGO_SRC = document.querySelector('.brand .logo') ? document.querySelector('.brand .logo').src : '';
 function renderMaster() {
   var hide = ui.mtHide || [];
   var all = db.tasks.filter(function (t) { return t.deadline && (t.category === 'Event Day' || (PROGRAMS.indexOf(t.workstream) > -1 && t.category !== 'Procurement')); });
@@ -320,10 +375,10 @@ function renderMaster() {
   var pre = all.filter(function (t) { return t.category !== 'Event Day' && hide.indexOf(t.workstream) < 0; });
   var doneN = all.filter(function (t) { return t.status === 'Done'; }).length;
   var nextT = all.filter(function (t) { return t.status !== 'Done' && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
-  var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>Pre-event programs hingga Festival of Connectivity · Oktober–November 2026</p></div>' +
+  var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px"><button class="btn primary" data-act="new-milestone">+ Add milestone</button><div class="mt-legend" role="group" aria-label="Show programs">' +
     PROGRAMS.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '" data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') + '</div></div></div>';
-  h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> milestones done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>Klik item untuk edit</span></div>';
+  h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> milestones done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Klik item untuk edit' : 'Klik item untuk detail') + '</span></div>';
   // group by month (of start date) then by date label
   var months = {};
   pre.forEach(function (t) { var key = (t.start || t.deadline).slice(0, 7); (months[key] = months[key] || []).push(t); });
@@ -346,14 +401,14 @@ function renderMaster() {
   var ev = '';
   if (eventItems.length) {
     var ed = eventItems[0].deadline;
-    ev = '<div class="mt-event"><div><div class="d">' + fmtDate(ed, true).toUpperCase().replace(/^0/, '') + '</div><div class="l">EVENT DAY</div></div><div><h3>GX 27 FESTIVAL OF CONNECTIVITY</h3><div class="mt-chips">' +
+    ev = '<div class="mt-event"><div><div class="d">' + fmtDate(ed, true).toUpperCase().replace(/^0/, '') + '</div><div class="l">EVENT DAY</div></div><div><h3>' + esc((db.settings.eventName || '').toUpperCase()) + '</h3><div class="mt-chips">' +
       eventItems.map(function (t, i) { return '<button class="mt-chip' + (/ceremony/i.test(t.name) ? ' hl' : '') + (t.status === 'Done' ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status) + '">' + esc(t.name) + '</button>'; }).join('') +
       '<button class="mt-chip" data-act="new-event-item" aria-label="Add event day segment">+</button></div></div></div>';
   }
   var left = cards[0] || '', right = cards.slice(1).join('') + ev;
   if (!cards.length) left = ev, right = '';
   h += '<div class="mt-grid"><div class="mt-col">' + left + '</div><div class="mt-col">' + right + '</div></div>';
-  h += '<div class="mt-foot">' + (LOGO_SRC ? '<img src="' + LOGO_SRC + '" alt="GlobalXtreme">' : '') + '<span>One journey · Four programs · One celebration</span></div>';
+  h += '<div class="mt-foot"><img src="' + esc(logoSrc()) + '" alt="Logo"><span>' + esc(db.settings.timelineTagline || '') + '</span></div>';
   return h;
 }
 
@@ -508,7 +563,7 @@ function taskDetail(t) {
     '<h4 style="margin-top:10px">Dependencies</h4><p>' + (t.dependencies ? esc(t.dependencies) : '<span class="faint">None</span>') + '</p>' +
     (t.verifyNote ? '<h4 style="margin-top:10px">Verification</h4><p class="flag" style="white-space:normal">' + esc(t.verifyNote) + '</p>' : '') + '</div>' +
     '<div><h4>Finance (payment tracked separately)</h4>' + finHtml + '</div>' +
-    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">Edit task</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
+    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit task' : 'View details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
     '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(t.workstream) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
 }
 function renderTimeline(list) {
@@ -559,9 +614,10 @@ function finCategories() {
 }
 function rowOrder(a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); }
 function renderFinance() {
-  var all = totals(db.finance), list = filteredFinance(), meta = db.meta || null;
+  var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
+  if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', meta ? 'Sumber: sheet <b>' + esc(meta.sheet) + '</b> · Divisi ' + esc(meta.division) + ' · baris ' + esc(meta.rows) + ' · snapshot ' + fmtDate(meta.snapshot) + '. Subtotal dihitung otomatis dari item, tidak disimpan.' : 'Total dihitung dari baris item; subtotal tidak disimpan sebagai record.',
-    (meta && meta.url ? '<a class="btn" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
   h += '<div class="kpis">' + kpi('Estimated budget', rp(all.est), all.count + ' rows', false, true) + kpi('Invoiced', rp(all.inv), 'sum of invoice amounts', false, true) +
     kpi('Paid to vendors', rp(all.paid), '+ ' + rp(all.fee) + ' biaya transfer', false, true) + kpi('Outstanding', rp(all.outstanding), 'invoice (atau estimasi) − paid', all.outstanding > 0, true) +
     kpi('Flagged', all.flagged, all.missing + ' rows without amount', all.flagged > 0) + '</div>';
@@ -639,7 +695,7 @@ function renderCalendar() {
   var gridStart = new Date(y, m, 1 - startOffset), today = todayISO();
   var byDate = {};
   db.tasks.forEach(function (t) { if (t.deadline) (byDate[t.deadline] = byDate[t.deadline] || []).push(t); });
-  var h = pageHead('Calendar &amp; Deadlines', 'Tugas ditampilkan di tanggal deadline. Klik task untuk ubah deadline.', '<button class="btn primary" data-act="new-task">+ New task</button>');
+  var h = pageHead('Calendar &amp; Deadlines', 'Tugas ditampilkan di tanggal deadline.' + (canEdit() ? ' Klik task untuk ubah deadline.' : ''), '<button class="btn primary" data-act="new-task">+ New task</button>');
   var cells = '';
   for (var i = 0; i < 42; i++) {
     var d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
@@ -671,9 +727,16 @@ function chip(t) {
 
 /* ================= Modals ================= */
 var modalRoot = document.getElementById('modalRoot'), lastFocus = null;
-function openModal(html, size) {
+function openModal(html, size, opts) {
   lastFocus = document.activeElement;
   modalRoot.innerHTML = '<div class="overlay" data-close="1"><div class="modal ' + (size || '') + '" role="dialog" aria-modal="true">' + html + '</div></div>';
+  if (!canEdit() && !(opts && opts.allowReadonly)) {
+    // visitors get the same form as a read-only detail view
+    modalRoot.querySelectorAll('input,select,textarea').forEach(function (el) { el.disabled = true; });
+    modalRoot.querySelectorAll('button[type=submit],.btn.danger,#calcPreview,.hint').forEach(function (el) { el.remove(); });
+    var h3 = modalRoot.querySelector('.modal-h h3'); if (h3) h3.textContent = h3.textContent.replace(/^(Edit|New) /, '').replace(/^\w/, function (c) { return c.toUpperCase(); }) + ' · details';
+    modalRoot.querySelectorAll('[data-act="modal-cancel"]').forEach(function (b) { if (b.textContent === 'Cancel') b.textContent = 'Close'; });
+  }
   var f = modalRoot.querySelector('input:not([type=hidden]),select,textarea,button.primary');
   if (f) f.focus();
 }
@@ -980,8 +1043,10 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
+var MUTATING = ['new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
+  if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
   switch (act) {
     case 'new-task': taskForm(null); break;
     case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: 'GX Connect' }); break;
@@ -1009,7 +1074,7 @@ function handleAct(el, e) {
     case 'cal-prev': case 'cal-next':
       var p = ui.calMonth.split('-'), d = new Date(+p[0], +p[1] - 1 + (act === 'cal-next' ? 1 : -1), 1); ui.calMonth = toISO(d).slice(0, 7); render(); break;
     case 'cal-today': ui.calMonth = todayISO().slice(0, 7); render(); break;
-    case 'cal-chip': deadlineDialog(id); break;
+    case 'cal-chip': if (canEdit()) deadlineDialog(id); else { closeModal(); taskForm(taskById(id)); } break;
     case 'cal-day': dayDialog(el.dataset.date); break;
     case 'modal-cancel': closeModal(); break;
   }
@@ -1029,6 +1094,7 @@ main.addEventListener('input', function (e) {
 });
 main.addEventListener('change', function (e) {
   var t = e.target;
+  if (t.dataset.inline && !canEdit()) return;
   var map = { fWs: 'fWs', fStatus: 'fStatus', fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
   if (t.dataset.inline === 'status') {
@@ -1042,8 +1108,67 @@ main.addEventListener('change', function (e) {
     task2.deadline = t.value; task2.updatedAt = Date.now(); commit('Deadline moved to ' + fmtDate(t.value, true));
   }
 });
-window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','overview','tasks','finance','calendar'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
-window.addEventListener('storage', function (e) { if (e.key === STORE_KEY && e.newValue) { try { db = JSON.parse(e.newValue); render(); toast('Updated from another tab'); } catch (x) {} } });
+window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
+window.addEventListener('storage', function (e) { if (MODE === 'local' && e.key === STORE_KEY && e.newValue) { try { db = JSON.parse(e.newValue); render(); toast('Updated from another tab'); } catch (x) {} } });
 
-render();
+/* ================= Public API (used by admin.js) ================= */
+window.GX27App = {
+  getDb: function () { return db; },
+  setDb: function (d) { db = normalizeDb(d); return db; },
+  render: render, commit: commit, toast: toast, go: go,
+  openModal: openModal, closeModal: closeModal, confirmDialog: confirmDialog, showErrors: showErrors,
+  field: field, inp: inp, sel: sel, ta: ta, esc: esc, rp: rp, fmtDate: fmtDate, todayISO: todayISO, parseFlexDate: parseFlexDate,
+  seed: function () { return normalizeDb(seed()); }, normalizeDb: normalizeDb, totals: totals, taskStats: taskStats,
+  exportDialog: exportDialog, importJsonDialog: importJsonDialog, importCsvDialog: importCsvDialog,
+  STORE_KEY: STORE_KEY, LEGACY_KEYS: [STORE_KEY, 'gx27.dashboard.v2', 'gx27.dashboard.v1'],
+  SETTINGS_DEFAULT: SETTINGS_DEFAULT, DEFAULT_LOGO: DEFAULT_LOGO,
+  getMode: function () { return MODE; }, canEdit: canEdit,
+  setPage: function (p) { ui.page = p; }, getPage: function () { return ui.page; }
+};
+
+/* ================= Boot ================= */
+var PUBLIC_CACHE = 'gx27.published.cache';
+function startPublic(Sync) {
+  main.innerHTML = '<div class="empty" style="padding:80px 16px"><b>Memuat data…</b>Mengambil versi terbaru dari server.</div>';
+  function fromCache(reason) {
+    try {
+      var c = JSON.parse(localStorage.getItem(PUBLIC_CACHE) || 'null');
+      if (c && c.data) { db = normalizeDb(c.data); storageError = reason + ' Menampilkan versi tersimpan terakhir (' + new Date(c.at).toLocaleString('id-ID') + ').'; return; }
+    } catch (e) {}
+    db = normalizeDb(seed()); storageError = reason + ' Menampilkan data awal.';
+  }
+  function load() {
+    return Sync.loadPublished().then(function (p) {
+      if (p && p.data) {
+        db = normalizeDb(p.data); storageError = '';
+        try { localStorage.setItem(PUBLIC_CACHE, JSON.stringify({ data: p.data, at: Date.now(), version: p.source_version })); } catch (e) {}
+      } else { db = normalizeDb(seed()); storageError = ''; }
+    });
+  }
+  return load().catch(function (err) { fromCache('Tidak bisa terhubung ke database (' + err.message + ').'); }).then(function () {
+    render();
+    Sync.watch('published', function () { load().then(function () { render(); toast('Konten diperbarui'); }).catch(function () {}); });
+  });
+}
+function boot() {
+  var Sync = window.GX27Sync || {}, cfg = window.GX27_CONFIG, wantAdmin = window.GX27_MODE === 'admin';
+  var devHost = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
+  if (Sync.ready) {
+    MODE = wantAdmin && window.GX27Admin ? 'admin' : 'public';
+    if (MODE === 'admin') { window.GX27Admin.start(); return; }
+    startPublic(Sync); return;
+  }
+  if ((cfg && cfg.configured && !Sync.libLoaded) || (!cfg && !devHost)) {
+    // config says a database exists but we can't reach it: never fall back to an editable local copy
+    MODE = 'public'; db = normalizeDb(seed());
+    storageError = cfg ? 'Library database gagal dimuat. Menampilkan data awal (read-only). Coba refresh.' : 'Konfigurasi server tidak bisa dimuat. Menampilkan data awal (read-only).';
+    try { var c = JSON.parse(localStorage.getItem(PUBLIC_CACHE) || 'null'); if (c && c.data) { db = normalizeDb(c.data); storageError = 'Server tidak bisa dihubungi. Menampilkan versi tersimpan terakhir.'; } } catch (e) {}
+    render(); return;
+  }
+  // No database configured yet: original local behaviour (edits saved in this browser)
+  MODE = 'local'; db = normalizeDb(load());
+  if (wantAdmin) storageError = 'Database belum dikonfigurasi. Admin panel aktif setelah SUPABASE_URL dan SUPABASE_ANON_KEY diisi di Vercel (lihat SETUP.md). Sementara ini perubahan hanya tersimpan di browser ini.';
+  render();
+}
+boot();
 })();

@@ -6,7 +6,13 @@ It's a static site (HTML/CSS/JS) with no build step and no backend.
 ## Folder structure
 
 ```
-index.html              Page shell (sidebar + script/CSS loading)
+index.html              Public page (read-only once the database is active)
+admin.html              Admin page (/admin): login, Save, Publish, admin panel
+admin.js                Admin logic: Save/Publish, settings, team, history, deploy
+sync.js                 Connection to Supabase + deploy endpoints
+api/                    Vercel functions: config, deploy (hook), deploy-status
+supabase/schema.sql     Tables, role-based permissions, save/publish functions
+SETUP.md                Database, login and Vercel setup steps
 styles.css              All styling (Inter font, white theme)
 app.js                  App logic: pages, CRUD, financial calculations, calendar
 data/budget-seed.js     Initial budget data (sheet "EDIT DISINI", Acara division)
@@ -66,12 +72,10 @@ Alternative via CLI: `npx vercel` from this folder, then `npx vercel --prod`.
 
 ## Where data is stored
 
-- Edits from the website (tasks, status, deadlines, budget items) are saved in **each browser's localStorage**.
-  They survive a refresh, but **they aren't shared** between people or devices.
-- For the whole team to see the same data in real time, the next step is a shared database
-  (e.g. Supabase or Firebase). The data model in `app.js` is ready to be moved over.
-- The Data panel (export/restore/import/reset) is hidden in the UI. Its code is still in `app.js`.
-  To show it again, remove the `hidden` attribute from `#sideTools` and `#menuBtn` in `index.html`.
+- **Online database (Supabase)** after setup (see **SETUP.md**): admins edit at `/admin`, click **Save changes** (draft in the database, synced across devices), then **Publish** (visitors see it live).
+- Visitors at `/` only see the published version (read-only).
+- If the database isn't configured (no Vercel env vars / when opened locally), the site falls back to the old way: data is stored in this browser's localStorage (`gx27.dashboard.v3`). That data is never deleted, and it can be pulled into the database the first time an admin logs in.
+- Data tools (export, restore, import sheet, reset) are in **Admin panel → Data tools**.
 
 ## Calculation rules (Finance)
 
