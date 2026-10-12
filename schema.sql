@@ -1,8 +1,6 @@
-```sql
 -- GX27 Operations — Supabase schema
 -- Run this whole file in Supabase → SQL Editor → New query → Run.
 -- Safe to re-run: creates missing tables and replaces functions/policies.
-
 -- ───────────────────────── Tables ─────────────────────────
 
 create table if not exists public.site_content (
