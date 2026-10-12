@@ -1,9 +1,23 @@
-GX27 — Patch: header tabel freeze + Finance lebih ringkas
+GX27 — Patch: timeline terbaru + Kelola kategori + Finance sub item
 
 Isi: app.js, admin.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
 
-- Header (judul kolom) semua tabel tetap di atas saat di-scroll.
-- Finance: kolom default cuma Item, Budget, Dibayar, Sisa, Due date, Status payment, Task.
-  Kolom lain (Qty, Harga, Invoice, DP, Status invoice, Bukti TF, Cek) disembunyikan, bisa dimunculkan lagi lewat "Kelola kolom".
-- Vendor invoice: kolom pembayaran digabung (merged) jadi satu sel untuk vendor + semua item di bawahnya. Tidak ada lagi "via vendor".
-- Ringkasan atas cuma 4 angka (Budget, Sudah dibayar, Sisa, Perlu dicek). Catatan cara hitung bisa dibuka di "Cara hitung".
+1. Timeline (Tasks & Master Timeline) diupdate sesuai "Timeline Persiapan & Operasional":
+   - Semua item 13 Okt – 13 Nov masuk dengan tanggalnya masing-masing.
+   - ✅ = Done. "tunggu …" = Pending, dan yang ditunggu tertulis di kolom Waiting on / Blockers.
+   - Task lama yang sama diganti namanya (link ke Finance tetap). Penanda "Preparation deadline"
+     dihapus karena sudah diganti item-item aslinya.
+   - Pelunasan vendor (Hyrox, Spectrum, Not So Koplo, DJ, MC, Face Painting, Tarot) jadi task
+     masing-masing per 13 Nov, dan item budget-nya ikut pindah ke task itu.
+   - Update ini otomatis diterapkan sekali saat website pertama dibuka, lalu tersimpan untuk semua.
+
+2. Kelola kategori:
+   - Tampilan tidak kepotong lagi (dialog lebih lebar, tab bisa digeser).
+   - Kategori budget dari Finance (GX Game Pass, Activation, dll.) sekarang ikut ada di daftar,
+     jadi ganti nama / hapus langsung berlaku di Tasks dan Finance.
+   - Tombol "Kelola kategori" juga ada di halaman Finance.
+
+3. Finance:
+   - Sub item diberi warna (kuning muda + titik), item induknya ditandai garis kuning.
+   - "+ Item di <kategori>" di setiap judul kategori untuk menambah item baru.
+   - "+ Sub item" muncul saat kursor di atas item untuk menambah rincian di bawah item itu.

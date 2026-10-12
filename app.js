@@ -219,6 +219,85 @@ function colMove(table, idx, dir) {
   persist(db); render(); columnManager(table);
 }
 
+/* ---------- Timeline update 12 Oct 2026 (from the team's "Timeline Persiapan & Operasional") ----------
+   Applied once to the shared data (flag timelineV3). Existing tasks keep their id (so budget links stay),
+   new tasks get fixed ids so two devices applying it at the same time never create duplicates.
+   Status is only changed where the timeline says so (✅ = Done, "tunggu …" = Pending). */
+var TL3 = [
+  // [id (existing or new), deadline, workstream, category, name, status|null, waitingOn, notes]
+  ['T030', '2026-10-13', 'Design & Production', 'Production', 'Approve desain A4 — Registration, Face Art, GX Create', null, '', ''],
+  ['T044', '2026-10-13', 'Games & Competition', 'Production', 'Due date desain Branding Games (Bali Games Rental)', null, '', ''],
+  ['T031', '2026-10-16', 'Design & Production', 'Production', 'Final approval desain foamboard T-Banner People of GX & GX Game Zone', null, '', ''],
+  ['T032', '2026-10-16', 'Design & Production', 'Production', 'Final approval desain placeholder A6 QR Code voting frame per tim', null, '', ''],
+  ['T033', '2026-10-16', 'Design & Production', 'Production', 'Final approval desain foamboard landscape Winners & Xtreme Award', null, '', ''],
+  ['T039', '2026-10-16', 'Games & Competition', 'Coordination', 'Finalisasi rules & mekanisme kemenangan seluruh games', null, '', ''],
+  ['T046', '2026-10-16', 'Procurement', 'Procurement', 'Cetak gelang registrasi — 750 pcs', 'Done', '', ''],
+  ['TL3-01', '2026-10-16', 'Procurement', 'Procurement', 'Cetak stempel — 12 pcs', 'Pending', 'Pak Arwin approve design', ''],
+  ['TL3-02', '2026-10-16', 'Procurement', 'Procurement', 'Cetak kartu games — 500 pcs', 'Done', '', ''],
+  ['T035', '2026-10-16', 'Procurement', 'Procurement', 'Beli tote bag DIY — 100 pcs', 'Pending', 'Pak X approve', ''],
+  ['T034', '2026-10-16', 'Procurement', 'Procurement', 'Cetak stiker DTF', 'Pending', 'Desain belum selesai', ''],
+  ['TL3-03', '2026-10-16', 'Procurement', 'Procurement', 'Beli acrylic A4 (Registrasi, Face Painting, DIY) — 3 pcs', 'Done', '', ''],
+  ['TL3-04', '2026-10-16', 'Procurement', 'Procurement', 'Beli mini heat press — 1 pcs', 'Done', '', ''],
+  ['TL3-05', '2026-10-16', 'Procurement', 'Procurement', 'Beli air horn — 2 pcs', 'Pending', 'Konfirmasi seller: availability warna kuning', ''],
+  ['TL3-06', '2026-10-16', 'Procurement', 'Procurement', 'Beli smoke color celebration — 1 pack (5 warna)', 'Done', '', ''],
+  ['TL3-07', '2026-10-16', 'Procurement', 'Procurement', 'Beli balon tepuk — 50 pcs', 'Done', '', ''],
+  ['TL3-08', '2026-10-16', 'Procurement', 'Procurement', 'Cairkan dana rider', 'Done', '', ''],
+  ['TL3-09', '2026-10-16', 'Procurement', 'Procurement', 'Cairkan dana laminating A4 — rules games (12 games)', 'Pending', 'Invoice', ''],
+  ['TL3-10', '2026-10-16', 'Procurement', 'Procurement', 'Cairkan dana laminating A6 — QR Code voting frame (20 tim)', 'Pending', 'Invoice', ''],
+  ['T040', '2026-10-20', 'Games & Competition', 'Coordination', 'Final approval desain voucher Alfamart — Games Tebak Lagu', null, '', ''],
+  ['T041', '2026-10-20', 'Games & Competition', 'Coordination', 'Final approval desain voucher Diamond — Games Tebak Hero', null, '', ''],
+  ['TL3-11', '2026-10-23', 'Design & Production', 'Production', 'Cetak voucher Alfamart & Diamond', null, '', ''],
+  ['T036', '2026-10-23', 'Design & Production', 'Production', 'Approve desain tulisan "Wishes for GlobalXtreme" (Wall of Wishes)', null, '', ''],
+  ['TL3-12', '2026-10-23', 'Entertainment', 'Coordination', 'Finalisasi MC Cue Card', null, '', ''],
+  ['TL3-13', '2026-10-23', 'Entertainment', 'Coordination', 'Finalisasi musik iring-iringan Anniversary Ceremony', null, '', ''],
+  ['TL3-14', '2026-10-23', 'Entertainment', 'Coordination', 'Finalisasi playlist musik acara (termasuk backup playlist)', null, '', ''],
+  ['TL3-15', '2026-10-23', 'Tenants', 'Procurement', 'Finalisasi kontrak & pembayaran T-shirt eksklusif tenant', null, '', ''],
+  ['TL3-16', '2026-10-24', 'GX Connect', 'Procurement', 'Pencairan dana dekorasi People of GX Frame — Rp2.000.000', null, '', ''],
+  ['TL3-17', '2026-10-26', 'GX Connect', 'Coordination', 'Finalisasi QR Code voting frame setiap tim (termasuk nama seluruh tim)', null, '', ''],
+  ['TL3-18', '2026-10-26', 'Event Day', 'Production', 'Video History GlobalXtreme siap review/approval', null, '', ''],
+  ['T038', '2026-10-30', 'Design & Production', 'Production', 'Cetak seluruh foamboard', null, '', ''],
+  ['TL3-19', '2026-10-30', 'Design & Production', 'Production', 'Cetak tulisan "Wishes for GlobalXtreme" (Wall of Wishes)', null, '', ''],
+  ['T037', '2026-10-30', 'Design & Production', 'Production', 'Approve desain still image GX Mobile Legends untuk TV (Qualifier, Semifinal, 3rd Place, Grand Final)', null, '', ''],
+  ['T042', '2026-10-30', 'Games & Competition', 'Coordination', 'Finalisasi Spin Wheel', null, '', ''],
+  ['T043', '2026-10-30', 'Games & Competition', 'Production', 'Finalisasi handout penilaian juri GX Got Talent (Audition & Grand Final)', null, '', ''],
+  ['TL3-20', '2026-10-30', 'Event Day', 'Coordination', 'Final approval Video History GlobalXtreme', null, '', ''],
+  ['TL3-21', '2026-10-30', 'Event Day', 'Coordination', 'Finalisasi 29 nama karyawan untuk iring-iringan', null, '', '2 orang: Air Horn\n2 orang: Smoke Color\n25 orang: Balon Tepuk (50 pcs)'],
+  ['TL3-22', '2026-10-30', 'Event Day', 'Coordination', 'Final approval supporting crew acara', null, '', ''],
+  ['TL3-23', '2026-11-07', 'Design & Production', 'Procurement', 'Pembelian papan untuk Wall of Wishes', null, '', ''],
+  ['T056', '2026-11-12', 'GX Got Talent', 'Procurement', 'Pencairan dana GX Got Talent — Rp5.000.000', null, '', ''],
+  ['TL3-24', '2026-11-13', 'Preparation', 'Coordination', 'Meeting final bersama FOH, MC, Divisi Acara & Divisi Perlengkapan', null, '', ''],
+  ['TL3-25', '2026-11-13', 'HYROX', 'Procurement', 'Pelunasan GX Race (Hyrox)', null, '', ''],
+  ['TL3-26', '2026-11-13', 'Entertainment', 'Procurement', 'Pelunasan Spectrum', null, '', ''],
+  ['TL3-27', '2026-11-13', 'Entertainment', 'Procurement', 'Pelunasan Not So Koplo', null, '', ''],
+  ['TL3-28', '2026-11-13', 'Entertainment', 'Procurement', 'Pelunasan DJ Bestman', null, '', ''],
+  ['TL3-29', '2026-11-13', 'Entertainment', 'Procurement', 'Pelunasan MC', null, '', ''],
+  ['TL3-30', '2026-11-13', 'Activation', 'Procurement', 'Pelunasan Face Painting', null, '', ''],
+  ['TL3-31', '2026-11-13', 'Activation', 'Procurement', 'Pelunasan Tarot', null, '', '']
+];
+// budget items that move to the new, more specific task
+var TL3_LINKS = { F070: 'TL3-01', F069: 'TL3-02', F067: 'TL3-16', F091: 'TL3-25', F092: 'TL3-26', F093: 'TL3-27', F095: 'TL3-28', F094: 'TL3-29', F074: 'TL3-30', F075: 'TL3-31' };
+// replaced by the tasks above (only removed when nothing in Finance points to them any more)
+var TL3_REMOVE = ['T047', 'T048', 'T049', 'T050', 'T051', 'T052', 'T053', 'T055', 'T057', 'T058', 'T059'];
+function applyTimelineV3(d) {
+  var byId = {}; d.tasks.forEach(function (t) { byId[t.id] = t; });
+  var now = Date.now();
+  TL3.forEach(function (r) {
+    var t = byId[r[0]];
+    if (!t) { t = { id: r[0], createdAt: now, start: '2026-10-01', pic: '', status: 'Not Started', notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }; d.tasks.push(t); byId[r[0]] = t; }
+    t.deadline = r[1]; t.workstream = r[2]; t.category = r[3]; t.name = r[4];
+    if (!t.start || t.start > r[1]) t.start = r[1] < '2026-10-01' ? r[1] : '2026-10-01';
+    if (r[5]) t.status = r[5];
+    if (r[6]) t.dependencies = r[6];
+    if (r[7]) t.notes = r[7];
+    else if (/^(Approval desain A4\.|Design belum selesai\.|Menunggu approval Pak X\.)$/.test(t.notes || '')) t.notes = '';
+    t.source = 'confirmed'; t.updatedAt = now;
+  });
+  d.finance.forEach(function (f) { if (TL3_LINKS[f.id] && byId[TL3_LINKS[f.id]]) f.taskId = TL3_LINKS[f.id]; });
+  var linked = {}; d.finance.forEach(function (f) { if (f.taskId) linked[f.taskId] = 1; });
+  d.tasks = d.tasks.filter(function (t) { return TL3_REMOVE.indexOf(t.id) < 0 || linked[t.id]; });
+  d.timelineV3 = true;
+}
+
 function normalizeDb(d) {
   d = d && typeof d === 'object' ? d : {};
   if (!Array.isArray(d.tasks)) d.tasks = [];
@@ -234,6 +313,12 @@ function normalizeDb(d) {
   (d.finance || []).forEach(function (f) { if (f.paymentStatus && !s.payStatuses.some(function (x) { return x.name === f.paymentStatus; })) s.payStatuses.push({ name: f.paymentStatus, type: PAY_GUESS[f.paymentStatus.toLowerCase()] || 'unpaid', color: 'neutral' }); });
   s.pics = s.pics.map(function (x) { return String(x).trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
   // one-time change requested by the team: every task starts on 1 Oct 2026 (a deadline before that keeps its own date)
+  if (!d.timelineV3) applyTimelineV3(d);
+  [['taskCategories', d.tasks.map(function (t) { return t.category; })],
+   ['workstreams', d.tasks.concat(d.finance).map(function (r) { return r.workstream; })],
+   ['pics', [].concat.apply([], d.tasks.concat(d.rundown || []).map(function (t) { return picsOf(t.pic); }))]].forEach(function (x) {
+    x[1].forEach(function (v) { if (v && s[x[0]].indexOf(v) < 0) s[x[0]].push(v); });
+  });
   if (!d.startOct1) {
     d.tasks.forEach(function (t) { if (!t.deadline || t.deadline >= '2026-10-01') t.start = '2026-10-01'; });
     d.startOct1 = true;
@@ -1062,7 +1147,7 @@ function categoryManager(kind) {
     (unlisted.length ? '<div class="banner warn" style="margin:0">Dipakai di data tapi belum ada di daftar: ' + unlisted.map(function (u) { return '<button type="button" class="btn sm" data-act="cat-adopt" data-kind="' + kind + '" data-name="' + esc(u) + '">+ ' + esc(u) + '</button>'; }).join(' ') + '</div>' : '') +
     '<div class="cat-add"><input class="input" id="catNew" placeholder="Nama ' + K.label.toLowerCase() + ' baru" maxlength="60"><button type="button" class="btn" data-act="cat-add" data-kind="' + kind + '">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
-    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan nama</button></div></div></form>', 'sm');
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan nama</button></div></div></form>', 'wide');
   var form = document.getElementById('catForm');
   form.dataset.kind = kind;
   form.onsubmit = function (e) { e.preventDefault(); applyCatRenames(kind); };
@@ -1443,7 +1528,7 @@ function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', meta ? 'Sumber: sheet <b>' + esc(meta.sheet) + '</b> · Divisi ' + esc(meta.division) + ' · baris ' + esc(meta.rows) + ' · snapshot ' + fmtDate(meta.snapshot) + '. Subtotal dihitung otomatis dari item, tidak disimpan.' : 'Total dihitung dari baris item; subtotal tidak disimpan sebagai record.',
-    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="manage-columns" data-table="finance">Kelola kolom</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Kelola kategori</button><button class="btn" data-act="manage-columns" data-table="finance">Kelola kolom</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
   if (db.budgetUpdateAvailable && canEdit()) {
     var sm = SHEET_SEED.meta || {};
     h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
@@ -1508,7 +1593,8 @@ function renderFinance() {
       rec = f.receipt ? '<span class="badge b-ok nodot" title="' + esc(f.receipt) + '" style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(f.receipt) + '</span>' : '<span class="faint">—</span>';
     }
     var cell = {
-      item: '<td><span class="tname">' + (child ? '<span class="faint">↳ </span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + '</td>',
+      item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') +
+        (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub item</button>' : '') + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
       paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>',
@@ -1525,7 +1611,8 @@ function renderFinance() {
   var inList = {}; list.forEach(function (f) { inList[f.id] = 1; });
   finCategories().filter(function (w) { return groups[w]; }).forEach(function (w) {
     var g = groups[w].slice().sort(rowOrder), st = totals(g);
-    body += '<tr class="group"><td colspan="' + FC.length + '">' + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' row' + (g.length > 1 ? 's' : '') + '</span></td></tr>';
+    body += '<tr class="group"><td colspan="' + FC.length + '">' + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' item</span>' +
+      (canEdit() ? ' <button type="button" class="btn sm ghost add-item" data-act="new-fin" data-ws="' + esc(w) + '">+ Item di ' + esc(w) + '</button>' : '') + '</td></tr>';
     g.forEach(function (f) {
       if (f.parentId && inList[f.parentId]) return;
       var kids = g.filter(function (k) { return k.parentId === f.id; });
@@ -1648,12 +1735,12 @@ function taskForm(t, preset) {
   };
 }
 
-function finForm(f, presetTask) {
+function finForm(f, presetTask, preset) {
   var isNew = !f;
-  f = f || { item: '', workstream: presetTask ? (taskById(presetTask) || {}).workstream || '' : '', qty: null, unit: '', unitCost: null, estimated: null, invoice: null, dp: null, fee: null, paidAmount: null,
-    paymentDeadline: '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', invoiceRef: '', taskId: presetTask || '', notes: '', kind: '', parentId: null, source: 'confirmed', verifyNote: '' };
+  f = f || Object.assign({ item: '', workstream: presetTask ? (taskById(presetTask) || {}).workstream || '' : '', qty: null, unit: '', unitCost: null, estimated: null, invoice: null, dp: null, fee: null, paidAmount: null,
+    paymentDeadline: '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', invoiceRef: '', taskId: presetTask || '', notes: '', kind: '', parentId: null, source: 'confirmed', verifyNote: '' }, preset || {});
   var taskOpts = db.tasks.slice().sort(function (a, b) { return (a.workstream + a.name).localeCompare(b.workstream + b.name); }).map(function (t) { return { value: t.id, label: t.workstream + ' · ' + t.name }; });
-  var parentOpts = db.finance.filter(function (x) { return x.kind && x.id !== f.id; }).sort(rowOrder).map(function (x) { return { value: x.id, label: x.workstream + ' · ' + x.item }; });
+  var parentOpts = db.finance.filter(function (x) { return !x.parentId && x.id !== f.id; }).sort(rowOrder).map(function (x) { return { value: x.id, label: x.workstream + ' · ' + x.item }; });
   var hasKids = !isNew && kidsOf(f).length > 0;
   var wsList = '<datalist id="wsList2">' + finCategories().concat(allWorkstreams()).filter(function (v, i, a) { return a.indexOf(v) === i; }).map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   function amt(v) { return v == null ? '' : rpFmt.format(v); }
@@ -1716,6 +1803,9 @@ function finForm(f, presetTask) {
     if (!v.kind && hasKids) errs.kind = 'Masih ada baris di bawah item ini, jadi tipe harus vendor invoice atau alokasi.';
     if (Object.keys(errs).length) return showErrors(form, errs);
     v.taskId = v.taskId || null;
+    // adding a sub item under a plain item turns that item into a group (vendor invoice) that holds the payment
+    var par = v.parentId ? finById(v.parentId) : null;
+    if (par && !par.kind) { par.kind = 'vendor'; par.updatedAt = Date.now(); }
     if (isNew) { db.finance.push(Object.assign({ id: nextId('F'), createdAt: Date.now() }, v, { updatedAt: Date.now() })); closeModal(); commit('Budget item added'); }
     else { Object.assign(f, v, { updatedAt: Date.now() }); closeModal(); commit('Budget item saved'); }
   };
@@ -1902,7 +1992,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -1920,6 +2010,7 @@ function handleAct(el, e) {
     case 'manage-categories': e.preventDefault(); closeModal(); categoryManager('category'); break;
     case 'manage-statuses': e.preventDefault(); closeModal(); statusManager(); break;
     case 'manage-pics': e.preventDefault(); closeModal(); categoryManager('pic'); break;
+    case 'manage-ws': e.preventDefault(); closeModal(); categoryManager('workstream'); break;
     case 'manage-pay': e.preventDefault(); closeModal(); payManager(); break;
     case 'pick-pic': picDialog(id); break;
     case 'pic-add-inline': picAddInline(); break;
@@ -1948,7 +2039,10 @@ function handleAct(el, e) {
     case 'mt-toggle': var w = el.dataset.ws, hd = ui.mtHide || []; ui.mtHide = hd.indexOf(w) > -1 ? hd.filter(function (x) { return x !== w; }) : hd.concat([w]); render(); break;
     case 'edit-task': closeModal(); if (taskById(id)) taskForm(taskById(id)); else toast('That task no longer exists', true); break;
     case 'delete-task': closeModal(); deleteTask(id); break;
-    case 'new-fin': closeModal(); finForm(null, el.dataset.task); break;
+    case 'new-fin': closeModal(); finForm(null, el.dataset.task, el.dataset.ws ? { workstream: el.dataset.ws } : null); break;
+    case 'new-sub':
+      var pf = finById(id); if (!pf) break;
+      closeModal(); finForm(null, null, { parentId: pf.id, workstream: pf.workstream, taskId: pf.taskId || '' }); break;
     case 'edit-fin': e.preventDefault(); closeModal(); if (finById(id)) finForm(finById(id)); break;
     case 'delete-fin': closeModal(); deleteFin(id); break;
     case 'open-task':

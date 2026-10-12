@@ -625,3 +625,26 @@ details.fin-note{margin-top:10px;font-size:12.5px;color:var(--muted)}
 details.fin-note summary{cursor:pointer;font-weight:600}
 details.fin-note p{margin:6px 0 0;max-width:900px}
 td.fin-task{max-width:220px}td.fin-task a{color:inherit;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;border-bottom:1px dotted var(--line-2)}
+
+/* Kelola kategori: never wider than the dialog */
+.modal-b.one > *{min-width:0}
+.modal .tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+.modal .tabs button{white-space:nowrap;flex:0 0 auto}
+.modal .banner{flex-wrap:wrap}
+.modal{max-height:calc(100vh - 32px);display:flex;flex-direction:column}
+.modal > form{display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
+.modal .modal-b{overflow:auto;min-height:0}
+
+/* Finance: sub items tinted, add item / sub item */
+tr.row.child td{background:#FFF9DB}
+tr.row.child:hover td{background:#FFF2B8}
+tr.row.parent td{background:#FFFDF2}
+tr.row.parent td.fin-item-cell{box-shadow:inset 3px 0 0 var(--accent)}
+tr.row.child td.fin-item-cell{box-shadow:inset 3px 0 0 #F2D65C;padding-left:22px}
+td.merged{background:#FFFDF2 !important}
+.sub-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#C9A400;margin-right:8px;vertical-align:middle}
+.add-sub{margin-top:4px;padding:1px 8px;font-size:11.5px;color:var(--muted);opacity:0}
+tr.row:hover .add-sub,.add-sub:focus{opacity:1}
+@media (hover:none){.add-sub{opacity:.8}}
+.add-item{margin-left:6px;padding:1px 8px;font-size:11.5px;color:var(--muted)}
+body.readonly [data-act="manage-ws"],body.readonly .add-sub,body.readonly .add-item{display:none !important}
