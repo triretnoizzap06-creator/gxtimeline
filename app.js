@@ -571,6 +571,7 @@ function loadUI() {
   var d = { page: 'timeline', mtHide: [], rdLoc: '', rdQ: '', taskView: 'all', q: '', fWs: '', fStatus: '', fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
     finQ: '', finWs: '', finPay: '', finInv: '', calMonth: '2026-10' };
   try { var raw = localStorage.getItem(UI_KEY); if (raw) { var p = JSON.parse(raw); for (var k in p) d[k] = p[k]; } } catch (e) {}
+  if (d.sortV !== 2) { d.sort = { key: 'deadline', dir: 1 }; d.sortV = 2; }   // everyone starts on timeline order once
   var h = (location.hash || '').replace('#', '');
   if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
   return d;
@@ -1142,16 +1143,18 @@ function filteredTasks(view) {
     if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || ((t.blockers || t.dependencies) && ty !== 'done') || k === 'overdue')) return false; }
     return true;
   });
-  var key = ui.sort.key, dir = ui.sort.dir;
+  var key = ui.sort.key, dir = ui.sort.dir, pos = {};
+  db.tasks.forEach(function (t, i) { pos[t.id] = i; });
   var sl = statusList();
   list.sort(function (a, b) {
     var va, vb;
     if (key === 'status') { va = TYPE_ORDER[sType(a.status)] * 100 + sl.indexOf(a.status); vb = TYPE_ORDER[sType(b.status)] * 100 + sl.indexOf(b.status); }
-    else if (key === 'deadline') { va = a.deadline || '9999'; vb = b.deadline || '9999'; }
+    else if (key === 'deadline') { va = tlKey(a); vb = tlKey(b); }   // timeline order: start date (or deadline), then deadline
     else if (key.indexOf('cf:') === 0) { var ck = key.slice(3), xa = cfVal(a, ck), xb = cfVal(b, ck); va = typeof xa === 'number' ? xa : String(xa == null ? '\uffff' : xa).toLowerCase(); vb = typeof xb === 'number' ? xb : String(xb == null ? '\uffff' : xb).toLowerCase(); }
     else { va = String(a[key] || '').toLowerCase(); vb = String(b[key] || '').toLowerCase(); }
     if (va < vb) return -dir; if (va > vb) return dir;
-    return (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1;
+    var ta = tlKey(a), tb = tlKey(b);
+    return ta < tb ? -1 : ta > tb ? 1 : (pos[a.id] - pos[b.id]);
   });
   return list;
 }
@@ -1182,6 +1185,8 @@ function renderTasks() {
   }
   return h + taskTable(list, false, ui.taskView === 'pending');
 }
+// same order as the Master Timeline: by start date (or deadline when there is no start), then deadline; undated last
+function tlKey(t) { return (t.start || t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
 function sortTh(key, label, cls) {
   var on = ui.sort.key === key;
   return '<th class="sortable ' + (cls || '') + '" data-act="sort" data-key="' + key + '" aria-sort="' + (on ? (ui.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '">' + label + (on ? ' <span class="arr">' + (ui.sort.dir > 0 ? '↑' : '↓') + '</span>' : '') + '</th>';
