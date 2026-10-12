@@ -1,16 +1,9 @@
-GX27 — Patch: status payment bisa diatur + PIC bisa beberapa orang
+GX27 — Patch: header tabel freeze + Finance lebih ringkas
 
-Isi: app.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
+Isi: app.js, admin.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
 
-STATUS PAYMENT
-- Default: Pending Payment (kuning), Outstanding Payment (merah), DP Paid (biru), Full Paid (hijau).
-- Atur: Kelola kategori -> tab "Status payment" (atau link "Kelola status payment" di form budget).
-  Tambah, ganti nama, ganti warna, urutkan, hapus.
-- Jenis menentukan hitungan: Belum bayar = Rp 0, Bayar sebagian (DP) = sebesar DP, Lunas = penuh.
-- Di tabel Finance, kolom Payment jadi dropdown (ganti langsung).
-
-PIC
-- Satu task / segmen rundown bisa punya beberapa PIC (centang lebih dari satu).
-- Tambah nama baru langsung dari form ("Tambah nama PIC baru").
-- Di tabel Tasks klik tombol pensil di kolom PIC untuk ubah cepat.
-- Ganti nama / hapus nama: Kelola kategori -> tab PIC.
+- Header (judul kolom) semua tabel tetap di atas saat di-scroll.
+- Finance: kolom default cuma Item, Budget, Dibayar, Sisa, Due date, Status payment, Task.
+  Kolom lain (Qty, Harga, Invoice, DP, Status invoice, Bukti TF, Cek) disembunyikan, bisa dimunculkan lagi lewat "Kelola kolom".
+- Vendor invoice: kolom pembayaran digabung (merged) jadi satu sel untuk vendor + semua item di bawahnya. Tidak ada lagi "via vendor".
+- Ringkasan atas cuma 4 angka (Budget, Sudah dibayar, Sisa, Perlu dicek). Catatan cara hitung bisa dibuka di "Cara hitung".

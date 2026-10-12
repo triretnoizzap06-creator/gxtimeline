@@ -51,10 +51,10 @@ var COL_BUILTIN = {
     { key: 'payment', label: 'Payment' }
   ],
   finance: [
-    { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true }, { key: 'unitCost', label: 'Harga', num: true }, { key: 'est', label: 'Est. total', num: true, total: 'est' },
-    { key: 'invoice', label: 'Invoice', num: true, total: 'inv' }, { key: 'dp', label: 'DP', num: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' },
-    { key: 'paymentDeadline', label: 'Pay deadline' }, { key: 'invoiceStatus', label: 'Status invoice' }, { key: 'paymentStatus', label: 'Status payment' }, { key: 'receipt', label: 'Bukti TF' },
-    { key: 'task', label: 'Linked task' }, { key: 'check', label: 'Check' }
+    { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Harga', num: true, hidden: true }, { key: 'est', label: 'Budget', num: true, total: 'est' },
+    { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'DP', num: true, hidden: true }, { key: 'paid', label: 'Dibayar', num: true, total: 'paid' }, { key: 'remaining', label: 'Sisa', num: true, total: 'outstanding' },
+    { key: 'paymentDeadline', label: 'Due date' }, { key: 'invoiceStatus', label: 'Status invoice', hidden: true }, { key: 'paymentStatus', label: 'Status payment' }, { key: 'receipt', label: 'Bukti TF', hidden: true },
+    { key: 'task', label: 'Task' }, { key: 'check', label: 'Cek', hidden: true }
   ]
 };
 var COL_TYPES = [{ value: 'text', label: 'Teks' }, { value: 'number', label: 'Angka' }, { value: 'money', label: 'Rupiah' }, { value: 'date', label: 'Tanggal' }, { value: 'select', label: 'Pilihan (dropdown)' }, { value: 'checkbox', label: 'Centang' }, { value: 'link', label: 'Link' }];
@@ -251,6 +251,17 @@ function normalizeDb(d) {
     if (t.status && !s.taskStatuses.some(function (x) { return x.name === t.status; })) s.taskStatuses.push({ name: t.status, type: 'todo', color: 'neutral' });
   });
   normalizeColumns(s);
+  if (!s.finMinimal) {
+    // simpler Finance table by default; hidden columns can be shown again via Kelola kolom
+    var SHOW = { item: 1, est: 1, paid: 1, remaining: 1, paymentDeadline: 1, paymentStatus: 1, task: 1 };
+    var OLD = { est: 'Est. total', paid: 'Paid', remaining: 'Remaining', paymentDeadline: 'Pay deadline', task: 'Linked task', check: 'Check' };
+    s.columns.finance.forEach(function (c) {
+      if (c.custom) return;
+      c.visible = !!SHOW[c.key];
+      if (OLD[c.key] && c.label === OLD[c.key]) c.label = builtinCol('finance', c.key).label;
+    });
+    s.finMinimal = true;
+  }
   d.settings = s;
   // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
   if (!Array.isArray(d.rundown)) { d.rundown = rundownSeed(); d.flowMeta = FLOW_SEED.meta; }
@@ -1439,12 +1450,13 @@ function renderFinance() {
       'Terapkan untuk mengganti isi Finance dengan data sheet ini; task tetap, versi lama tetap ada di Version history.' +
       '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Terapkan data sheet terbaru</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
   }
-  h += '<div class="kpis">' + kpi('Estimated budget', rp(all.est), all.count + ' rows', false, true) + kpi('Invoiced', rp(all.inv), 'sum of invoice amounts', false, true) +
-    kpi('Paid to vendors', rp(all.paid), '+ ' + rp(all.fee) + ' biaya transfer', false, true) + kpi('Outstanding', rp(all.outstanding), 'invoice (atau estimasi) − paid', all.outstanding > 0, true) +
-    kpi('Flagged', all.flagged, all.missing + ' rows without amount', all.flagged > 0) + '</div>';
+  h += '<div class="kpis">' + kpi('Budget', rp(all.est), all.count + ' item', false, true) +
+    kpi('Sudah dibayar', rp(all.paid), '', false, true) + kpi('Sisa (outstanding)', rp(all.outstanding), '', all.outstanding > 0, true) +
+    kpi('Perlu dicek', all.flagged, 'item', all.flagged > 0) + '</div>';
   if (meta && meta.sheetSubTotal != null) {
     var dEst = all.est - meta.sheetSubTotal, dTf = (all.paid + all.fee) - meta.sheetTransferred;
-    h += '<div class="banner ' + (dEst || dTf ? 'warn' : '') + '" style="' + (dEst || dTf ? '' : 'background:var(--ok-bg);color:var(--ok)') + '"><div><b>Rekonsiliasi dengan sheet.</b> Sub Total sheet ' + rp(meta.sheetSubTotal) + ' · app ' + rp(all.est) + (dEst ? ' (selisih ' + rp(dEst) + ')' : ' ✓') +
+    if (!dEst && !dTf) h += '<p class="fin-ok">✓ Total cocok dengan budget sheet (' + rp(meta.sheetSubTotal) + ')</p>';
+    else h += '<div class="banner warn"><div><b>Rekonsiliasi dengan sheet.</b> Sub Total sheet ' + rp(meta.sheetSubTotal) + ' · app ' + rp(all.est) + (dEst ? ' (selisih ' + rp(dEst) + ')' : ' ✓') +
       '. Total transfer sheet (DP Total) ' + rp(meta.sheetTransferred) + ' · app ' + rp(all.paid + all.fee) + (dTf ? ' (selisih ' + rp(dTf) + ' — lihat baris yang di-flag)' : ' ✓') + '.</div></div>';
   }
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
@@ -1468,16 +1480,15 @@ function renderFinance() {
     }).join('') + '</tr>';
   }
   var body = '';
-  function row(f, child) {
+  // vendor invoices: payment cells are merged (rowspan) over the vendor row and its line items
+  var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1, task: 1 };
+  function row(f, child, span, underParent) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
     var flagHtml = (f.source === 'verify' ? '<span class="src verify" title="' + esc(f.verifyNote || 'Needs verification') + '">Verify</span> ' : '') +
       (c.flags.length ? '<span class="flag' + (c.flags.some(function (x) { return x.lvl === 'crit'; }) ? ' crit' : '') + '" title="' + esc(c.flags.map(function (x) { return x.msg; }).join('\n')) + '">⚠ ' + c.flags.length + '</span>' : (f.source === 'verify' ? '' : '<span class="flag" style="color:var(--ok)">✓</span>'));
     var sub = [];
-    if (f.kind === 'vendor') sub.push('Vendor invoice · ' + kidsOf(f).length + ' line item');
+    if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
     if (f.kind === 'allocation') sub.push('Alokasi dana');
-    if (f.invoiceRef) sub.push('Inv: ' + esc(f.invoiceRef));
-    if (f.notes) sub.push(esc(f.notes.split('\n')[0]));
-    if (f.sheetRow) sub.push('Row ' + f.sheetRow);
     var qtyTxt = c.qty != null ? rpFmt.format(c.qty) + (f.unit ? ' <span class="faint">' + esc(f.unit) + '</span>' : '') : '<span class="faint">—</span>';
     var pay, paid, rem, dpc, inv, ivs, rec, pd;
     if (c.inherited) {
@@ -1501,10 +1512,15 @@ function renderFinance() {
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
       paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>',
-      task: '<td style="max-width:200px">' + (child ? (t ? '<span class="faint" style="font-size:12px">' + esc(t.name) + '</span>' : '') : t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" style="color:inherit">' + esc(t.name) + '</a><span class="tsub">' + statusBadge(t.status) + '</span>' : '<span class="flag">Not linked</span>') + '</td>',
+      task: '<td class="fin-task">' + (t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" title="' + esc(t.name) + '">' + esc(t.name) + '</a>' : '<span class="faint">—</span>') + '</td>',
       check: '<td>' + flagHtml + '</td>'
     };
-    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) { return col.custom ? cfCell('finance', col, f) : (cell[col.key] || '<td></td>'); }).join('') + '</tr>';
+    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
+      if (col.custom) return cfCell('finance', col, f);
+      if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
+      var h = cell[col.key] || '<td></td>';
+      return MERGE[col.key] && span > 1 ? h.replace('<td', '<td rowspan="' + span + '" class="merged"').replace('class="merged" class="', 'class="merged ') : h;
+    }).join('') + '</tr>';
   }
   var inList = {}; list.forEach(function (f) { inList[f.id] = 1; });
   finCategories().filter(function (w) { return groups[w]; }).forEach(function (w) {
@@ -1512,15 +1528,16 @@ function renderFinance() {
     body += '<tr class="group"><td colspan="' + FC.length + '">' + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' row' + (g.length > 1 ? 's' : '') + '</span></td></tr>';
     g.forEach(function (f) {
       if (f.parentId && inList[f.parentId]) return;
-      body += row(f, !!f.parentId);
-      g.filter(function (k) { return k.parentId === f.id; }).forEach(function (k) { body += row(k, true); });
+      var kids = g.filter(function (k) { return k.parentId === f.id; });
+      body += row(f, !!f.parentId, f.kind === 'vendor' ? 1 + kids.length : 1, false);
+      kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
     });
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(auto)</span>', st);
   });
   var gt = totals(list);
   body += sumRow('grand', list.length === db.finance.length ? 'Grand total' : 'Total (filtered)', gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
   h += '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
-  h += '<p class="fin-note">Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p>';
+  h += '<details class="fin-note"><summary>Cara hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
   return h;
 }
 

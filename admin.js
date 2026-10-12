@@ -130,7 +130,7 @@
         S.phase = 'ready';
         startWatching();
         // one-time data changes made by this version (e.g. start dates → 1 Oct) are saved for everyone
-        if (!draft.data.startOct1 || !Array.isArray((draft.data.settings || {}).pics)) S.dirty = true;
+        if (!draft.data.startOct1 || !Array.isArray((draft.data.settings || {}).pics) || !(draft.data.settings || {}).finMinimal) S.dirty = true;
         if (S.dirty) { Admin.markDirty(App.getDb()); }
       });
     });
