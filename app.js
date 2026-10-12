@@ -30,6 +30,7 @@ var SETTINGS_DEFAULT = {
   taskCategories: ['Program Milestone','Preparation','Procurement','Production','Coordination','Event Day'],
   workstreams: ['GX Connect','GX Got Talent','Mobile Legends','HYROX','Event Day','Preparation','Design & Production','Games & Competition','Entertainment','Tenants','Doorprize',"Winners' Prizes",'Procurement','Emergency Fund'],
   rundownTitle: '',
+  pics: ['Putri', 'Esi', 'Pak Atong'],
   autoSave: true,      // admin panel saves every change to the database automatically
   autoPublish: true    // changes saved by an admin go live right away
 };
@@ -227,6 +228,13 @@ function normalizeDb(d) {
   if (d.settings && typeof d.settings === 'object') for (k in d.settings) if (d.settings[k] !== undefined && d.settings[k] !== null) s[k] = d.settings[k];
   if (!Array.isArray(s.prepDeadlines)) s.prepDeadlines = SETTINGS_DEFAULT.prepDeadlines.slice();
   ['taskCategories', 'workstreams'].forEach(function (k) { if (!Array.isArray(s[k]) || !s[k].length) s[k] = SETTINGS_DEFAULT[k].slice(); });
+  if (!Array.isArray(s.pics)) s.pics = SETTINGS_DEFAULT.pics.slice();
+  s.pics = s.pics.map(function (x) { return String(x).trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+  // one-time change requested by the team: every task starts on 1 Oct 2026 (a deadline before that keeps its own date)
+  if (!d.startOct1) {
+    d.tasks.forEach(function (t) { if (!t.deadline || t.deadline >= '2026-10-01') t.start = '2026-10-01'; });
+    d.startOct1 = true;
+  }
   if (!hadStatuses) {
     // first time statuses are managed: use the 4 standard statuses and move old ones over
     s.taskStatuses = JSON.parse(JSON.stringify(STATUS_DEFAULT_SEED));
@@ -846,7 +854,7 @@ function rundownForm(r, preset) {
     field('location', 'Lokasi', inp('location', r.location, 'text', 'list="rdLocList" maxlength="80"') + locList) +
     field('start', 'Mulai', inp('start', r.start, 'time'), { req: true }) +
     field('end', 'Selesai', inp('end', r.end, 'time'), { hint: 'Segmen dengan jam mulai & selesai yang sama tampil sebagai program paralel.' }) +
-    field('pic', 'PIC', inp('pic', r.pic, 'text', 'maxlength="120"')) +
+    field('pic', 'PIC', sel('pic', withCurrent(picList(), r.pic), r.pic || '', '— Belum ada —'), { hint: canEdit() ? '<a href="#" data-act="manage-pics">Kelola nama PIC</a>' : '' }) +
     field('status', 'Status', sel('status', withCurrent(statusList(), r.status), r.status || defaultStatus()), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('flow', 'Deskripsi / alur', ta('flow', r.flow), { full: true }) +
     field('concurrent', 'Concurrent (aktivitas bersamaan)', ta('concurrent', (r.concurrent || []).join('\n')), { full: true, hint: 'Satu per baris. Tampil sebagai chip di Festival Flow.' }) +
@@ -913,7 +921,8 @@ function deleteRundown(id) {
 var CAT_KINDS = {
   category: { label: 'Kategori task', key: 'taskCategories', hint: 'Dipakai di kolom Category pada task.' },
   workstream: { label: 'Workstream / program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' },
-  status: { label: 'Status task', key: 'taskStatuses', hint: '' }
+  status: { label: 'Status task', key: 'taskStatuses', hint: '' },
+  pic: { label: 'PIC', key: 'pics', hint: 'Nama yang muncul di dropdown PIC (task & rundown).' }
 };
 function catTabs(kind) {
   return '<div class="tabs" role="tablist" style="padding:0 18px;margin:0">' + Object.keys(CAT_KINDS).map(function (k) { return '<button type="button" role="tab" data-act="cat-tab" data-kind="' + k + '" aria-selected="' + (k === kind) + '">' + CAT_KINDS[k].label + '</button>'; }).join('') + '</div>';
@@ -958,6 +967,7 @@ function statusManager() {
   };
 }
 function catUsage(kind, name) {
+  if (kind === 'pic') return { tasks: db.tasks.filter(function (t) { return t.pic === name; }).length + (db.rundown || []).filter(function (r) { return r.pic === name; }).length, finance: 0 };
   if (kind === 'category') return { tasks: db.tasks.filter(function (t) { return t.category === name; }).length, finance: 0 };
   return { tasks: db.tasks.filter(function (t) { return t.workstream === name; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
 }
@@ -966,7 +976,7 @@ function categoryManager(kind) {
   if (kind === 'status') return statusManager();
   var K = CAT_KINDS[kind], list = db.settings[K.key];
   var unlisted = [];
-  (kind === 'category' ? db.tasks.map(function (t) { return t.category; }) : db.tasks.concat(db.finance).map(function (r) { return r.workstream; }))
+  (kind === 'pic' ? db.tasks.concat(db.rundown || []).map(function (t) { return t.pic; }) : kind === 'category' ? db.tasks.map(function (t) { return t.category; }) : db.tasks.concat(db.finance).map(function (r) { return r.workstream; }))
     .forEach(function (v) { if (v && list.indexOf(v) < 0 && unlisted.indexOf(v) < 0) unlisted.push(v); });
   var rows = list.map(function (name, i) {
     var u = catUsage(kind, name);
@@ -992,7 +1002,8 @@ function categoryManager(kind) {
 function catErr(msg) { var el = document.getElementById('catErr'); if (el) { el.textContent = msg; el.hidden = !msg; } }
 function catRename(kind, from, to) {
   var n = 0;
-  if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
+  if (kind === 'pic') db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.pic === from) { t.pic = to; t.updatedAt = Date.now(); n++; } });
+  else if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
   else db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream === from) { r.workstream = to; r.updatedAt = Date.now(); n++; } });
   if (kind === 'workstream' && ui.fWs === from) ui.fWs = to;
   if (kind === 'workstream' && ui.finWs === from) ui.finWs = to;
@@ -1186,6 +1197,7 @@ function renderTasks() {
   return h + taskTable(list, false, ui.taskView === 'pending');
 }
 // same order as the Master Timeline: by start date (or deadline when there is no start), then deadline; undated last
+function picList() { return (db.settings.pics || []).slice(); }
 function tlKey(t) { return (t.start || t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
 function sortTh(key, label, cls) {
   var on = ui.sort.key === key;
@@ -1216,7 +1228,7 @@ function taskCell(key, t) {
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
     case 'deadline': return '<td>' + dueLabel(t) + '</td>';
-    case 'pic': return '<td>' + (t.pic ? esc(t.pic) : '<span class="faint">Unassigned</span>') + '</td>';
+    case 'pic': return '<td>' + (canEdit() ? '<select class="inline-select" data-inline="pic" data-id="' + t.id + '" aria-label="PIC for ' + esc(t.name) + '">' + opts(withCurrent(picList(), t.pic), t.pic || '', '— Belum ada —') + '</select>' : (t.pic ? esc(t.pic) : '<span class="faint">Unassigned</span>')) + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
     case 'blockers': return '<td style="max-width:240px">' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '') + (t.dependencies ? '<span class="tsub">Waiting on: ' + esc(t.dependencies) + '</span>' : '') + (!t.blockers && !t.dependencies ? '<span class="faint">—</span>' : '') + '</td>';
     case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
@@ -1461,7 +1473,7 @@ function confirmDialog(title, message, yesLabel, onYes) {
 
 function withCurrent(list, v) { return v && list.indexOf(v) < 0 ? list.concat([v]) : list; }
 function taskForm(t, preset) {
-  var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
+  var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '2026-10-01', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
@@ -1469,7 +1481,7 @@ function taskForm(t, preset) {
     field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola kategori</a>' : '' }) +
     field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
-    field('pic', 'PIC', inp('pic', t.pic, 'text', 'maxlength="80"')) +
+    field('pic', 'PIC', sel('pic', withCurrent(picList(), t.pic), t.pic || '', '— Belum ada —'), { hint: canEdit() ? '<a href="#" data-act="manage-pics">Kelola nama PIC</a>' : '' }) +
     field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
     field('blockers', 'Blockers', ta('blockers', t.blockers)) +
@@ -1749,7 +1761,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -1766,6 +1778,7 @@ function handleAct(el, e) {
     case 'delete-rundown': closeModal(); deleteRundown(id); break;
     case 'manage-categories': e.preventDefault(); closeModal(); categoryManager('category'); break;
     case 'manage-statuses': e.preventDefault(); closeModal(); statusManager(); break;
+    case 'manage-pics': e.preventDefault(); closeModal(); categoryManager('pic'); break;
     case 'manage-columns': e.preventDefault(); closeModal(); columnManager(el.dataset.table); break;
     case 'col-tab': if (colApply(document.querySelector('#colForm [aria-selected="true"]').dataset.table)) { persist(db); render(); } closeModal(); columnManager(el.dataset.table); break;
     case 'col-add': colAdd(el.dataset.table); break;
@@ -1845,6 +1858,10 @@ main.addEventListener('change', function (e) {
     rec.cf = rec.cf || {};
     if (pr.value == null || pr.value === false) delete rec.cf[col.key]; else rec.cf[col.key] = pr.value;
     rec.updatedAt = Date.now(); commit(col.label + ' diperbarui'); return;
+  }
+  if (t.dataset.inline === 'pic') {
+    var tp = taskById(t.dataset.id); if (!tp || !canEdit()) return;
+    tp.pic = t.value; tp.updatedAt = Date.now(); commit('PIC → ' + (t.value || 'kosong')); return;
   }
   if (t.dataset.inline === 'status') {
     var task = taskById(t.dataset.id); if (!task) return;

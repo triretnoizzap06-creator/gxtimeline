@@ -1,8 +1,11 @@
-GX27 — Patch urutan task
+GX27 — Patch: start date 1 Oktober + PIC dropdown
 
-Isi: app.js saja.
-Upload app.js ini ke GitHub (timpa yang lama). Vercel deploy otomatis.
+Isi: app.js, admin.js
+Upload dua file ini ke GitHub (timpa yang lama). Vercel deploy otomatis.
+Tidak perlu jalankan SQL.
 
-Hasil: tabel Tasks otomatis urut sesuai Master Timeline
-(tanggal mulai / deadline paling awal di atas, task tanpa tanggal paling bawah).
-Klik judul kolom Deadline untuk membalik urutan.
+Hasil:
+- Semua task: start date = 1 Okt 2026 (otomatis sekali saat website dibuka, tersimpan untuk semua).
+  Task baru juga default start 1 Okt.
+- PIC jadi dropdown: Putri, Esi, Pak Atong (di tabel Tasks, form task, dan rundown).
+- Tambah/ganti/hapus nama PIC: Kelola kategori -> tab PIC (atau link "Kelola nama PIC" di form).
