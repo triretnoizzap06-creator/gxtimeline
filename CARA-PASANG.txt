@@ -1,8 +1,10 @@
-GX27 — Patch: fix tampilan Kelola kategori (cache) + hapus baris "Sumber" di Finance
+GX27 — Patch: warna kategori di Finance
 
-Isi: index.html, app.js, admin.js, styles.css. Upload semua ke GitHub (timpa yang lama). Tidak perlu SQL.
+Isi: index.html, app.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
 
-- index.html sekarang memaksa browser memuat versi terbaru (tidak pakai file lama dari cache).
-- Baris "Sumber: sheet EDIT DISINI ..." di bawah judul Finance dihapus.
+- Setiap kategori sekarang punya warna sendiri (tidak ada lagi label abu-abu), termasuk Emergency Fund, Doorprize, Activation, dll.
+  GX Connect tetap ungu, GX Got Talent merah, Mobile Legends biru, HYROX hijau.
+- Item grup dan sub item di Finance ikut warna kategorinya: item grup diberi garis warna di kiri, sub item latarnya lebih tebal.
+- Warna yang sama dipakai di label kategori Tasks dan di Calendar.
 
-Setelah deploy selesai, buka website lalu tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
+Setelah deploy, buka website lalu tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.

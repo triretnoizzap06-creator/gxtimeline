@@ -648,3 +648,12 @@ tr.row:hover .add-sub,.add-sub:focus{opacity:1}
 @media (hover:none){.add-sub{opacity:.8}}
 .add-item{margin-left:6px;padding:1px 8px;font-size:11.5px;color:var(--muted)}
 body.readonly [data-act="manage-ws"],body.readonly .add-sub,body.readonly .add-item{display:none !important}
+
+/* Finance rows take their category colour: group items lightly tinted, sub items stronger */
+tr.row.parent td{background:color-mix(in srgb,var(--rowbg,#FFF4C2) 45%,#fff)}
+tr.row.child td{background:color-mix(in srgb,var(--rowbg,#FFF4C2) 80%,#fff)}
+tr.row.child:hover td,tr.row.parent:hover td{background:var(--rowbg,#FFF4C2)}
+tr.row.parent td.fin-item-cell{box-shadow:inset 4px 0 0 var(--rowfg,#C9A400)}
+tr.row.child td.fin-item-cell{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--rowfg,#C9A400) 55%,#fff)}
+tr.row.child .sub-dot{background:var(--rowfg,#C9A400)}
+td.merged{background:color-mix(in srgb,var(--rowbg,#FFF4C2) 45%,#fff) !important}

@@ -468,6 +468,21 @@ function rundownSeed() { return flowSeedItems(); }
 function zonesSeed() { return JSON.parse(JSON.stringify(FLOW_SEED.zones || [])); }
 function taskCategories() { return (db.settings.taskCategories || []).slice(); }
 var WS_CLASS = {'GX Connect':'connect','GX Got Talent':'ggt','Mobile Legends':'ml','HYROX':'hyrox','Event Day':'event'};
+// every category gets its own colour: the 4 programs keep theirs, the rest take the next colour from this palette
+var WS_FIXED = { connect: ['#5B2EA6', '#EEE6FB'], ggt: ['#9C2B22', '#FBE5E1'], ml: ['#2440A0', '#E3E9FB'], hyrox: ['#1E6B3A', '#E1F4E7'], event: ['#1A1A17', '#FFF4C2'] };
+var WS_PALETTE = [
+  ['#0F6E6E', '#DDF3F1'], ['#A14A00', '#FDEBDB'], ['#A3215F', '#FBE3EF'], ['#5C6B00', '#EEF3D2'], ['#0B5E8E', '#DDEFFA'], ['#7A4B1E', '#F3E8DC'],
+  ['#3D3FA8', '#E6E7FA'], ['#8A6A00', '#FBF0C9'], ['#8E2E9E', '#F5E2F8'], ['#2E6B4F', '#DFF0E7'], ['#B23A3A', '#FBE4E4'], ['#006D8F', '#D9F1F8'],
+  ['#C2410C', '#FFE8D9'], ['#6D28D9', '#EDE4FD'], ['#047857', '#D8F5EA'], ['#BE185D', '#FCE1EE'], ['#1D4ED8', '#E0E9FD'], ['#78350F', '#F6E9D7'],
+  ['#4D7C0F', '#E8F4D3'], ['#9D174D', '#F9DDE9'], ['#155E75', '#DAF0F6'], ['#92400E', '#FDECCB'], ['#5B21B6', '#EAE2FB'], ['#065F46', '#D5F2E6']
+];
+function wsColor(ws) {
+  if (WS_CLASS[ws]) return WS_FIXED[WS_CLASS[ws]];
+  var list = ((db && db.settings && db.settings.workstreams) || []).filter(function (w) { return !WS_CLASS[w]; });
+  var i = list.indexOf(ws);
+  if (i < 0) { i = 0; for (var k = 0; k < String(ws || '').length; k++) i = (i * 31 + String(ws).charCodeAt(k)) % 997; }
+  return WS_PALETTE[i % WS_PALETTE.length];
+}
 
 /* ================= Seed data ================= */
 // Budget data from sheet "EDIT DISINI" (Divisi Acara), built into the code so Finance is never empty.
@@ -629,7 +644,7 @@ function parseFlexDate(s) {
   return null;
 }
 function wsClass(ws) { return WS_CLASS[ws] || ''; }
-function wsTag(ws) { return '<span class="ws ' + wsClass(ws) + '">' + esc(ws || '—') + '</span>'; }
+function wsTag(ws) { var c = wsColor(ws); return '<span class="ws ' + wsClass(ws) + '" style="color:' + c[0] + ';background:' + c[1] + '">' + esc(ws || '—') + '</span>'; }
 function statusBadge(s) {
   var c = 'b-' + (statusDef(s).color || 'neutral');
   return '<span class="badge ' + c + '">' + esc(s) + '</span>';
@@ -1601,7 +1616,8 @@ function renderFinance() {
       task: '<td class="fin-task">' + (t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" title="' + esc(t.name) + '">' + esc(t.name) + '</a>' : '<span class="faint">—</span>') + '</td>',
       check: '<td>' + flagHtml + '</td>'
     };
-    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
+    var wc = wsColor(f.workstream);
+    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
       if (col.custom) return cfCell('finance', col, f);
       if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
       var h = cell[col.key] || '<td></td>';
@@ -1662,7 +1678,7 @@ function renderCalendar() {
 }
 function chip(t) {
   var s = dueState(t);
-  return '<button class="chip ' + wsClass(t.workstream) + ' ' + (s.kind === 'overdue' || s.kind === 'soon' || s.kind === 'done' ? s.kind : '') + '" data-act="cal-chip" data-id="' + t.id + '" title="' + esc(t.workstream + ' · ' + t.name + ' · ' + t.status) + '"><i class="sdot" style="background:' + (COLOR_VAR[statusDef(t.status).color] || 'var(--faint)') + '"></i>' + esc(t.name) + '</button>';
+  return '<button class="chip ' + wsClass(t.workstream) + ' ' + (s.kind === 'overdue' || s.kind === 'soon' || s.kind === 'done' ? s.kind : '') + '" style="border-left-color:' + wsColor(t.workstream)[0] + '" data-act="cal-chip" data-id="' + t.id + '" title="' + esc(t.workstream + ' · ' + t.name + ' · ' + t.status) + '"><i class="sdot" style="background:' + (COLOR_VAR[statusDef(t.status).color] || 'var(--faint)') + '"></i>' + esc(t.name) + '</button>';
 }
 
 /* ================= Modals ================= */
