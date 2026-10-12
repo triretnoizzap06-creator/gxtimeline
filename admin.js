@@ -10,6 +10,7 @@
     draft: null,                 // { version, updated_at, updated_by }
     published: null,             // { version, source_version, updated_at, updated_by }
     dirty: false, saving: false, saveError: '',
+    rev: 0, base: null,          // rev counts local edits; base = last draft data this editor saved/loaded (for merging)
     pub: '', pubError: '',       // '' | Publishing | Failed  (Draft / Published are derived)
     remoteNewer: null, conflictCache: null, notice: '',
     loginMsg: '', loginEmail: '', errorMsg: '',
@@ -36,14 +37,32 @@
       if (ev === 'SIGNED_OUT') { resetState(); S.phase = 'login'; rerender(); }
     });
     init();
-    window.addEventListener('beforeunload', function (e) { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
+    window.addEventListener('beforeunload', function (e) {
+      if (!S.dirty) return;
+      if (autoSaveOn() && !S.saving) save(false, true);      // last-moment flush; the browser may still cut it off
+      e.preventDefault(); e.returnValue = '';
+    });
     document.addEventListener('keydown', function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && Admin.canEdit()) { e.preventDefault(); save(false); }
     });
+    // keep every open admin panel in sync: refetch when the tab comes back, when the network returns
+    document.addEventListener('visibilitychange', function () {
+      if (S.phase !== 'ready') return;
+      if (document.visibilityState === 'hidden') { if (S.dirty && autoSaveOn() && !S.saving) save(false, true); }
+      else checkRemote();
+    });
+    window.addEventListener('online', function () { if (S.phase !== 'ready') return; S.netDown = false; updLive(); checkRemote(); if (S.dirty) scheduleAutoSave(200); });
+    window.addEventListener('offline', function () { updLive(); });
+    // anything waiting for the open modal (merging remote edits replaces the data the modal is editing)
+    var mr = document.getElementById('modalRoot');
+    if (mr && window.MutationObserver) new MutationObserver(function () { if (!modalOpen()) flushIdle(); }).observe(mr, { childList: true });
+    document.addEventListener('focusout', function () { if (pendingRender) setTimeout(function () { if (pendingRender) softRender(); }, 0); });
+    document.addEventListener('input', function (e) { if (e.target.closest && e.target.closest('#settingsForm,#teamForm')) S.formDirty = true; });
   };
   function resetState() {
     S.email = ''; S.role = null; S.draft = null; S.published = null; S.dirty = false; S.sideLoaded = false;
-    S.log = S.versions = S.admins = null; S.remoteNewer = S.conflictCache = null; S.pub = '';
+    S.log = S.versions = S.admins = null; S.remoteNewer = S.conflictCache = null; S.pub = ''; S.base = null;
+    clearTimeout(saveTimer); clearTimeout(pollT);
   }
   function addNav() {
     var nav = document.getElementById('nav');
@@ -79,44 +98,171 @@
         initWith(JSON.parse(JSON.stringify(pick.data)), true);
         return;
       }
-      S.draft = { version: draft.version, updated_at: draft.updated_at, updated_by: draft.updated_by };
-      var cache = readUnsaved();
+      S.draft = meta(draft);
+      App.setDb(clone(draft.data)); S.base = snapshot();
+      var cache = readUnsaved(), job = null;
       if (cache && cache.email === S.email && cache.data) {
         if (cache.baseVersion === draft.version) {
-          App.setDb(cache.data); S.dirty = true;
-          S.notice = 'Perubahan yang belum disimpan dari sesi sebelumnya dipulihkan. Klik Save untuk menyimpannya.';
-        } else { App.setDb(draft.data); S.conflictCache = cache; }
-      } else App.setDb(draft.data);
-      S.phase = 'ready';
-      startWatching();
+          App.setDb(cache.data); S.dirty = true; S.rev++;
+          S.notice = 'Perubahan yang belum tersimpan dari sesi sebelumnya dipulihkan' + (autoSaveOn() ? ' dan sedang disimpan.' : '. Klik Save untuk menyimpannya.');
+        } else {
+          // the draft moved on since then: merge the leftover edits on top of the newest draft
+          job = Sync.getVersion(cache.baseVersion).then(function (b) {
+            var merged = merge3(App.normalizeDb(clone(b.data)), App.normalizeDb(clone(cache.data)), clone(S.base));
+            if (stable(merged) === stable(S.base)) { clearUnsaved(); return; }
+            App.setDb(merged); S.dirty = true; S.rev++;
+            S.notice = 'Perubahan yang belum tersimpan dari ' + when(cache.at) + ' digabung dengan draft terbaru (v' + draft.version + ').';
+          }).catch(function () { S.conflictCache = cache; });
+        }
+      }
+      return Promise.resolve(job).then(function () {
+        S.phase = 'ready';
+        startWatching();
+        if (S.dirty) { Admin.markDirty(App.getDb()); }
+      });
     });
   }
+
+  /* ================= Realtime sync =================
+     Every open admin panel follows the draft row, every visitor follows the published row.
+     Supabase Realtime (websocket) is the fast path; polling is the fallback when the socket is down,
+     plus a refetch when the tab becomes visible again or the network comes back. */
+  var live = { draft: '', published: '' }, pollT = null, pulling = null, pendingRender = false, idleQ = [];
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function meta(d) { return { version: d.version, updated_at: d.updated_at, updated_by: d.updated_by }; }
+  function modalOpen() { var m = document.getElementById('modalRoot'); return !!(m && m.children.length); }
+  function whenNoModal() { return new Promise(function (res) { if (!modalOpen()) res(); else idleQ.push(res); }); }
+  function flushIdle() { var q = idleQ; idleQ = []; q.forEach(function (f) { f(); }); }
+  function typing() {
+    var a = document.activeElement, m = document.getElementById('main');
+    return !!(a && m && m.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  }
+  // re-render without yanking a field the user is typing in (or an unapplied settings form)
+  function softRender() {
+    if (typing() || (S.formDirty && App.getPage() === 'admin')) { pendingRender = true; updBar(); return; }
+    pendingRender = false; rerender();
+  }
+  function liveState() {
+    if (S.netDown || (typeof navigator !== 'undefined' && navigator.onLine === false)) return 'offline';
+    return live.draft === 'live' && live.published === 'live' ? 'live' : 'polling';
+  }
+  function updLive() { if (App.setLive) App.setLive(liveState()); }
   function startWatching() {
     if (watching) return; watching = true;
-    Sync.watch('draft', function () {
-      if (S.saving) return;
-      Sync.loadDraftMeta().then(function (meta) {
-        if (!meta || !S.draft || meta.version <= S.draft.version) return;
-        if (!S.dirty) {
-          return Sync.loadDraft().then(function (d) {
-            App.setDb(d.data); S.draft = { version: d.version, updated_at: d.updated_at, updated_by: d.updated_by };
-            rerender(); App.toast('Draft diperbarui oleh ' + (d.updated_by || 'admin lain'));
-          });
-        }
-        S.remoteNewer = meta; rerender();
-      }).catch(noop);
-    });
-    Sync.watch('published', function () {
-      Sync.loadPublishedMeta().then(function (m) { S.published = m; if (S.pub !== 'Publishing') rerender(); }).catch(noop);
-    });
+    Sync.watch('draft', function () { pullDraft(); }, function (st) { live.draft = st; updLive(); if (st === 'live') checkRemote(); });
+    Sync.watch('published', function () { pullPublishedMeta(); }, function (st) { live.published = st; updLive(); });
+    updLive(); schedulePoll();
   }
+  function schedulePoll() {
+    clearTimeout(pollT);
+    pollT = setTimeout(function () { checkRemote().then(schedulePoll, schedulePoll); }, liveState() === 'live' ? 30000 : 5000);
+  }
+  function checkRemote() {
+    if (S.phase !== 'ready') return Promise.resolve();
+    return Promise.all([Sync.loadDraftMeta(), Sync.loadPublishedMeta()]).then(function (r) {
+      if (S.netDown) { S.netDown = false; updLive(); }
+      setPublished(r[1]);
+      if (r[0] && (!S.draft || r[0].version > S.draft.version)) return pullDraft();
+    }, function () { S.netDown = true; updLive(); });
+  }
+  function pullPublishedMeta() { Sync.loadPublishedMeta().then(setPublished).catch(noop); }
+  function setPublished(m) {
+    if (!m) return;
+    var p = S.published;
+    if (p && p.source_version === m.source_version && p.updated_at === m.updated_at) return;
+    S.published = m; if (S.pub !== 'Publishing') updBar();
+  }
+  // fetch the newest draft and bring it into the editor (merging with unsaved edits)
+  function pullDraft() {
+    if (S.phase !== 'ready') return Promise.resolve();
+    if (S.saving || S.merging) { S.pullAfterSave = true; return Promise.resolve(); }
+    if (pulling) return pulling;
+    pulling = whenNoModal().then(function () { return Sync.loadDraft(); }).then(function (d) {
+      if (!d || (S.draft && d.version <= S.draft.version)) return;
+      if (S.saving || S.merging) { S.pullAfterSave = true; return; }
+      applyRemote(d);
+    }).catch(noop).then(function () { pulling = null; });
+    return pulling;
+  }
+  function applyRemote(d) {
+    var theirs = App.normalizeDb(clone(d.data)), who = d.updated_by && d.updated_by !== S.email ? d.updated_by : '';
+    if (!S.dirty) {
+      App.setDb(theirs); S.base = snapshot(); S.draft = meta(d); clearUnsaved();
+      softRender(); if (who) App.toast('Diperbarui oleh ' + who);
+      return;
+    }
+    var merged = merge3(S.base, snapshot(), clone(theirs));
+    App.setDb(merged); S.base = clone(theirs); S.draft = meta(d); S.rev++;
+    if (stable(snapshot()) === stable(S.base)) { S.dirty = false; clearUnsaved(); }
+    else { S.dirty = true; cacheUnsaved(); scheduleAutoSave(300); }
+    softRender(); if (who) App.toast('Perubahan dari ' + who + ' digabung dengan editanmu');
+  }
+
+  /* ---------- 3-way merge ----------
+     base = last version both sides started from, mine = this editor, theirs = newest in the database.
+     Lists (tasks, finance, rundown, zones) merge per item id, items edited on both sides merge per field
+     (mine wins on the same field). Settings and other keys merge per key. Nothing edited is dropped:
+     an item deleted on one side but edited on the other is kept. */
+  var LISTS = ['tasks', 'finance', 'rundown', 'zones'];
+  function same(a, b) { return stable(a) === stable(b); }
+  function mergeKeys(b, m, t) {
+    b = b || {}; m = m || {}; t = t || {};
+    var out = {}, keys = {};
+    [b, m, t].forEach(function (o) { Object.keys(o).forEach(function (k) { keys[k] = 1; }); });
+    Object.keys(keys).forEach(function (k) {
+      var v = (k in m) !== (k in b) || !same(m[k], b[k]) ? m[k] : t[k];
+      if (v !== undefined) out[k] = v;
+    });
+    return out;
+  }
+  function byId(a) { var o = {}; (a || []).forEach(function (x) { if (x && x.id != null) o[x.id] = x; }); return o; }
+  function mergeList(b, m, t) {
+    var B = byId(b), M = byId(m), T = byId(t), val = {}, ids = {};
+    [b, m, t].forEach(function (a) { (a || []).forEach(function (x) { if (x && x.id != null) ids[x.id] = 1; }); });
+    Object.keys(ids).forEach(function (id) {
+      var inB = id in B, inM = id in M, inT = id in T;
+      var mCh = inB ? (!inM || !same(M[id], B[id])) : inM;
+      var tCh = inB ? (!inT || !same(T[id], B[id])) : inT;
+      var r;
+      if (!mCh) r = inT ? T[id] : null;
+      else if (!tCh) r = inM ? M[id] : null;
+      else if (inM && inT) r = mergeKeys(inB ? B[id] : {}, M[id], T[id]);
+      else r = inM ? M[id] : T[id];
+      if (r) val[id] = r;
+    });
+    function rel(a, ref) { return (a || []).map(function (x) { return x && x.id; }).filter(function (id) { return id in ref; }); }
+    var mMoved = rel(m, B).join('|') !== rel(b, M).join('|'), tMoved = rel(t, B).join('|') !== rel(b, T).join('|');
+    var primary = mMoved && !tMoved ? m : t, secondary = primary === m ? t : m;
+    var res = [], seen = {}, prev = null;
+    (primary || []).forEach(function (x) { if (x && val[x.id] && !seen[x.id]) { res.push(x.id); seen[x.id] = 1; } });
+    (secondary || []).forEach(function (x) {
+      if (!x || !val[x.id]) return;
+      if (seen[x.id]) { prev = x.id; return; }
+      res.splice(prev == null ? 0 : res.indexOf(prev) + 1, 0, x.id); seen[x.id] = 1; prev = x.id;
+    });
+    return res.map(function (id) { return val[id]; });
+  }
+  function merge3(b, m, t) {
+    b = b || {};
+    var top = function (o) { var c = {}; Object.keys(o || {}).forEach(function (k) { if (LISTS.indexOf(k) < 0 && k !== 'settings') c[k] = o[k]; }); return c; };
+    var out = mergeKeys(top(b), top(m), top(t));
+    LISTS.forEach(function (k) { out[k] = mergeList(b[k], m[k], t[k]); });
+    out.settings = mergeKeys(b.settings, m.settings, t.settings);
+    out.seq = Math.max(+m.seq || 0, +t.seq || 0);
+    return App.normalizeDb(out);
+  }
+  Admin._merge3 = merge3;   // used by the tests
 
   /* ================= Unsaved cache (survives refresh, never touches the public data) ================= */
   function readUnsaved() { try { return JSON.parse(localStorage.getItem(UNSAVED_KEY) || 'null'); } catch (e) { return null; } }
   function clearUnsaved() { try { localStorage.removeItem(UNSAVED_KEY); } catch (e) {} }
-  Admin.markDirty = function (d) {
-    S.dirty = true;
-    try { localStorage.setItem(UNSAVED_KEY, JSON.stringify({ email: S.email, baseVersion: S.draft ? S.draft.version : 0, data: d, at: Date.now() })); } catch (e) {}
+  function cacheUnsaved() {
+    try { localStorage.setItem(UNSAVED_KEY, JSON.stringify({ email: S.email, baseVersion: S.draft ? S.draft.version : 0, data: App.getDb(), at: Date.now() })); } catch (e) {}
+  }
+  Admin.markDirty = function () {
+    S.dirty = true; S.rev++;
+    cacheUnsaved();
+    scheduleAutoSave();
     return true;
   };
   function findLocalData() {
@@ -132,37 +278,90 @@
     return out;
   }
 
-  /* ================= Save ================= */
-  function snapshot() { var d = JSON.parse(JSON.stringify(App.getDb())); delete d.savedAt; return d; }
-  function save(force) {
+  /* ================= Save (auto-save + manual) ================= */
+  var saveTimer = null, retryT = null, pubT = null, conflictTries = 0;
+  function autoSaveOn() { var s = App.getDb().settings || {}; return s.autoSave !== false; }
+  function autoPublishOn() { var s = App.getDb().settings || {}; return s.autoPublish !== false; }
+  Admin.autoSaveOn = function () { return !!App && autoSaveOn(); };
+  function scheduleAutoSave(delay) {
+    if (!autoSaveOn() || !Admin.canEdit()) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { if (S.dirty) save(false, true); }, delay == null ? 1200 : delay);
+  }
+  function snapshot() { var d = clone(App.getDb()); delete d.savedAt; return d; }
+  function save(force, auto) {
     if (!Admin.canEdit()) return Promise.resolve(false);
-    if (!S.dirty && S.draft && !force) { App.toast('Tidak ada perubahan untuk disimpan.'); return Promise.resolve(true); }
-    S.saving = true; S.saveError = ''; rerender();
-    return Sync.saveDraft(snapshot(), S.draft ? S.draft.version : 0, !!force).then(function (v) {
+    if (S.saving || S.merging) { S.saveQueued = true; return S.saveP || Promise.resolve(false); }
+    if (!S.dirty && S.draft && !force) { if (!auto) App.toast('Tidak ada perubahan untuk disimpan.'); return Promise.resolve(true); }
+    clearTimeout(saveTimer); clearTimeout(retryT);
+    var rev = S.rev, snap = snapshot();
+    S.saving = true; S.saveError = ''; updBar();
+    S.saveP = Sync.saveDraft(snap, S.draft ? S.draft.version : 0, !!force).then(function (v) {
       S.draft = { version: v, updated_at: new Date().toISOString(), updated_by: S.email };
-      S.dirty = false; S.saving = false; S.conflictCache = null; S.remoteNewer = null; S.notice = '';
+      S.base = snap; S.saving = false; S.conflictCache = null; S.remoteNewer = null; conflictTries = 0;
+      if (S.rev === rev) { S.dirty = false; clearUnsaved(); } else { cacheUnsaved(); scheduleAutoSave(400); }
       if (S.pub === 'Failed') S.pub = '';
-      clearUnsaved(); rerender(); refreshHistory();
-      App.toast('Tersimpan ke database · versi ' + v);
+      if (!auto) { S.notice = ''; App.toast('Tersimpan ke database · versi ' + v); }
+      if (App.getPage() === 'admin') softRender(); else updBar();
+      refreshHistory();
+      if (S.role === 'admin' && autoPublishOn()) schedulePublish();
       return true;
-    }).catch(function (err) {
+    }, function (err) {
       S.saving = false;
-      if (err.conflict) { rerender(); conflictDialog(err.conflict); return false; }
-      S.saveError = err.message; rerender(); App.toast('Gagal menyimpan: ' + err.message, true);
+      if (err.conflict) {
+        if (conflictTries++ < 3) return mergeThenSave(auto);
+        conflictTries = 0; softRender(); conflictDialog(err.conflict); return false;
+      }
+      S.saveError = err.message; softRender();
+      if (!auto) App.toast('Gagal menyimpan: ' + err.message, true);
+      if (autoSaveOn()) retryT = setTimeout(function () { if (S.dirty) save(false, true); }, 8000);
       return false;
+    }).then(function (ok) {
+      if (S.saveQueued) { S.saveQueued = false; if (S.dirty) scheduleAutoSave(200); }
+      if (S.pullAfterSave) { S.pullAfterSave = false; pullDraft(); }
+      return ok;
     });
+    return S.saveP;
+  }
+  // someone saved first: pull their version, merge ours on top, save again
+  function mergeThenSave(auto) {
+    S.merging = true; updBar();
+    return whenNoModal().then(function () { return Sync.loadDraft(); }).then(function (d) {
+      S.merging = false;
+      if (d) applyRemote(d);
+      return S.dirty ? save(false, true) : true;
+    }, function (err) {
+      S.merging = false; S.saveError = err.message; softRender(); return false;
+    }).then(function (ok) { if (ok && !auto) App.toast('Tersimpan · digabung dengan perubahan admin lain'); return ok; });
   }
   function conflictDialog(current) {
-    App.openModal('<div class="modal-h"><h3>Draft sudah diubah orang lain</h3></div><div class="modal-b one"><p style="margin:0">Draft di database sekarang versi <b>' + current + '</b>, sedangkan kamu mulai mengedit dari versi <b>' + (S.draft ? S.draft.version : 0) + '</b>.</p>' +
+    App.openModal('<div class="modal-h"><h3>Draft sudah diubah orang lain</h3></div><div class="modal-b one"><p style="margin:0">Draft di database sekarang versi <b>' + current + '</b>, sedangkan kamu mulai mengedit dari versi <b>' + (S.draft ? S.draft.version : 0) + '</b>. Penggabungan otomatis gagal beberapa kali.</p>' +
       '<p class="muted" style="margin:0">Versi lama tetap tersimpan di Version history, jadi pilihan apa pun tidak menghapus data.</p></div>' +
       '<div class="modal-f"><button class="btn" data-admin="load-latest">Muat versi terbaru (buang perubahanku)</button><div class="right"><button class="btn primary" data-admin="force-save">Simpan versiku sebagai terbaru</button></div></div>', 'sm', { allowReadonly: true });
   }
   function loadLatest() {
     return Sync.loadDraft().then(function (d) {
-      App.setDb(d.data); S.draft = { version: d.version, updated_at: d.updated_at, updated_by: d.updated_by };
+      App.setDb(d.data); S.draft = meta(d); S.base = snapshot();
       S.dirty = false; S.remoteNewer = null; S.conflictCache = null; clearUnsaved(); App.closeModal(); rerender();
       App.toast('Draft terbaru dimuat (versi ' + d.version + ')');
     }).catch(function (e) { App.toast(e.message, true); });
+  }
+  // admin + auto-publish: every saved draft goes live right after it is saved
+  function schedulePublish() { clearTimeout(pubT); pubT = setTimeout(autoPublish, 250); }
+  function autoPublish() {
+    if (S.role !== 'admin' || !S.draft) return;
+    if (S.pub === 'Publishing') { S.pubQueued = true; return; }
+    if (S.published && S.published.source_version === S.draft.version) return;
+    S.pub = 'Publishing'; updBar();
+    Sync.publish('Auto-publish').then(function (r) {
+      S.published = { source_version: r.source_version, updated_at: r.published_at, updated_by: r.published_by };
+      S.pub = ''; S.pubError = '';
+      if (App.getPage() === 'admin') softRender(); else updBar();
+      refreshHistory();
+    }, function (err) {
+      S.pub = 'Failed'; S.pubError = err.message; softRender();
+      Sync.logEvent('content', 'Failed', S.draft ? S.draft.version : null, err.message).catch(noop);
+    }).then(function () { if (S.pubQueued) { S.pubQueued = false; schedulePublish(); } });
   }
 
   /* ================= Publish ================= */
@@ -330,10 +529,19 @@
 
   /* ================= Admin bar (every page) ================= */
   var PILL = { Draft: 'b-warn', Publishing: 'b-info', Published: 'b-ok', Failed: 'b-crit' };
-  Admin.barHtml = function () {
-    var saveState = S.saving ? ['b-info', 'Saving…'] : S.saveError ? ['b-crit', 'Save error'] : S.dirty ? ['b-warn', 'Unsaved changes'] : ['b-ok', 'Saved' + (S.draft ? ' · v' + S.draft.version : '')];
+  function updBar() {
+    var el = document.querySelector('.admin-bar');
+    if (!el) return;
+    var tmp = document.createElement('div'); tmp.innerHTML = barCore();
+    el.parentNode.replaceChild(tmp.firstChild, el);
+  }
+  Admin.barHtml = function () { return barCore() + bannersHtml(); };
+  function barCore() {
+    var auto = autoSaveOn();
+    var saveState = S.saving || S.merging ? ['b-info', auto ? 'Menyimpan…' : 'Saving…'] : S.saveError ? ['b-crit', 'Gagal simpan'] :
+      S.dirty ? (auto ? ['b-info', 'Menyimpan…'] : ['b-warn', 'Unsaved changes']) : ['b-ok', (auto ? 'Tersimpan otomatis' : 'Saved') + (S.draft ? ' · v' + S.draft.version : '')];
     var ps = pubStatus();
-    var h = '<div class="admin-bar" role="region" aria-label="Admin controls">' +
+    return '<div class="admin-bar" role="region" aria-label="Admin controls">' +
       '<div class="ab-who"><span class="ab-tag">' + (S.role === 'admin' ? 'ADMIN' : 'EDITOR') + '</span><span class="ab-email">' + esc(S.email) + '</span></div>' +
       '<div class="ab-status"><span class="badge ' + saveState[0] + '" title="Status penyimpanan ke database">' + saveState[1] + '</span>' +
       '<span class="badge ' + PILL[ps] + '" title="Status website live">' + (ps === 'Draft' ? 'Draft · belum live' : ps === 'Published' ? 'Published · live' : ps) + '</span></div>' +
@@ -341,18 +549,22 @@
       '<button class="btn accent" data-admin="publish" ' + (S.role !== 'admin' || S.pub === 'Publishing' || S.saving ? 'disabled title="' + (S.role !== 'admin' ? 'Hanya admin yang bisa publish' : '') + '"' : '') + '>' + (S.pub === 'Publishing' ? 'Publishing…' : 'Publish') + '</button>' +
       (App.getPage() !== 'admin' ? '<button class="btn" data-admin="open-panel">Admin panel</button>' : '') +
       '<a class="btn ghost" href="/" target="_blank" rel="noopener">Lihat website ↗</a></div></div>';
+  }
+  function bannersHtml() {
+    var h = '';
     if (S.saveError) h += '<div class="banner" role="alert">Gagal menyimpan: ' + esc(S.saveError) + ' Perubahan masih ada di browser ini. <button class="btn sm" data-admin="save">Coba lagi</button></div>';
     if (S.pub === 'Failed') h += '<div class="banner" role="alert">Publish gagal: ' + esc(S.pubError) + ' Website live tidak berubah. <button class="btn sm" data-admin="publish">Coba lagi</button></div>';
     if (S.conflictCache) h += '<div class="banner warn" role="alert">Ada perubahan yang belum disimpan dari ' + when(S.conflictCache.at) + ', tapi draft di database sudah berubah sejak itu (sekarang v' + S.draft.version + '). <button class="btn sm" data-admin="restore-cache">Pakai perubahanku</button> <button class="btn sm" data-admin="discard-cache">Buang</button></div>';
     if (S.remoteNewer) h += '<div class="banner warn" role="alert">' + esc(S.remoteNewer.updated_by || 'Admin lain') + ' menyimpan draft versi ' + S.remoteNewer.version + '. Kamu masih punya perubahan yang belum disimpan. <button class="btn sm" data-admin="load-latest">Muat versi terbaru</button> <button class="btn sm" data-admin="save">Simpan versiku</button></div>';
     if (S.notice) h += '<div class="banner warn" role="status">' + esc(S.notice) + ' <button class="btn sm ghost" data-admin="dismiss-notice">Tutup</button></div>';
     return h;
-  };
+  }
 
   /* ================= Admin panel page ================= */
   Admin.renderPage = function () {
     var db = App.getDb(), st = App.taskStats(), ft = App.totals(db.finance), ps = pubStatus(), isAdmin = S.role === 'admin';
     var set = db.settings;
+    S.formDirty = false;
     var h = '<div class="page-head"><div><h1>Admin panel</h1><p>Satu tempat untuk menyimpan, mempublish, dan mengatur website. Perubahan task & budget dilakukan di halamannya masing-masing, lalu Save + Publish dari sini atau dari bar di atas.</p></div></div>';
 
     // Status
@@ -366,6 +578,15 @@
       admCard('Konten', '<div class="adm-big">' + st.total + ' <span class="muted" style="font-size:14px;font-weight:500">task</span> · ' + db.finance.length + ' <span class="muted" style="font-size:14px;font-weight:500">budget</span> · ' + (db.rundown || []).length + ' <span class="muted" style="font-size:14px;font-weight:500">segmen</span></div><div class="muted">Est. budget ' + App.rp(ft.est) + ' · paid ' + App.rp(ft.paid) + '</div>' +
         '<div class="adm-links"><button class="btn sm" data-admin="go" data-page="timeline">Timeline</button><button class="btn sm" data-admin="go" data-page="rundown">Rundown</button><button class="btn sm" data-admin="go" data-page="tasks">Tasks</button><button class="btn sm" data-admin="go" data-page="finance">Finance</button><button class="btn sm" data-admin="go" data-page="calendar">Calendar</button></div>') +
       '</div>';
+
+    // Realtime
+    var aS = set.autoSave !== false, aP = set.autoPublish !== false, ls = liveState();
+    h += section('Realtime & sinkronisasi', '<div class="adm-two"><div>' +
+      '<p style="margin-top:0">Status koneksi: <span class="live-pill lv-' + ls + '"><i></i>' + LIVE_TEXT[ls] + '</span></p>' +
+      '<ul class="adm-list"><li>Semua yang membuka admin panel (beda device / beda email) melihat perubahan draft dalam hitungan detik.</li><li>Pengunjung website melihat versi live terbaru tanpa refresh.</li><li>Kalau dua orang mengedit bersamaan, perubahan digabung per item. Kalau field yang sama diubah dua-duanya, yang terakhir disimpan yang dipakai.</li><li>Kalau koneksi realtime putus, website otomatis cek ulang tiap 5 detik.</li></ul></div><div>' +
+      '<label class="tgl"><input type="checkbox" data-admin-toggle="autoSave"' + (aS ? ' checked' : '') + (isAdmin ? '' : ' disabled') + '><span><b>Auto-save</b><br><span class="muted">Setiap perubahan langsung tersimpan ke database (±1 detik). Tidak perlu klik Save.</span></span></label>' +
+      '<label class="tgl"><input type="checkbox" data-admin-toggle="autoPublish"' + (aP ? ' checked' : '') + (isAdmin ? '' : ' disabled') + '><span><b>Auto-publish perubahan admin</b><br><span class="muted">Perubahan yang disimpan admin langsung tampil di website live. Perubahan editor tetap menunggu admin Publish.</span></span></label>' +
+      (isAdmin ? '' : '<p class="muted" style="font-size:12.5px">Hanya admin yang bisa mengubah pengaturan ini.</p>') + '</div></div>');
 
     // What is managed where
     h += section('Apa yang bisa diatur dari sini', '<div class="adm-two"><div><h4>Langsung dari website (Save → Publish)</h4><ul class="adm-list"><li>Task: tambah, edit, hapus, status, PIC, deadline, notes, blockers</li><li>Budget & pembayaran: item, invoice, DP, status, bukti transfer</li><li>Master Timeline & Calendar (ikut data task)</li><li>Rundown Event Day: tambah, edit, hapus segmen, PIC, status</li><li>Kategori task & workstream: tambah, ganti nama, urutkan, hapus</li><li>Judul, subjudul, nama & tanggal event, preparation deadlines, tagline</li><li>Logo (upload) dan link budget sheet</li><li>Tim admin/editor, riwayat publish, restore versi lama</li></ul></div>' +
@@ -439,6 +660,11 @@
     h += section('Akun', '<p style="margin-top:0">Login sebagai <b>' + esc(S.email) + '</b> (' + esc(S.role) + ').</p><button class="btn" data-admin="signout">Logout</button>');
     return h;
   };
+  var LIVE_TEXT = { live: 'Live · realtime', polling: 'Sinkron tiap 5 detik', offline: 'Offline · menunggu koneksi' };
+  function savedHint() {
+    return autoSaveOn() ? ' Karena auto-save aktif, ini langsung tersimpan' + (S.role === 'admin' && autoPublishOn() ? ' dan tampil di website' : '') + '. Versi sebelumnya tetap ada di Version history.'
+      : ' Belum tersimpan sampai kamu klik Save; versi sebelumnya tetap ada di Version history.';
+  }
   function admCard(title, body) { return '<div class="adm-card"><h3>' + title + '</h3>' + body + '</div>'; }
   function section(title, body) { return '<section class="adm-section"><h2>' + title + '</h2>' + body + '</section>'; }
   function tool(title, desc, act) { return '<button class="adm-tool" data-admin="tool" data-tool="' + act + '"><b>' + title + '</b><span>' + desc + '</span></button>'; }
@@ -482,8 +708,8 @@
         break;
       case 'load-version':
         var v = +el.getAttribute('data-v');
-        App.confirmDialog('Muat versi ' + v + ' ke editor?', 'Isi editor diganti dengan versi ' + v + '. Ini belum mengubah database atau website sampai kamu klik Save (dan Publish).' + (S.dirty ? ' Perubahan yang belum disimpan sekarang akan diganti.' : ''), 'Muat versi ' + v, function () {
-          Sync.getVersion(v).then(function (r) { App.setDb(r.data); Admin.markDirty(App.getDb()); rerender(); App.toast('Versi ' + v + ' dimuat ke editor. Klik Save untuk menjadikannya draft terbaru.'); }).catch(function (err) { App.toast(err.message, true); });
+        App.confirmDialog('Muat versi ' + v + ' ke editor?', 'Isi editor diganti dengan versi ' + v + '.' + savedHint() + (S.dirty ? ' Perubahan yang belum disimpan sekarang akan diganti.' : ''), 'Muat versi ' + v, function () {
+          Sync.getVersion(v).then(function (r) { App.setDb(r.data); Admin.markDirty(App.getDb()); rerender(); App.toast('Versi ' + v + ' dimuat ke editor' + (autoSaveOn() ? ' dan disimpan sebagai draft terbaru.' : '. Klik Save untuk menjadikannya draft terbaru.')); }).catch(function (err) { App.toast(err.message, true); });
         });
         break;
       case 'reset-settings':
@@ -497,12 +723,12 @@
         if (t === 'export') App.exportDialog();
         else if (t === 'restore') App.importJsonDialog();
         else if (t === 'import-csv') App.importCsvDialog();
-        else if (t === 'reset-seed') App.confirmDialog('Muat data awal bawaan?', 'Isi editor diganti dengan data awal (timeline + budget sheet Acara). Belum tersimpan sampai kamu klik Save; versi sebelumnya tetap ada di Version history.', 'Muat data awal', function () { App.setDb(App.seed()); App.commit('Data awal dimuat ke editor'); });
+        else if (t === 'reset-seed') App.confirmDialog('Muat data awal bawaan?', 'Isi editor diganti dengan data awal (timeline + budget sheet Acara).' + savedHint(), 'Muat data awal', function () { App.setDb(App.seed()); App.commit('Data awal dimuat ke editor'); });
         else if (t === 'from-browser') {
           var found = findLocalData().filter(function (x) { return x.key !== 'seed'; });
           if (!found.length) { App.toast('Tidak ada data lama di browser ini.', true); break; }
           var f = found[0];
-          App.confirmDialog('Pakai data dari browser ini?', f.tasks + ' task dan ' + f.finance + ' baris budget (terakhir diubah ' + when(f.savedAt || f.at) + ') dimuat ke editor. Belum tersimpan sampai kamu klik Save.', 'Muat data', function () { App.setDb(JSON.parse(JSON.stringify(f.data))); App.commit('Data browser dimuat ke editor'); });
+          App.confirmDialog('Pakai data dari browser ini?', f.tasks + ' task dan ' + f.finance + ' baris budget (terakhir diubah ' + when(f.savedAt || f.at) + ') dimuat ke editor.' + savedHint(), 'Muat data', function () { App.setDb(JSON.parse(JSON.stringify(f.data))); App.commit('Data browser dimuat ke editor'); });
         }
         break;
     }
@@ -519,7 +745,7 @@
     } else if (f.id === 'publishForm') {
       e.preventDefault(); doPublish((document.getElementById('pubNote').value || '').trim());
     } else if (f.id === 'settingsForm') {
-      e.preventDefault(); applySettingsForm(f);
+      e.preventDefault(); S.formDirty = false; applySettingsForm(f);
     } else if (f.id === 'teamForm') {
       e.preventDefault();
       var em = (document.getElementById('teamEmail').value || '').trim().toLowerCase(), role = document.getElementById('teamRole').value;
@@ -542,6 +768,12 @@
     } else if (t.id === 'logoUrlText') {
       var hid2 = document.getElementById('f-logoUrl'), p2 = document.getElementById('logoPreview');
       if (hid2) hid2.value = t.value.trim(); if (p2) p2.src = t.value.trim() || App.DEFAULT_LOGO;
+    } else if (t.hasAttribute('data-admin-toggle')) {
+      if (S.role !== 'admin') { t.checked = !t.checked; return; }
+      var key = t.getAttribute('data-admin-toggle');
+      App.getDb().settings[key] = !!t.checked;
+      App.commit(key === 'autoSave' ? (t.checked ? 'Auto-save aktif' : 'Auto-save dimatikan — klik Save untuk menyimpan') : (t.checked ? 'Auto-publish aktif' : 'Auto-publish dimatikan — klik Publish untuk tayang'));
+      if (key === 'autoSave' && !t.checked) save(false, true);   // the switch itself still has to reach the others
     } else if (t.hasAttribute('data-admin-role')) {
       var em = t.getAttribute('data-admin-role'), role = t.value;
       Sync.setAdmin(em, role).then(function () { return Sync.listAdmins(); }).then(function (r) { S.admins = r; rerender(); App.toast(em + ' sekarang ' + role); }).catch(function (err) { App.toast(err.message, true); rerender(); });

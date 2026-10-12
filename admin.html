@@ -39,6 +39,7 @@
       <button data-page="calendar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/></svg>Calendar<span class="count" id="navOverdue"></span></button>
     </nav>
     <div class="countdown" id="countdown"></div>
+    <div class="live-pill" id="liveInd" hidden role="status" aria-live="polite"></div>
     <div class="side-tools" id="sideTools" hidden>
       <span class="label">Data</span>
       <button data-tool="export">Export backup (JSON)</button>
@@ -57,7 +58,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="/sync.js"></script>
 <script src="/admin.js"></script>
-<script src="/data/budget-seed.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

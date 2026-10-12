@@ -140,14 +140,19 @@
     });
   };
 
-  /* ---------- Realtime ---------- */
-  // cb runs when the row changes; callers refetch (payloads can be large).
-  Sync.watch = function (id, cb) {
+  /* ---------- Realtime ----------
+     Supabase Realtime pushes row changes over a websocket. cb() runs on every change of that row
+     (callers refetch; payloads can be large). onStatus(state) gets 'live' | 'down'. */
+  Sync.watch = function (id, cb, onStatus) {
     try {
       return client.channel('gx27-content-' + id)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'site_content', filter: 'id=eq.' + id }, function () { cb(); })
-        .subscribe();
-    } catch (e) { return null; }
+        .subscribe(function (status) {
+          if (!onStatus) return;
+          if (status === 'SUBSCRIBED') onStatus('live');
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onStatus('down');
+        });
+    } catch (e) { if (onStatus) onStatus('down'); return null; }
   };
 
   /* ---------- Vercel deploy (via our own serverless functions) ---------- */

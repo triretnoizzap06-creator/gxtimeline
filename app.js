@@ -8,6 +8,14 @@ var EVENT_DATE = '2026-11-21';
 var PREP_DEADLINES = ['2026-10-13','2026-10-16','2026-10-20','2026-10-23','2026-10-24','2026-10-26','2026-10-30'];
 // Logo embedded in the code so it never depends on a separate file being uploaded/deployed
 var DEFAULT_LOGO = 'data:image/png;base64,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';
+var STATUS_DEFAULT_SEED = [
+  { name: 'Not Started', type: 'todo', color: 'neutral' },
+  { name: 'In Progress', type: 'progress', color: 'info' },
+  { name: 'Pending', type: 'pending', color: 'crit' },
+  { name: 'Done', type: 'done', color: 'ok' }
+];
+// statuses from older versions of the site → their replacement in the 4-status set
+var STATUS_MIGRATE = { 'Pending Approval': 'Pending', 'Blocked': 'Pending' };
 var SETTINGS_DEFAULT = {
   siteTitle: 'GX27 Operations',
   siteSubtitle: 'Festival of Connectivity · 21 Nov 2026',
@@ -18,9 +26,12 @@ var SETTINGS_DEFAULT = {
   timelineTagline: 'One journey · Four programs · One celebration',
   logoUrl: '',
   budgetSheetUrl: '',
+  taskStatuses: JSON.parse(JSON.stringify(STATUS_DEFAULT_SEED)),
   taskCategories: ['Program Milestone','Preparation','Procurement','Production','Coordination','Event Day'],
   workstreams: ['GX Connect','GX Got Talent','Mobile Legends','HYROX','Event Day','Preparation','Design & Production','Games & Competition','Entertainment','Tenants','Doorprize',"Winners' Prizes",'Procurement','Emergency Fund'],
-  rundownTitle: ''
+  rundownTitle: '',
+  autoSave: true,      // admin panel saves every change to the database automatically
+  autoPublish: true    // changes saved by an admin go live right away
 };
 // 'local'  = no database configured: edits stay in this browser (original behaviour)
 // 'public' = visitors: read-only view of the published content
@@ -31,11 +42,23 @@ function normalizeDb(d) {
   d = d && typeof d === 'object' ? d : {};
   if (!Array.isArray(d.tasks)) d.tasks = [];
   if (!Array.isArray(d.finance)) d.finance = [];
-  var s = {}, k;
-  for (k in SETTINGS_DEFAULT) s[k] = SETTINGS_DEFAULT[k];
+  var s = {}, k, hadStatuses = !!(d.settings && Array.isArray(d.settings.taskStatuses) && d.settings.taskStatuses.length);
+  for (k in SETTINGS_DEFAULT) s[k] = (SETTINGS_DEFAULT[k] && typeof SETTINGS_DEFAULT[k] === 'object') ? JSON.parse(JSON.stringify(SETTINGS_DEFAULT[k])) : SETTINGS_DEFAULT[k];
   if (d.settings && typeof d.settings === 'object') for (k in d.settings) if (d.settings[k] !== undefined && d.settings[k] !== null) s[k] = d.settings[k];
   if (!Array.isArray(s.prepDeadlines)) s.prepDeadlines = SETTINGS_DEFAULT.prepDeadlines.slice();
   ['taskCategories', 'workstreams'].forEach(function (k) { if (!Array.isArray(s[k]) || !s[k].length) s[k] = SETTINGS_DEFAULT[k].slice(); });
+  if (!hadStatuses) {
+    // first time statuses are managed: use the 4 standard statuses and move old ones over
+    s.taskStatuses = JSON.parse(JSON.stringify(STATUS_DEFAULT_SEED));
+    (d.tasks || []).forEach(function (t) { if (STATUS_MIGRATE[t.status]) t.status = STATUS_MIGRATE[t.status]; });
+  }
+  s.taskStatuses = s.taskStatuses.filter(function (x) { return x && x.name; }).map(function (x) {
+    return { name: String(x.name), type: ['todo', 'progress', 'pending', 'blocked', 'done'].indexOf(x.type) > -1 ? x.type : 'todo', color: x.color || 'neutral' };
+  });
+  // a status used by a task but missing from the list is added so it stays visible and editable
+  (d.tasks || []).forEach(function (t) {
+    if (t.status && !s.taskStatuses.some(function (x) { return x.name === t.status; })) s.taskStatuses.push({ name: t.status, type: 'todo', color: 'neutral' });
+  });
   d.settings = s;
   // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
   if (!Array.isArray(d.rundown)) { d.rundown = rundownSeed(); d.flowMeta = FLOW_SEED.meta; }
@@ -46,12 +69,23 @@ function normalizeDb(d) {
   // the detailed cue sheet (sheet R5) was removed from the site
   d.rundown = d.rundown.filter(function (r) { return r.group === 'flow' || !r.group; });
   delete d.rundownMeta;
+  var stNames = s.taskStatuses.map(function (x) { return x.name; }), stFirst = (s.taskStatuses.filter(function (x) { return x.type === 'todo'; })[0] || s.taskStatuses[0]).name;
+  d.rundown.forEach(function (r) {
+    if (RUNDOWN_STATUS_MIGRATE[r.status] && stNames.indexOf(r.status) < 0) r.status = stNames.indexOf(RUNDOWN_STATUS_MIGRATE[r.status]) > -1 ? RUNDOWN_STATUS_MIGRATE[r.status] : stFirst;
+    if (!r.status) r.status = stFirst;
+  });
   d.rundown.forEach(function (r) { r.group = 'flow'; if (!Array.isArray(r.concurrent)) r.concurrent = r.concurrent ? String(r.concurrent).split('\n').filter(Boolean) : []; });
   if (!Array.isArray(d.zones)) d.zones = zonesSeed();
   // an empty rundown/zone list that nobody emptied on purpose (e.g. saved while a data file was missing) gets the built-in data back
   if (!d.rundown.length && !d.rundownCleared) d.rundown = rundownSeed();
   if (!d.zones.length && !d.zonesCleared) d.zones = zonesSeed();
   if (!d.flowMeta) d.flowMeta = FLOW_SEED.meta;
+  if ((SHEET_SEED.items || []).length) {
+    var sh = budgetSeedHash();
+    if (!d.finance.length && !d.financeCleared) applyBudgetSeed(d);                       // never leave Finance empty
+    else if (d.budgetSeedHash !== sh && d.budgetSeedHash && d.financeHashAtSeed === financeHash(d.finance) && MODE !== 'public') applyBudgetSeed(d); // untouched → follow the newest sheet
+    d.budgetUpdateAvailable = d.budgetSeedHash !== sh && d.budgetIgnored !== sh;
+  }
   return d;
 }
 function logoSrc() { return (db && db.settings && db.settings.logoUrl) || DEFAULT_LOGO; }
@@ -66,10 +100,29 @@ function applySettings() {
   var logoEl = document.querySelector('.brand .logo'); if (logoEl && logoEl.getAttribute('src') !== logoSrc()) logoEl.setAttribute('src', logoSrc());
   document.title = title + (MODE === 'admin' ? ' · Admin' : '');
 }
-var TASK_STATUS = ['Not Started','In Progress','Pending Approval','Blocked','Done'];
+// Task statuses are managed from the site (Kelola kategori → Status task). Each status has a TYPE that drives behaviour:
+//   todo = belum mulai · progress = berjalan · pending = menunggu (approval/vendor) · blocked = terhambat (wajib isi blocker) · done = selesai
+var STATUS_TYPES = [
+  { value: 'todo', label: 'Belum mulai' }, { value: 'progress', label: 'Berjalan' }, { value: 'pending', label: 'Menunggu' },
+  { value: 'blocked', label: 'Terhambat (wajib isi blocker)' }, { value: 'done', label: 'Selesai' }
+];
+var STATUS_COLORS = [
+  { value: 'neutral', label: 'Abu-abu' }, { value: 'info', label: 'Biru' }, { value: 'warn', label: 'Kuning' },
+  { value: 'crit', label: 'Merah' }, { value: 'ok', label: 'Hijau' }, { value: 'accent', label: 'Kuning GX' }
+];
+var STATUS_DEFAULT = STATUS_DEFAULT_SEED;
+var TYPE_ORDER = { blocked: 0, pending: 1, progress: 2, todo: 3, done: 4 };
+function statusDefs() { return (db && db.settings && db.settings.taskStatuses) || STATUS_DEFAULT; }
+function statusList() { return statusDefs().map(function (x) { return x.name; }); }
+function statusDef(name) { var d = statusDefs().filter(function (x) { return x.name === name; })[0]; return d || { name: name, type: 'todo', color: 'neutral' }; }
+function sType(status) { return statusDef(status).type; }
+function isDone(t) { return sType(t.status) === 'done'; }
+function defaultStatus() { var d = statusDefs().filter(function (x) { return x.type === 'todo'; })[0] || statusDefs()[0]; return d ? d.name : 'Not Started'; }
+var COLOR_VAR = { neutral: 'var(--faint)', info: 'var(--info)', warn: 'var(--warn)', crit: 'var(--crit)', ok: 'var(--ok)', accent: 'var(--accent)' };
 var PAY_STATUS = ['Pending Payment','DP Paid','Full Paid'];
 var INV_STATUS = ['Unsubmitted','Submitted'];
-var RUNDOWN_STATUS = ['Planned','Confirmed','Changed','Cancelled'];
+// Rundown segments use the same managed statuses as tasks; older rundown statuses map onto them
+var RUNDOWN_STATUS_MIGRATE = { 'Planned': 'Not Started', 'Confirmed': 'Done', 'Changed': 'Pending', 'Cancelled': 'Pending' };
 // Festival Flow rundown (from the Figma "GX 27 Festival Flow" page) is built into the code so it can never go missing
 var FLOW_SEED = window.GX27_FLOW_SEED || {
   meta: { title: 'GX 27 Festival Flow', subtitle: 'Main program dan aktivitas paralel dalam satu alur festival.', openGate: '09:00', close: '20:00', source: 'Figma · Festival Run of Show' },
@@ -106,7 +159,7 @@ var FLOW_SEED = window.GX27_FLOW_SEED || {
 };
 function flowSeedItems() {
   return JSON.parse(JSON.stringify(FLOW_SEED.items || [])).map(function (r, i) {
-    return Object.assign({ order: i + 1, duration: '', mcCue: '', av: '', ops: '', docs: '', pic: '', status: 'Planned', source: 'confirmed', verifyNote: '' }, r, { group: 'flow' });
+    return Object.assign({ order: i + 1, duration: '', mcCue: '', av: '', ops: '', docs: '', pic: '', status: defaultStatus(), source: 'confirmed', verifyNote: '' }, r, { group: 'flow' });
   });
 }
 function rundownSeed() { return flowSeedItems(); }
@@ -115,7 +168,9 @@ function taskCategories() { return (db.settings.taskCategories || []).slice(); }
 var WS_CLASS = {'GX Connect':'connect','GX Got Talent':'ggt','Mobile Legends':'ml','HYROX':'hyrox','Event Day':'event'};
 
 /* ================= Seed data ================= */
-var SHEET_SEED = window.GX27_BUDGET_SEED || { meta: null, items: [] };
+// Budget data from sheet "EDIT DISINI" (Divisi Acara), built into the code so Finance is never empty.
+// Regenerate with: python3 scripts/build_seed.py <file.xlsx>
+var SHEET_SEED = /*BUDGET_SEED_START*/{"meta": {"sheet": "EDIT DISINI", "division": "Acara", "rows": "3–79", "snapshot": "2026-10-12", "file": "Budgeting_Anniv_GX_27TH_1.xlsx", "hash": "8084f60c8381", "sheetSubTotal": 204280139, "sheetTransferred": 77636370, "sheetRemaining": 126643769, "url": "https://docs.google.com/spreadsheets/d/1-6E2tecKu3eUOzAKM1xRfm7rfmjFb-ynQYEhlvz_K6w/edit"}, "items": [{"key": "ojisan", "parent": null, "sheetRow": 3, "item": "OJISAN — Kodak + Soft/Hard Copy Printing", "workstream": "GX Connect", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 10020000, "dp": null, "fee": 5000, "paidAmount": 10020000, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Full Paid", "receipt": "Full Payment Kodak", "invoiceRef": "Kodak HD Power Flash Single-Use Camera ISO 800 39 Exposures + Scan .pdf", "notes": "OJISAN\n\n• Kamera: ready stock.\n• Proses develop, scan, print/cetak untuk 20 kamera membutuhkan waktu ±1 hari.", "kind": "vendor", "task": "Procurement · GX Connect (Kodak, print, frame, cash fund)", "source": "confirmed", "verifyNote": "INV Total baris 3 (10.020.000) = Kodak + Printing, jadi dicatat sebagai satu invoice vendor."}, {"key": null, "parent": "ojisan", "sheetRow": 3, "item": "Kodak", "workstream": "GX Connect", "qty": 22, "unit": "Pcs", "unitCost": 360000, "estimated": 7920000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "ojisan", "sheetRow": 4, "item": "Soft Copy & Hard Copy Printing", "workstream": "GX Connect", "qty": 20, "unit": "Pcs", "unitCost": 105000, "estimated": 2100000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Landscape", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 5, "item": "Frame / Corkboard 40x60 cm", "workstream": "GX Connect", "qty": 21, "unit": "Pcs", "unitCost": 150000, "estimated": 3150000, "invoice": 2548620, "dp": null, "fee": null, "paidAmount": 2548620, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Full Paid", "receipt": "Full Payment Shopee Frame", "invoiceRef": "Frame Corkboard", "notes": "Kolom Pelunasan: Full Payment", "kind": "", "task": "Procurement · GX Connect (Kodak, print, frame, cash fund)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 6, "item": "Decoration Cash Fund / Team", "workstream": "GX Connect", "qty": 20, "unit": "Pcs", "unitCost": 100000, "estimated": 2000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Cash · Kolom Pelunasan: Full Payment", "kind": "", "task": "Procurement · GX Connect (Kodak, print, frame, cash fund)", "source": "verify", "verifyNote": "Kolom Pelunasan \"Full Payment\" tapi Payment Status \"Submitted\" — konfirmasi sudah dibayar atau belum."}, {"key": null, "parent": null, "sheetRow": 7, "item": "Wristband Kertas", "workstream": "GX Access Point", "qty": 750, "unit": "Pack", "unitCost": 1500, "estimated": 1125000, "invoice": 750000, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "INV Gelang + Kartu Game", "notes": "", "kind": "", "task": "Paper wristbands", "source": "verify", "verifyNote": "Invoice 750.000 diambil dari kolom Note (angka). Invoice gabungan \"INV Gelang + Kartu Game\"."}, {"key": null, "parent": null, "sheetRow": 8, "item": "Cetak Card", "workstream": "GX Game Pass", "qty": 700, "unit": "Pcs", "unitCost": 10000, "estimated": 7000000, "invoice": 1187500, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "INV Gelang + Kartu Game", "notes": "Kartu Game: 1.187.500 · Sisa: 5.812.500 → diambil untuk budget Rider 2.800.000 (TF ke Mandiri HC a.n. PT IMAM\n[no. rek. disembunyikan — lihat sheet]) (status baris 9: Submitted)", "kind": "", "task": "Procurement · GX Game Pass (card & stamp)", "source": "verify", "verifyNote": "Invoice 1.187.500 diambil dari kolom Note. Invoice gabungan \"INV Gelang + Kartu Game\"."}, {"key": null, "parent": null, "sheetRow": 10, "item": "Stamp", "workstream": "GX Game Pass", "qty": 15, "unit": "Pcs", "unitCost": 80000, "estimated": 1200000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Procurement · GX Game Pass (card & stamp)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 11, "item": "Budget Top 5 Team", "workstream": "GX Got Talent", "qty": 5, "unit": "Pack", "unitCost": 1000000, "estimated": 5000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "GX Got Talent · Budget Top 5 Team", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 12, "item": "DIY Totebag", "workstream": "Activation", "qty": 1, "unit": "Pack", "unitCost": 5000000, "estimated": 5000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "Mini Heat Press", "notes": "1 pcs mini heat press : Rp 291.167", "kind": "", "task": "DIY tote bag design & package", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 13, "item": "Sticker DTF", "workstream": "Activation", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "DTF sticker design", "source": "verify", "verifyNote": "Baris 13 hanya berisi \"Sticker DTF:\" di kolom Note, tanpa nominal."}, {"key": null, "parent": null, "sheetRow": 14, "item": "Face Painting", "workstream": "Activation", "qty": 6, "unit": "Pack", "unitCost": 950000, "estimated": 5700000, "invoice": 4200000, "dp": 2100000, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP Face Painting", "invoiceRef": "Invoice Face Painting", "notes": "", "kind": "", "task": "Vendor · Face Painting & Tarot Reader", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 15, "item": "Tarot Reader", "workstream": "Activation", "qty": 6, "unit": "Pack", "unitCost": 312500, "estimated": 1875000, "invoice": 1875000, "dp": 937500, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP Tarot", "invoiceRef": "Invoice Tarot", "notes": "", "kind": "", "task": "Vendor · Face Painting & Tarot Reader", "source": "confirmed", "verifyNote": ""}, {"key": "bali", "parent": null, "sheetRow": 16, "item": "Bali Games Rental", "workstream": "Games", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 5750500, "dp": 2875250, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP Bali Games Rental", "invoiceRef": "Bali Games Rental Invoice.pdf", "notes": "DP 50%", "kind": "vendor", "task": "Bali Games rental coordination", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 17, "item": "Falling stick game", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 1000000, "estimated": 1000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 18, "item": "Axe throwing", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 500000, "estimated": 500000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 19, "item": "Zig zag game", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 700000, "estimated": 700000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 20, "item": "Counter balance", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 750000, "estimated": 750000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 21, "item": "Buzz wire", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 750000, "estimated": 750000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 22, "item": "Mini golf", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 850000, "estimated": 850000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 23, "item": "Man Power", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 300000, "estimated": 300000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 24, "item": "Branding", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 400000, "estimated": 400000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bali", "sheetRow": 25, "item": "Taxes", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 500500, "estimated": 500500, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": "bumi", "parent": null, "sheetRow": 26, "item": "BUMI Creative", "workstream": "Games", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 29500000, "dp": 14750000, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP BUMI Games", "invoiceRef": "BUMI Creative Quotation", "notes": "DP 50%", "kind": "vendor", "task": "BUMI Creative game equipment coordination", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bumi", "sheetRow": 27, "item": "Scream Meter", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 6000000, "estimated": 6000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Half day", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bumi", "sheetRow": 28, "item": "Race simulator", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 12000000, "estimated": 12000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Full day", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bumi", "sheetRow": 29, "item": "Basket ball game", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 7000000, "estimated": 7000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Half day", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "bumi", "sheetRow": 30, "item": "Dingdong arcade", "workstream": "Games", "qty": 1, "unit": "Pack", "unitCost": 4500000, "estimated": 4500000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Half day", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 31, "item": "Hyrox (Full Service)+ppn", "workstream": "Competition", "qty": 1, "unit": "Pack", "unitCost": 44400000, "estimated": 44400000, "invoice": 40000000, "dp": 20000000, "fee": 2500, "paidAmount": null, "paymentDeadline": "2026-11-14", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP Hyrox", "invoiceRef": "ULTRAFIT-Invoice-GlobalXtreme-Anniversary-Race-2.pdf", "notes": "Need Payment Asap DP 50% > 20 juta\n\nPelunasan latest by 14 November", "kind": "", "task": "Vendor · HYROX full service (Ultrafit)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 32, "item": "Spectrum Band", "workstream": "Entertainment", "qty": 1, "unit": "Pax", "unitCost": 16000000, "estimated": 16000000, "invoice": 16000000, "dp": 8000000, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP Spectrum", "invoiceRef": "INVOICE 21 NOVEMBER 2026.pdf", "notes": "Need Payment Asap DP 50% > 8 juta", "kind": "", "task": "Vendor · Entertainment (band, MC, DJ)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 33, "item": "Not So Koplo", "workstream": "Entertainment", "qty": 1, "unit": "Pax", "unitCost": 5000000, "estimated": 5000000, "invoice": 3500000, "dp": 1750000, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP Not So Koplo", "invoiceRef": "Invoice NSK to GlobalXtreme Bali.pdf", "notes": "Need Payment ASAP\nDP 50% > 1.750 jt", "kind": "", "task": "Vendor · Entertainment (band, MC, DJ)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 34, "item": "MC - The Palbis", "workstream": "Entertainment", "qty": 1, "unit": "Pax", "unitCost": 9000000, "estimated": 9000000, "invoice": 8000000, "dp": 4000000, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP MC The Palbis", "invoiceRef": "INV THE PALBIS - 21 NOV 26.pdf", "notes": "Include riders hospitality  - 1jt \nDP 50% > 4 juta", "kind": "", "task": "Vendor · Entertainment (band, MC, DJ)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 35, "item": "DJ (Basement)", "workstream": "Entertainment", "qty": 3, "unit": "Pax", "unitCost": 1185000, "estimated": 3555000, "invoice": 3500000, "dp": 1750000, "fee": 2500, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "DP Paid", "receipt": "DP DJ Bestman", "invoiceRef": "Invoice DJ Bestman GX27.pdf", "notes": "3 jam", "kind": "", "task": "Vendor · Entertainment (band, MC, DJ)", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 36, "item": "Foamboard", "workstream": "Winners", "qty": 27, "unit": "Pcs", "unitCost": 50000, "estimated": 1350000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Winners & Xtreme Award landscape foamboards", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 37, "item": "GX Connect - People's Choice", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 1000000, "estimated": 1000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 38, "item": "GX Connect - Most Engaging", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 2000000, "estimated": 2000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 39, "item": "GX Connect - Champion", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 3000000, "estimated": 3000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 40, "item": "Got Talent Juara 1", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 3000000, "estimated": 3000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 41, "item": "Got Talent Juara 2", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 2000000, "estimated": 2000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 42, "item": "Got Talent Juara 3", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 1000000, "estimated": 1000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 43, "item": "Hyrox 1", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 1500000, "estimated": 2000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 44, "item": "Hyrox 2", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 1000000, "estimated": 1000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 45, "item": "Hyrox 3", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 500000, "estimated": 500000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 46, "item": "Mobile Legend 1", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 2000000, "estimated": 2000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 47, "item": "Mobile Legend 2", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 1000000, "estimated": 1000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 48, "item": "Mobile Legend 3", "workstream": "Hadiah Lomba dan Team Building", "qty": 1, "unit": "Pax", "unitCost": 500000, "estimated": 500000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": null, "sheetRow": 49, "item": "Mini Games", "workstream": "Hadiah Lomba dan Team Building", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Dana Lain-Lain", "kind": "", "task": "Hadiah pemenang lomba & team building", "source": "confirmed", "verifyNote": ""}, {"key": "door", "parent": null, "sheetRow": 50, "item": "Doorprize — dana dicairkan ke rekening Marketing (belanja Shopee)", "workstream": "Doorprize", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 8880000, "dp": null, "fee": null, "paidAmount": 8880000, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Full Paid", "receipt": "Full Payment Doorprize ke Rek MKT\n\nRealisasi Full Payment Shopee Doorprize", "invoiceRef": "", "notes": "Pembelian semuanya di shopee langsung kirim ke kantor GX\ndikarenakan ada discount dan lebih murah\nTotal : 8jt\nPakai VA BCA? TBA \n[no. VA disembunyikan — lihat sheet]\n\nDana 8.880.000 dicairkan ke rekening Marketing", "kind": "vendor", "task": "Doorprize procurement", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 51, "item": "Smart TV Xiaomi  43\"", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 3039080, "estimated": 3039080, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 52, "item": "Dispenser Galon Bawah Cosmos", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 1500000, "estimated": 1319338, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 53, "item": "Mesin Kopi", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 1271861, "estimated": 1271861, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 54, "item": "Airfryer 4.2L Philips", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 788018, "estimated": 788018, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 55, "item": "Smartwatch Xiaomi Band 11", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 499000, "estimated": 499000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 57, "item": "Kompor Listrik AZKO", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 229900, "estimated": 229900, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 58, "item": "Panasonic Airpurifier", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 169000, "estimated": 169000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 59, "item": "Kettle Listrik Informa", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 164000, "estimated": 164000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 60, "item": "Setrika Uap", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 140068, "estimated": 140068, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 61, "item": "Kipas Angin Krisbow", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 114900, "estimated": 114900, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 62, "item": "TWS Baseus", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 113501, "estimated": 113501, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 63, "item": "Chopper AZKO", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 88500, "estimated": 88500, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "4–6 Tahun — 7 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 65, "item": "Tripod TNW", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 87196, "estimated": 87196, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 66, "item": "Timbangan Badan Digital Speed", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 58649, "estimated": 58649, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 67, "item": "Jas Hujan", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 85043, "estimated": 85043, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 68, "item": "Mini Vacuum Cleaner Philips", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 97000, "estimated": 97000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 69, "item": "Tumbler Le Dingding", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 88147, "estimated": 88147, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 70, "item": "Selimut Unitwo", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 98900, "estimated": 98900, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 71, "item": "Diffuser Scented", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 69058, "estimated": 69058, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 72, "item": "Payung Lipat", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 58480, "estimated": 58480, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Full Paid", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "door", "sheetRow": 73, "item": "Admin", "workstream": "Doorprize", "qty": 1, "unit": "Pcs", "unitCost": 75000, "estimated": 75000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "0–3 Tahun — 8 Doorprize ·", "kind": "", "task": null, "source": "confirmed", "verifyNote": ""}, {"key": "emerg", "parent": null, "sheetRow": 74, "item": "Emergency Fund — Lain-lain", "workstream": "Emergency Fund", "qty": 1, "unit": "Pack", "unitCost": 20000000, "estimated": 20000000, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Alokasi dana; pemakaian dicatat sebagai baris di bawahnya.", "kind": "allocation", "task": "Alokasi Emergency Fund", "source": "confirmed", "verifyNote": ""}, {"key": null, "parent": "emerg", "sheetRow": 74, "item": "Mobile Legends — Event Esport Service", "workstream": "Emergency Fund", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 5000000, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Full Paid", "receipt": "Full Payment Mobile Legend", "invoiceRef": "Event Esport Service ( GlobalXtreme).pdf", "notes": "Note sheet: Mobile Legend 5.000.000", "kind": "", "task": null, "source": "verify", "verifyNote": "Nominal 5.000.000 dari kolom Note. Status Full Paid tapi transfer tidak tercatat di kolom DP Total sheet."}, {"key": null, "parent": "emerg", "sheetRow": 75, "item": "Acrylic A4 (Registrasi, Face Painting, DIY)", "workstream": "Emergency Fund", "qty": 3, "unit": "Pcs", "unitCost": null, "estimated": null, "invoice": 156080, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "Acrylic A4", "notes": "3 pcs acrylic A4 (Registrasi, Face Painting, DIY) = Rp 156.080", "kind": "", "task": null, "source": "verify", "verifyNote": "Nominal dari kolom Note."}, {"key": null, "parent": "emerg", "sheetRow": 76, "item": "Anniv Ceremony — Smoke Color Celebration", "workstream": "Emergency Fund", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 58500, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "Smoke Color Celebration", "notes": "Anniv Cermon | Smoke Color Celebration: Rp58.500", "kind": "", "task": null, "source": "verify", "verifyNote": "Nominal dari kolom Note."}, {"key": null, "parent": "emerg", "sheetRow": 77, "item": "Anniv Ceremony — Air Honk", "workstream": "Emergency Fund", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Anniv Cermon | Air Honk:", "kind": "", "task": null, "source": "verify", "verifyNote": "Nominal belum ada di sheet."}, {"key": null, "parent": "emerg", "sheetRow": 78, "item": "Anniv Ceremony — Balon Tepuk", "workstream": "Emergency Fund", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": 1350000, "dp": 675000, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Submitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "Invoice Balon Tepuk", "notes": "Anniv Cermon | Balon Tepuk\n\nTotal Invoice: Rp1.350.000\nDP 50%: Rp675.000", "kind": "", "task": null, "source": "verify", "verifyNote": "Invoice & DP 50% dari kolom Note. Status sheet \"Submitted\" → DP dianggap belum dibayar."}, {"key": null, "parent": "emerg", "sheetRow": 79, "item": "Sample Gelang dan Card", "workstream": "Emergency Fund", "qty": null, "unit": "", "unitCost": null, "estimated": null, "invoice": null, "dp": null, "fee": null, "paidAmount": null, "paymentDeadline": "", "invoiceStatus": "Unsubmitted", "paymentStatus": "Pending Payment", "receipt": "", "invoiceRef": "", "notes": "Sample Gelang dan Card", "kind": "", "task": null, "source": "verify", "verifyNote": "Tanpa nominal & status di sheet."}]}/*BUDGET_SEED_END*/;
 
 function seed() {
   var tasks = [], finance = [], n = 0;
@@ -166,7 +221,7 @@ function seed() {
   p('Design & Production','A6 QR voting placeholders for each team','2026-10-16','Production','','20 team voting frames.');
   p('Design & Production','Winners & Xtreme Award landscape foamboards','2026-10-16','Production');
   p('Design & Production','DTF sticker design','2026-10-16','Production','In Progress','Design belum selesai.');
-  p('Design & Production','DIY tote bag design & package','2026-10-16','Production','Pending Approval','Menunggu approval Pak X.','Approval Pak X','Nama approver tercatat sebagai "Pak X" — konfirmasi nama aslinya.');
+  p('Design & Production','DIY tote bag design & package','2026-10-16','Production','Pending','Menunggu approval Pak X.','Approval Pak X','Nama approver tercatat sebagai "Pak X" — konfirmasi nama aslinya.');
   p('Design & Production','"Wishes for GlobalXtreme" lettering','2026-10-23','Production','','Approve design before productio…','',TRUNC);
   p('Design & Production','Mobile Legends TV still image','2026-10-30','Production','','For Qualifier, Semifinal, 3rd Plac…','',TRUNC);
   p('Design & Production','Print all required foamboards & game vouchers','2026-10-30','Production','','Includes approved Alfamart and …','Final design approvals',TRUNC);
@@ -184,28 +239,50 @@ function seed() {
     var o = t('Preparation', 'Preparation deadline · ' + fmtDate(d, true), '', d, '', 'Preparation');
     o.source = 'verify'; o.verifyNote = 'Tanggal confirmed. Lihat task lain dengan deadline yang sama; scope checkpoint ini belum dirinci.';
   });
-  // Procurement tasks that hold the budget lines from the sheet (task scope confirmed by the sheet; deadline & PIC not given)
-  [['GX Connect','Procurement · GX Connect (Kodak, print, frame, cash fund)'], ['GX Game Pass','Procurement · GX Game Pass (card & stamp)'],
-   ['GX Got Talent','GX Got Talent · Budget Top 5 Team'], ['Activation','Vendor · Face Painting & Tarot Reader'],
-   ['HYROX','Vendor · HYROX full service (Ultrafit)'], ['Entertainment','Vendor · Entertainment (band, MC, DJ)'],
-   ["Winners' Prizes",'Hadiah pemenang lomba & team building'], ['Doorprize','Doorprize procurement'], ['Emergency Fund','Alokasi Emergency Fund']
-  ].forEach(function (x) {
-    var o = t(x[0], x[1], '', '', '', 'Procurement');
-    o.source = 'verify'; o.verifyNote = 'Task dibuat untuk menampung baris budget di sheet. Deadline, PIC & status operasional belum diberikan.';
+  var base = { seq: n, tasks: tasks, finance: [] };
+  applyBudgetSeed(base);
+  n = base.seq; finance = base.finance;
+  return { version: 3, seq: n, tasks: tasks, finance: finance, budgetSeedHash: base.budgetSeedHash, financeHashAtSeed: base.financeHashAtSeed, rundown: rundownSeed(), flowMeta: FLOW_SEED.meta, zones: zonesSeed(), flowSeeded: true, meta: SHEET_SEED.meta, settings: JSON.parse(JSON.stringify(SETTINGS_DEFAULT)), savedAt: Date.now() };
+}
+
+
+/* ---------- Budget data from the sheet ---------- */
+var BUDGET_TASKS = [
+  ['GX Connect', 'Procurement · GX Connect (Kodak, print, frame, cash fund)'], ['GX Game Pass', 'Procurement · GX Game Pass (card & stamp)'],
+  ['GX Got Talent', 'GX Got Talent · Budget Top 5 Team'], ['Activation', 'Vendor · Face Painting & Tarot Reader'],
+  ['HYROX', 'Vendor · HYROX full service (Ultrafit)'], ['Entertainment', 'Vendor · Entertainment (band, MC, DJ)'],
+  ["Winners' Prizes", 'Hadiah pemenang lomba & team building'], ['Doorprize', 'Doorprize procurement'], ['Emergency Fund', 'Alokasi Emergency Fund']
+];
+function strHash(str) { var h = 5381; for (var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+function financeHash(list) {
+  return strHash(JSON.stringify((list || []).map(function (f) { var o = {}; Object.keys(f).sort().forEach(function (k) { if (k !== 'updatedAt' && k !== 'createdAt') o[k] = f[k]; }); return o; })));
+}
+function budgetSeedHash() { return (SHEET_SEED.meta && SHEET_SEED.meta.hash) || strHash(JSON.stringify(SHEET_SEED.items || [])); }
+// Replaces d.finance with the sheet rows. Tasks are kept; missing budget tasks are created; rows link to tasks by name.
+function applyBudgetSeed(d) {
+  var used = {};
+  (d.tasks || []).concat(d.finance || [], d.rundown || [], d.zones || []).forEach(function (x) { used[x.id] = 1; });
+  function nid(prefix) { var id; do { d.seq = (d.seq || 0) + 1; id = prefix + String(d.seq).padStart(3, '0'); } while (used[id]); used[id] = 1; return id; }
+  var now = Date.now();
+  BUDGET_TASKS.forEach(function (x) {
+    if (d.tasks.some(function (t) { return t.name === x[1]; })) return;
+    d.tasks.push({ id: nid('T'), name: x[1], workstream: x[0], category: 'Procurement', start: '', deadline: '', pic: '', status: defaultStatus(),
+      notes: '', blockers: '', dependencies: '', source: 'verify', verifyNote: 'Task dibuat untuk menampung baris budget di sheet. Deadline, PIC & status operasional belum diberikan.', createdAt: now, updatedAt: now });
   });
-  // Finance: sheet "EDIT DISINI", Divisi Acara (rows 3–79)
-  var keyToId = {};
-  SHEET_SEED.items.forEach(function (r) {
-    var f = { id: id('F') };
+  var keyToId = {}, out = [];
+  (SHEET_SEED.items || []).forEach(function (r) {
+    var f = { id: nid('F') };
     for (var k in r) if (k !== 'key' && k !== 'parent' && k !== 'task') f[k] = r[k];
     if (r.key) keyToId[r.key] = f.id;
     f.parentId = r.parent ? keyToId[r.parent] : null;
-    var tk = r.task ? tasks.filter(function (x) { return x.name === r.task; })[0] : null;
+    var tk = r.task ? d.tasks.filter(function (x) { return x.name === r.task; })[0] : null;
     f.taskId = tk ? tk.id : null;
-    f.createdAt = f.updatedAt = Date.now();
-    finance.push(f);
+    f.createdAt = f.updatedAt = now;
+    out.push(f);
   });
-  return { version: 3, seq: n, tasks: tasks, finance: finance, rundown: rundownSeed(), flowMeta: FLOW_SEED.meta, zones: zonesSeed(), flowSeeded: true, meta: SHEET_SEED.meta, settings: JSON.parse(JSON.stringify(SETTINGS_DEFAULT)), savedAt: Date.now() };
+  d.finance = out; d.meta = SHEET_SEED.meta; d.budgetSeedHash = budgetSeedHash(); d.financeHashAtSeed = financeHash(out);
+  delete d.financeCleared;
+  return d;
 }
 
 /* ================= Utilities ================= */
@@ -252,7 +329,7 @@ function parseFlexDate(s) {
 function wsClass(ws) { return WS_CLASS[ws] || ''; }
 function wsTag(ws) { return '<span class="ws ' + wsClass(ws) + '">' + esc(ws || '—') + '</span>'; }
 function statusBadge(s) {
-  var c = { 'Done': 'b-ok', 'In Progress': 'b-info', 'Pending Approval': 'b-warn', 'Blocked': 'b-crit', 'Not Started': 'b-neutral' }[s] || 'b-neutral';
+  var c = 'b-' + (statusDef(s).color || 'neutral');
   return '<span class="badge ' + c + '">' + esc(s) + '</span>';
 }
 function payBadge(s) { var c = { 'Full Paid': 'b-ok', 'DP Paid': 'b-info', 'Pending Payment': 'b-warn' }[s] || 'b-neutral'; return '<span class="badge ' + c + '">' + esc(s) + '</span>'; }
@@ -287,13 +364,16 @@ function persist(d) {
 function commit(msg) {
   if (!canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
   var ok = persist(db); render();
-  if (msg) toast(ok ? msg + (MODE === 'admin' ? ' · klik Save untuk menyimpan ke database' : '') : 'Change kept for this session only — storage unavailable', !ok);
+  var hint = MODE === 'admin' && !(window.GX27Admin && window.GX27Admin.autoSaveOn && window.GX27Admin.autoSaveOn()) ? ' · klik Save untuk menyimpan ke database' : '';
+  if (msg) toast(ok ? msg + hint : 'Change kept for this session only — storage unavailable', !ok);
 }
 function nextId(prefix) {
   var used = {};
   [db.tasks, db.finance, db.rundown || [], db.zones || []].forEach(function (arr) { arr.forEach(function (x) { used[x.id] = 1; }); });
   var id;
-  do { db.seq = (db.seq || 0) + 1; id = prefix + String(db.seq).padStart(3, '0'); } while (used[id]);
+  // the short random tail keeps ids unique when two people add items at the same time on different devices
+  var tail = MODE === 'admin' ? '-' + Math.random().toString(36).slice(2, 6) : '';
+  do { db.seq = (db.seq || 0) + 1; id = prefix + String(db.seq).padStart(3, '0') + tail; } while (used[id]);
   return id;
 }
 function taskById(id) { for (var i = 0; i < db.tasks.length; i++) if (db.tasks[i].id === id) return db.tasks[i]; return null; }
@@ -320,7 +400,7 @@ function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } ca
 function dueState(t) {
   if (!t.deadline) return { kind: 'none', days: null };
   var days = daysBetween(todayISO(), t.deadline);
-  if (t.status === 'Done') return { kind: 'done', days: days };
+  if (isDone(t)) return { kind: 'done', days: days };
   if (days < 0) return { kind: 'overdue', days: days };
   if (days <= 3) return { kind: 'soon', days: days };
   return { kind: 'ok', days: days };
@@ -381,7 +461,8 @@ function totals(list) {
 function taskStats() {
   var s = { total: db.tasks.length, done: 0, prog: 0, appr: 0, blocked: 0, overdue: 0, notUpdated: 0 };
   db.tasks.forEach(function (t) {
-    if (t.status === 'Done') s.done++; else if (t.status === 'In Progress') s.prog++; else if (t.status === 'Pending Approval') s.appr++; else if (t.status === 'Blocked') s.blocked++;
+    var ty = sType(t.status);
+    if (ty === 'done') s.done++; else if (ty === 'progress') s.prog++; else if (ty === 'pending') s.appr++; else if (ty === 'blocked') s.blocked++;
     if (dueState(t).kind === 'overdue') s.overdue++;
   });
   return s;
@@ -441,8 +522,8 @@ function renderMaster() {
   var all = db.tasks.filter(function (t) { return t.deadline && (t.category === 'Event Day' || (PROGRAMS.indexOf(t.workstream) > -1 && t.category !== 'Procurement')); });
   var eventItems = all.filter(function (t) { return t.category === 'Event Day'; });
   var pre = all.filter(function (t) { return t.category !== 'Event Day' && hide.indexOf(t.workstream) < 0; });
-  var doneN = all.filter(function (t) { return t.status === 'Done'; }).length;
-  var nextT = all.filter(function (t) { return t.status !== 'Done' && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
+  var doneN = all.filter(isDone).length;
+  var nextT = all.filter(function (t) { return !isDone(t) && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px"><button class="btn primary" data-act="new-milestone">+ Add milestone</button><div class="mt-legend" role="group" aria-label="Show programs">' +
     PROGRAMS.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '" data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') + '</div></div></div>';
@@ -460,8 +541,8 @@ function renderMaster() {
     var rows = order.map(function (lab) {
       var g = groups[lab], dotCls = 'dot-' + wsClass(g[0].workstream);
       return '<div class="mt-row"><div class="mt-date"><i class="' + dotCls + '"></i>' + lab + '</div><div class="mt-items">' + g.map(function (t) {
-        var st = dueState(t), stColor = t.status === 'Done' ? 'var(--ok)' : st.kind === 'overdue' ? 'var(--crit)' : t.status === 'Blocked' ? 'var(--crit)' : t.status === 'In Progress' ? 'var(--info)' : t.status === 'Pending Approval' ? 'var(--warn)' : 'transparent';
-        return '<button class="mt-item' + (t.status === 'Done' ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(t.workstream) + '">' + esc(t.workstream) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '</span><span class="st" style="background:' + stColor + '"></span></button>';
+        var st = dueState(t), stColor = st.kind === 'overdue' ? 'var(--crit)' : (statusDef(t.status).color === 'neutral' ? 'transparent' : COLOR_VAR[statusDef(t.status).color] || 'transparent');
+        return '<button class="mt-item' + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(t.workstream) + '">' + esc(t.workstream) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '<span class="mt-st">' + statusBadge(t.status) + '</span></span></button>';
       }).join('') + '</div></div>';
     }).join('');
     return '<div class="mt-card"><div class="mt-card-h"><b>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</b><span>' + order.length + ' MILESTONES</span></div><div class="mt-rows">' + rows + '</div></div>';
@@ -470,7 +551,7 @@ function renderMaster() {
   if (eventItems.length) {
     var ed = eventItems[0].deadline;
     ev = '<div class="mt-event"><div><div class="d">' + fmtDate(ed, true).toUpperCase().replace(/^0/, '') + '</div><div class="l">EVENT DAY</div></div><div><h3>' + esc((db.settings.eventName || '').toUpperCase()) + '</h3><div class="mt-chips">' +
-      eventItems.map(function (t, i) { return '<button class="mt-chip' + (/ceremony/i.test(t.name) ? ' hl' : '') + (t.status === 'Done' ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status) + '">' + esc(t.name) + '</button>'; }).join('') +
+      eventItems.map(function (t, i) { return '<button style="--sc:' + (COLOR_VAR[statusDef(t.status).color] || 'var(--faint)') + '" class="mt-chip' + (/ceremony/i.test(t.name) ? ' hl' : '') + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status) + '">' + esc(t.name) + '</button>'; }).join('') +
       '<button class="mt-chip" data-act="new-event-item" aria-label="Add event day segment">+</button></div></div></div>';
   }
   var left = cards[0] || '', right = cards.slice(1).join('') + ev;
@@ -540,7 +621,7 @@ function renderFlow() {
       parts.push({ html: h, par: true }); return;
     }
     var r = b.items[0], live = rdLive(r, now), others = list.filter(function (x) { return x !== r && x.start === r.start; }).length;
-    h += '<button class="flow-item' + (live ? ' live' : '') + (r.status === 'Cancelled' ? ' cancelled' : '') + '" data-act="rd-open" data-id="' + r.id + '">' +
+    h += '<button class="flow-item' + (live ? ' live' : '') + (isDone(r) ? ' done' : '') + '" data-act="rd-open" data-id="' + r.id + '">' +
       '<span class="flow-time"><b>' + esc(r.start) + '</b><span>→ ' + esc(r.end) + '</span></span>' +
       '<span class="flow-card"><span class="flow-title"><b>' + esc(r.segment) + '</b>' + (r.location ? '<span class="flow-loc">' + esc(r.location) + '</span>' : '') + (others ? '<span class="badge b-info nodot">Paralel</span>' : '') + (live ? '<span class="badge b-accent nodot">Sedang berjalan</span>' : '') + rdBadges(r) + '</span>' +
       (r.flow ? '<span class="flow-desc">' + esc(r.flow) + '</span>' : '') +
@@ -557,7 +638,7 @@ function renderFlow() {
 }
 function rdBadges(r) {
   return (r.pic ? '<span class="fp-pic">PIC: ' + esc(r.pic) + '</span>' : '') +
-    (r.status && r.status !== 'Planned' ? '<span class="badge ' + ({ Confirmed: 'b-ok', Changed: 'b-warn', Cancelled: 'b-crit' }[r.status] || 'b-neutral') + '">' + esc(r.status) + '</span>' : '') +
+    statusBadge(r.status || defaultStatus()) +
     (r.source === 'verify' ? '<span class="src verify">Verify</span>' : '');
 }
 function rdDetail(r) {
@@ -575,7 +656,7 @@ function rdOpenDialog(id) {
 }
 function rundownForm(r, preset) {
   var isNew = !r;
-  r = r || Object.assign({ group: 'flow', start: '', end: '', duration: '', segment: '', location: '', flow: '', concurrent: [], mcCue: '', av: '', ops: '', docs: '', pic: '', status: 'Planned', source: 'confirmed', verifyNote: '' }, preset || {});
+  r = r || Object.assign({ group: 'flow', start: '', end: '', duration: '', segment: '', location: '', flow: '', concurrent: [], mcCue: '', av: '', ops: '', docs: '', pic: '', status: defaultStatus(), source: 'confirmed', verifyNote: '' }, preset || {});
   var locs = rdLocations('flow');
   var locList = '<datalist id="rdLocList">' + locs.map(function (l) { return '<option value="' + esc(l) + '">'; }).join('') + '</datalist>';
   openModal('<form id="rdForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Segmen baru' : 'Edit segmen') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
@@ -584,7 +665,7 @@ function rundownForm(r, preset) {
     field('start', 'Mulai', inp('start', r.start, 'time'), { req: true }) +
     field('end', 'Selesai', inp('end', r.end, 'time'), { hint: 'Segmen dengan jam mulai & selesai yang sama tampil sebagai program paralel.' }) +
     field('pic', 'PIC', inp('pic', r.pic, 'text', 'maxlength="120"')) +
-    field('status', 'Status', sel('status', RUNDOWN_STATUS, r.status || 'Planned')) +
+    field('status', 'Status', sel('status', withCurrent(statusList(), r.status), r.status || defaultStatus()), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('flow', 'Deskripsi / alur', ta('flow', r.flow), { full: true }) +
     field('concurrent', 'Concurrent (aktivitas bersamaan)', ta('concurrent', (r.concurrent || []).join('\n')), { full: true, hint: 'Satu per baris. Tampil sebagai chip di Festival Flow.' }) +
     field('ops', 'Catatan', ta('ops', r.ops), { full: true, hint: 'Opsional: crew, props, cue MC, dll.' }) +
@@ -649,14 +730,58 @@ function deleteRundown(id) {
 /* ---------- Category manager (task categories + workstreams) ---------- */
 var CAT_KINDS = {
   category: { label: 'Kategori task', key: 'taskCategories', hint: 'Dipakai di kolom Category pada task.' },
-  workstream: { label: 'Workstream / program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' }
+  workstream: { label: 'Workstream / program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' },
+  status: { label: 'Status task', key: 'taskStatuses', hint: '' }
 };
+function catTabs(kind) {
+  return '<div class="tabs" role="tablist" style="padding:0 18px;margin:0">' + Object.keys(CAT_KINDS).map(function (k) { return '<button type="button" role="tab" data-act="cat-tab" data-kind="' + k + '" aria-selected="' + (k === kind) + '">' + CAT_KINDS[k].label + '</button>'; }).join('') + '</div>';
+}
+function statusUsage(name) { return db.tasks.filter(function (t) { return t.status === name; }).length + (db.rundown || []).filter(function (r) { return r.status === name; }).length; }
+function statusManager() {
+  var list = db.settings.taskStatuses;
+  var rows = list.map(function (x, i) {
+    return '<div class="st-row"><span class="badge b-' + esc(x.color) + '" aria-hidden="true">' + esc(x.name) + '</span>' +
+      '<input class="input" id="st-name-' + i + '" data-st-idx="' + i + '" value="' + esc(x.name) + '" maxlength="40" aria-label="Nama status">' +
+      '<select class="select" id="st-type-' + i + '" aria-label="Jenis status">' + opts(STATUS_TYPES, x.type) + '</select>' +
+      '<select class="select" id="st-color-' + i + '" aria-label="Warna">' + opts(STATUS_COLORS, x.color) + '</select>' +
+      '<span class="cat-use">' + statusUsage(x.name) + ' dipakai</span>' +
+      '<span class="st-btns"><button class="btn sm" type="button" data-act="cat-move" data-kind="status" data-idx="' + i + '" data-dir="-1" aria-label="Naik"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="btn sm" type="button" data-act="cat-move" data-kind="status" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="status" data-idx="' + i + '">Hapus</button></span></div>';
+  }).join('');
+  var noDone = !list.some(function (x) { return x.type === 'done'; });
+  openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('status') +
+    '<div class="modal-b one"><p class="muted" style="margin:0">Status yang dipilih di task. <b>Jenis</b> menentukan perilakunya: <i>Selesai</i> dihitung sebagai task selesai (dicoret, masuk KPI Completed), <i>Terhambat</i> wajib isi blocker dan masuk daftar urgent, <i>Menunggu</i> masuk KPI Pending & tab Pending, <i>Berjalan</i> masuk KPI In progress. Ganti nama otomatis memperbarui semua task.</p>' +
+    (noDone ? '<div class="banner warn" style="margin:0">Belum ada status berjenis <b>Selesai</b>, jadi tidak ada task yang dihitung selesai.</div>' : '') +
+    '<div class="cat-list">' + rows + '</div>' +
+    '<div class="cat-add"><input class="input" id="stNew" placeholder="Nama status baru, mis. Waiting Vendor" maxlength="40"><select class="select" id="stNewType" aria-label="Jenis">' + opts(STATUS_TYPES, 'progress') + '</select><button type="button" class="btn" data-act="cat-add" data-kind="status">+ Tambah</button></div>' +
+    '<div class="form-err" id="catErr" hidden></div></div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan perubahan</button></div></div></form>', 'wide');
+  document.getElementById('stForm').onsubmit = function (e) {
+    e.preventDefault();
+    var next = [], renames = [], names = [];
+    for (var i = 0; i < list.length; i++) {
+      var nm = document.getElementById('st-name-' + i).value.trim();
+      if (!nm) { catErr('Nama status tidak boleh kosong.'); return; }
+      if (names.indexOf(nm.toLowerCase()) > -1) { catErr('Nama "' + nm + '" dipakai dua kali.'); return; }
+      names.push(nm.toLowerCase());
+      next.push({ name: nm, type: document.getElementById('st-type-' + i).value, color: document.getElementById('st-color-' + i).value });
+      if (nm !== list[i].name) renames.push([list[i].name, nm]);
+    }
+    var moved = 0;
+    renames.forEach(function (r) { db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.status === r[0]) { t.status = r[1]; t.updatedAt = Date.now(); moved++; } }); if (ui.fStatus === r[0]) ui.fStatus = r[1]; });
+    var blockedNoReason = db.tasks.filter(function (t) { return next.some(function (x) { return x.name === t.status && x.type === 'blocked'; }) && !t.blockers; }).length;
+    db.settings.taskStatuses = next; closeModal();
+    commit('Status disimpan' + (moved ? ' · ' + moved + ' task diperbarui' : '') + (blockedNoReason ? ' · ' + blockedNoReason + ' task terhambat belum punya blocker' : ''));
+  };
+}
 function catUsage(kind, name) {
   if (kind === 'category') return { tasks: db.tasks.filter(function (t) { return t.category === name; }).length, finance: 0 };
   return { tasks: db.tasks.filter(function (t) { return t.workstream === name; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
 }
 function categoryManager(kind) {
   kind = kind || 'category';
+  if (kind === 'status') return statusManager();
   var K = CAT_KINDS[kind], list = db.settings[K.key];
   var unlisted = [];
   (kind === 'category' ? db.tasks.map(function (t) { return t.category; }) : db.tasks.concat(db.finance).map(function (r) { return r.workstream; }))
@@ -670,7 +795,7 @@ function categoryManager(kind) {
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="' + kind + '" data-idx="' + i + '">Hapus</button></div>';
   }).join('');
   openModal('<form id="catForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
-    '<div class="tabs" role="tablist" style="padding:0 18px;margin:0">' + Object.keys(CAT_KINDS).map(function (k) { return '<button type="button" role="tab" data-act="cat-tab" data-kind="' + k + '" aria-selected="' + (k === kind) + '">' + CAT_KINDS[k].label + '</button>'; }).join('') + '</div>' +
+    catTabs(kind) +
     '<div class="modal-b one"><p class="muted" style="margin:0">' + K.hint + ' Ganti nama langsung di kotaknya; semua task/budget yang memakai nama lama ikut diganti.</p>' +
     '<div class="cat-list">' + (rows || '<p class="faint">Belum ada.</p>') + '</div>' +
     (unlisted.length ? '<div class="banner warn" style="margin:0">Dipakai di data tapi belum ada di daftar: ' + unlisted.map(function (u) { return '<button type="button" class="btn sm" data-act="cat-adopt" data-kind="' + kind + '" data-name="' + esc(u) + '">+ ' + esc(u) + '</button>'; }).join(' ') + '</div>' : '') +
@@ -706,12 +831,40 @@ function applyCatRenames(kind) {
   commit(changes.length + ' nama diganti' + (moved ? ' · ' + moved + ' record ikut diperbarui' : ''));
 }
 function catAdd(kind) {
+  if (kind === 'status') {
+    var nm = (document.getElementById('stNew').value || '').trim(), ty = document.getElementById('stNewType').value;
+    if (!nm) { catErr('Isi nama status dulu.'); return; }
+    if (db.settings.taskStatuses.some(function (x) { return x.name.toLowerCase() === nm.toLowerCase(); })) { catErr('"' + nm + '" sudah ada.'); return; }
+    var col = { todo: 'neutral', progress: 'info', pending: 'warn', blocked: 'crit', done: 'ok' }[ty] || 'neutral';
+    var doneIdx = db.settings.taskStatuses.findIndex(function (x) { return x.type === 'done'; });
+    if (ty !== 'done' && doneIdx > -1) db.settings.taskStatuses.splice(doneIdx, 0, { name: nm, type: ty, color: col }); else db.settings.taskStatuses.push({ name: nm, type: ty, color: col });
+    persist(db); render(); statusManager(); toast('Status "' + nm + '" ditambahkan'); return;
+  }
   var K = CAT_KINDS[kind], el = document.getElementById('catNew'), v = (el && el.value || '').trim();
   if (!v) { catErr('Isi nama dulu.'); return; }
   if (db.settings[K.key].some(function (x) { return x.toLowerCase() === v.toLowerCase(); })) { catErr('"' + v + '" sudah ada.'); return; }
   db.settings[K.key].push(v); persist(db); render(); categoryManager(kind); toast('"' + v + '" ditambahkan');
 }
 function catDelete(kind, idx) {
+  if (kind === 'status') {
+    var L = db.settings.taskStatuses, st = L[idx]; if (!st) return;
+    var used = statusUsage(st.name), rest = L.filter(function (_, i) { return i !== idx; });
+    if (!rest.length) { toast('Minimal harus ada satu status.', true); return; }
+    if (!used) {
+      confirmDialog('Hapus status "' + st.name + '"?', 'Tidak ada task yang memakai status ini.', 'Hapus', function () { db.settings.taskStatuses = rest; commit('Status dihapus'); statusManager(); });
+      return;
+    }
+    openModal('<form id="stDelForm" novalidate><div class="modal-h"><h3>Hapus status "' + esc(st.name) + '"?</h3></div><div class="modal-b one"><p style="margin:0">Masih dipakai oleh <b>' + used + ' task/segmen rundown</b>. Pindahkan ke:</p>' +
+      field('moveTo', 'Status pengganti', sel('moveTo', rest.map(function (x) { return x.name; }), defaultStatus() === st.name ? rest[0].name : defaultStatus())) + '</div>' +
+      '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="status">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; hapus</button></div></div></form>', 'sm');
+    document.getElementById('stDelForm').onsubmit = function (e) {
+      e.preventDefault(); var to = e.target.moveTo.value, n = 0;
+      db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.status === st.name) { t.status = to; t.updatedAt = Date.now(); n++; } });
+      if (ui.fStatus === st.name) ui.fStatus = '';
+      db.settings.taskStatuses = rest; closeModal(); commit('Status "' + st.name + '" dihapus · ' + n + ' task dipindah ke "' + to + '"'); statusManager();
+    };
+    return;
+  }
   var K = CAT_KINDS[kind], list = db.settings[K.key], name = list[idx], u = catUsage(kind, name), total = u.tasks + u.finance;
   if (!total) {
     confirmDialog('Hapus "' + name + '"?', 'Tidak ada task' + (kind === 'workstream' ? '/budget' : '') + ' yang memakai ini.', 'Hapus', function () {
@@ -741,7 +894,7 @@ function renderOverview() {
     kpi('Total tasks', s.total, s.blocked + ' blocked · ' + s.overdue + ' overdue') +
     kpi('Completed', s.done, s.total ? Math.round(s.done / s.total * 100) + '% of all tasks' : '—') +
     kpi('In progress', s.prog, 'operational status') +
-    kpi('Pending approval', s.appr, 'waiting for sign-off', s.appr > 0) +
+    kpi('Pending', s.appr, 'menunggu / tertahan', s.appr > 0) +
     '</div><div class="kpis">' +
     kpi('Estimated budget', rp(ft.est), ft.count + ' line items · ' + ft.missing + ' without amount', false, true) +
     kpi('Payments made', rp(ft.paid), '+ ' + rp(ft.fee) + ' biaya transfer', false, true) +
@@ -761,9 +914,9 @@ function renderOverview() {
   h += '</div>';
 
   // Urgent + upcoming
-  var urgent = db.tasks.filter(function (t) { var k = dueState(t).kind; return t.status !== 'Done' && (k === 'overdue' || k === 'soon' || t.status === 'Blocked'); })
+  var urgent = db.tasks.filter(function (t) { var k = dueState(t).kind; return !isDone(t) && (k === 'overdue' || k === 'soon' || sType(t.status) === 'blocked'); })
     .sort(function (a, b) { return (a.deadline || '9') < (b.deadline || '9') ? -1 : 1; });
-  var upcoming = db.tasks.filter(function (t) { var d = dueState(t); return t.status !== 'Done' && d.kind !== 'none' && d.days >= 0 && d.days <= 14; })
+  var upcoming = db.tasks.filter(function (t) { var d = dueState(t); return !isDone(t) && d.kind !== 'none' && d.days >= 0 && d.days <= 14; })
     .sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   h += '<div class="grid-2">' +
     panel('Urgent · overdue, due ≤3 days, blocked', urgent.length, urgent.length ? urgent.slice(0, 12).map(listRow).join('') + more(urgent.length, 12, 'pending') : emptyBox('Nothing urgent', 'No overdue, blocked or due-soon tasks.')) +
@@ -775,7 +928,7 @@ function renderOverview() {
     var ts = db.tasks.filter(function (t) { return t.workstream === ws; });
     var fs = db.finance.filter(function (f) { return f.workstream === ws; });
     if (!ts.length && !fs.length) return '';
-    var done = ts.filter(function (t) { return t.status === 'Done'; }).length, ft2 = totals(fs);
+    var done = ts.filter(isDone).length, ft2 = totals(fs);
     var pct = ts.length ? Math.round(done / ts.length * 100) : 0;
     return '<tr><td>' + wsTag(ws) + '</td><td class="num r">' + done + '/' + ts.length + '</td><td><div class="wsbar" title="' + pct + '%"><i style="width:' + pct + '%"></i></div></td><td class="num r">' + (fs.length ? rp(ft2.est) : '<span class="faint">—</span>') + '</td><td class="num r">' + (fs.length ? rp(ft2.paid) : '<span class="faint">—</span>') + '</td></tr>';
   }).join('');
@@ -805,14 +958,14 @@ function filteredTasks(view) {
     if (ui.fSrc && t.source !== ui.fSrc) return false;
     if (q && [t.name, t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
-    if (view === 'pending') { var k = dueState(t).kind; if (!(t.status === 'Pending Approval' || t.status === 'Blocked' || ((t.blockers || t.dependencies) && t.status !== 'Done') || k === 'overdue')) return false; }
+    if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || ((t.blockers || t.dependencies) && ty !== 'done') || k === 'overdue')) return false; }
     return true;
   });
   var key = ui.sort.key, dir = ui.sort.dir;
-  var order = { 'Blocked': 0, 'Pending Approval': 1, 'In Progress': 2, 'Not Started': 3, 'Done': 4 };
+  var sl = statusList();
   list.sort(function (a, b) {
     var va, vb;
-    if (key === 'status') { va = order[a.status]; vb = order[b.status]; }
+    if (key === 'status') { va = TYPE_ORDER[sType(a.status)] * 100 + sl.indexOf(a.status); vb = TYPE_ORDER[sType(b.status)] * 100 + sl.indexOf(b.status); }
     else if (key === 'deadline') { va = a.deadline || '9999'; vb = b.deadline || '9999'; }
     else { va = String(a[key] || '').toLowerCase(); vb = String(b[key] || '').toLowerCase(); }
     if (va < vb) return -dir; if (va > vb) return dir;
@@ -821,7 +974,7 @@ function filteredTasks(view) {
   return list;
 }
 function renderTasks() {
-  var views = [['all', 'All Tasks'], ['operational', 'Operational'], ['pending', 'Pending & Blocked'], ['timeline', 'Timeline']];
+  var views = [['all', 'All Tasks'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
   var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.', '<button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
@@ -829,7 +982,7 @@ function renderTasks() {
   h += '<div class="toolbar">' +
     '<input class="input search" id="taskSearch" type="search" placeholder="Search task, PIC, notes, blockers…" value="' + esc(ui.q) + '" aria-label="Search tasks">' +
     '<select class="select" id="fWs" aria-label="Workstream">' + opts(allWorkstreams(), ui.fWs, 'All workstreams') + '</select>' +
-    '<select class="select" id="fStatus" aria-label="Status">' + opts(TASK_STATUS, ui.fStatus, 'All statuses') + '</select>' +
+    '<select class="select" id="fStatus" aria-label="Status">' + opts(statusList(), ui.fStatus, 'All statuses') + '</select>' +
     '<select class="select" id="fSrc" aria-label="Data source">' + opts([{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], ui.fSrc, 'All sources') + '</select>' +
     ((ui.q || ui.fWs || ui.fStatus || ui.fSrc) ? '<button class="btn ghost sm" data-act="clear-filters">Clear filters</button>' : '') + '</div>';
   var list = filteredTasks(ui.taskView);
@@ -840,7 +993,7 @@ function renderTasks() {
     var groups = {};
     list.forEach(function (t) { (groups[t.workstream] = groups[t.workstream] || []).push(t); });
     return h + allWorkstreams().filter(function (w) { return groups[w]; }).map(function (w) {
-      var g = groups[w], done = g.filter(function (t) { return t.status === 'Done'; }).length;
+      var g = groups[w], done = g.filter(isDone).length;
       return '<div style="margin-bottom:18px"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">' + wsTag(w) + '<span class="muted num" style="font-size:12px">' + done + '/' + g.length + ' done</span></div>' + taskTable(g, true) + '</div>';
     }).join('');
   }
@@ -864,7 +1017,7 @@ function taskTable(list, compact, showBlockers) {
       '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>' +
       (compact ? '' : '<td>' + wsTag(t.workstream) + '</td>') +
       '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td><td>' + dueLabel(t) + '</td><td>' + (t.pic ? esc(t.pic) : '<span class="faint">Unassigned</span>') + '</td>' +
-      '<td><select class="inline-select" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(TASK_STATUS, t.status) + '</select></td>' +
+      '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>' +
       (showBlockers ? '<td style="max-width:240px">' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '') + (t.dependencies ? '<span class="tsub">Waiting on: ' + esc(t.dependencies) + '</span>' : '') + (!t.blockers && !t.dependencies ? '<span class="faint">—</span>' : '') + '</td>' : '') +
       '<td>' + pay + '</td></tr>';
     if (exp) h += '<tr class="expanded"><td colspan="' + cols + '">' + taskDetail(t) + '</td></tr>';
@@ -938,6 +1091,12 @@ function renderFinance() {
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', meta ? 'Sumber: sheet <b>' + esc(meta.sheet) + '</b> · Divisi ' + esc(meta.division) + ' · baris ' + esc(meta.rows) + ' · snapshot ' + fmtDate(meta.snapshot) + '. Subtotal dihitung otomatis dari item, tidak disimpan.' : 'Total dihitung dari baris item; subtotal tidak disimpan sebagai record.',
     (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
+  if (db.budgetUpdateAvailable && canEdit()) {
+    var sm = SHEET_SEED.meta || {};
+    h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
+      'Terapkan untuk mengganti isi Finance dengan data sheet ini; task tetap, versi lama tetap ada di Version history.' +
+      '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Terapkan data sheet terbaru</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
+  }
   h += '<div class="kpis">' + kpi('Estimated budget', rp(all.est), all.count + ' rows', false, true) + kpi('Invoiced', rp(all.inv), 'sum of invoice amounts', false, true) +
     kpi('Paid to vendors', rp(all.paid), '+ ' + rp(all.fee) + ' biaya transfer', false, true) + kpi('Outstanding', rp(all.outstanding), 'invoice (atau estimasi) − paid', all.outstanding > 0, true) +
     kpi('Flagged', all.flagged, all.missing + ' rows without amount', all.flagged > 0) + '</div>';
@@ -1042,7 +1201,7 @@ function renderCalendar() {
 }
 function chip(t) {
   var s = dueState(t);
-  return '<button class="chip ' + wsClass(t.workstream) + ' ' + (s.kind === 'overdue' || s.kind === 'soon' || s.kind === 'done' ? s.kind : '') + '" data-act="cal-chip" data-id="' + t.id + '" title="' + esc(t.workstream + ' · ' + t.name + ' · ' + t.status) + '">' + esc(t.name) + '</button>';
+  return '<button class="chip ' + wsClass(t.workstream) + ' ' + (s.kind === 'overdue' || s.kind === 'soon' || s.kind === 'done' ? s.kind : '') + '" data-act="cal-chip" data-id="' + t.id + '" title="' + esc(t.workstream + ' · ' + t.name + ' · ' + t.status) + '"><i class="sdot" style="background:' + (COLOR_VAR[statusDef(t.status).color] || 'var(--faint)') + '"></i>' + esc(t.name) + '</button>';
 }
 
 /* ================= Modals ================= */
@@ -1081,7 +1240,7 @@ function confirmDialog(title, message, yesLabel, onYes) {
 
 function withCurrent(list, v) { return v && list.indexOf(v) < 0 ? list.concat([v]) : list; }
 function taskForm(t, preset) {
-  var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '', deadline: '', pic: '', status: 'Not Started', notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
+  var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
@@ -1090,7 +1249,7 @@ function taskForm(t, preset) {
     field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
     field('pic', 'PIC', inp('pic', t.pic, 'text', 'maxlength="80"')) +
-    field('status', 'Operational status', sel('status', TASK_STATUS, t.status)) +
+    field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
     field('blockers', 'Blockers', ta('blockers', t.blockers)) +
     field('dependencies', 'Dependencies', ta('dependencies', t.dependencies), { hint: 'Menunggu apa / siapa' }) +
@@ -1106,7 +1265,7 @@ function taskForm(t, preset) {
     if (!v.name) errs.name = 'Task name is required.';
     if (!v.workstream) errs.workstream = 'Pick or type a workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
-    if (v.status === 'Blocked' && !v.blockers) errs.blockers = 'Describe what is blocking this task.';
+    if (sType(v.status) === 'blocked' && !v.blockers) errs.blockers = 'Status ini butuh keterangan blocker.';
     if (Object.keys(errs).length) return showErrors(e.target, errs);
     if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
     else { Object.assign(t, v, { updatedAt: Date.now() }); closeModal(); commit('Task saved'); }
@@ -1207,13 +1366,13 @@ function deadlineDialog(id) {
   openModal('<form id="dlForm" novalidate><div class="modal-h"><h3>' + esc(t.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     '<div class="field full">' + wsTag(t.workstream) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
     field('start', 'Start date', inp('start', t.start, 'date')) + field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
-    field('status', 'Operational status', sel('status', TASK_STATUS, t.status)) +
+    field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status)) +
     '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
   document.getElementById('dlForm').onsubmit = function (e) {
     e.preventDefault();
     var s = e.target.start.value, d = e.target.deadline.value, st = e.target.status.value;
     if (s && d && s > d) return showErrors(e.target, { start: 'Start date is after the deadline.' });
-    if (st === 'Blocked' && !t.blockers) return showErrors(e.target, { status: 'Add the blocker in the full task form first.' });
+    if (sType(st) === 'blocked' && !t.blockers) return showErrors(e.target, { status: 'Isi blocker dulu di form task lengkap.' });
     t.start = s; t.deadline = d; t.status = st; t.updatedAt = Date.now(); closeModal(); commit('Deadline updated');
   };
 }
@@ -1364,7 +1523,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -1380,6 +1539,13 @@ function handleAct(el, e) {
     case 'edit-rundown': closeModal(); if (rdById(id)) rundownForm(rdById(id)); break;
     case 'delete-rundown': closeModal(); deleteRundown(id); break;
     case 'manage-categories': e.preventDefault(); closeModal(); categoryManager('category'); break;
+    case 'manage-statuses': e.preventDefault(); closeModal(); statusManager(); break;
+    case 'budget-apply':
+      confirmDialog('Terapkan data budget sheet terbaru?', 'Isi Finance diganti dengan ' + (SHEET_SEED.items || []).length + ' baris dari ' + esc((SHEET_SEED.meta || {}).file || 'sheet') + '. Perubahan manual di Finance setelah import terakhir akan diganti. Task, rundown, dan settings tidak berubah.' + (MODE === 'admin' ? ' Setelah itu klik Save & Publish.' : ''), 'Terapkan', function () {
+        applyBudgetSeed(db); db.budgetUpdateAvailable = false; commit('Data budget sheet diterapkan · ' + db.finance.length + ' baris');
+      });
+      break;
+    case 'budget-ignore': db.budgetIgnored = budgetSeedHash(); db.budgetUpdateAvailable = false; commit('Pembaruan sheet diabaikan'); break;
     case 'cat-tab': closeModal(); categoryManager(el.dataset.kind); break;
     case 'cat-add': catAdd(el.dataset.kind); break;
     case 'cat-delete': closeModal(); catDelete(el.dataset.kind, +el.dataset.idx); break;
@@ -1439,7 +1605,7 @@ main.addEventListener('change', function (e) {
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
   if (t.dataset.inline === 'status') {
     var task = taskById(t.dataset.id); if (!task) return;
-    if (t.value === 'Blocked' && !task.blockers) { t.value = task.status; taskForm(task); setTimeout(function () { var s = document.getElementById('f-status'); if (s) { s.value = 'Blocked'; var b = document.getElementById('f-blockers'); if (b) b.focus(); } }, 0); toast('Add the blocker to mark this task Blocked'); return; }
+    if (sType(t.value) === 'blocked' && !task.blockers) { var want = t.value; t.value = task.status; taskForm(task); setTimeout(function () { var s = document.getElementById('f-status'); if (s) { s.value = want; var b = document.getElementById('f-blockers'); if (b) b.focus(); } }, 0); toast('Add the blocker to mark this task Blocked'); return; }
     task.status = t.value; task.updatedAt = Date.now(); commit('Status → ' + t.value);
   } else if (t.dataset.inline === 'deadline') {
     var task2 = taskById(t.dataset.id); if (!task2) return;
@@ -1464,13 +1630,23 @@ window.GX27App = {
   STORE_KEY: STORE_KEY, LEGACY_KEYS: [STORE_KEY, 'gx27.dashboard.v2', 'gx27.dashboard.v1'],
   SETTINGS_DEFAULT: SETTINGS_DEFAULT, DEFAULT_LOGO: DEFAULT_LOGO,
   getMode: function () { return MODE; }, canEdit: canEdit,
-  setPage: function (p) { ui.page = p; }, getPage: function () { return ui.page; }
+  setPage: function (p) { ui.page = p; }, getPage: function () { return ui.page; },
+  setLive: setLive
 };
+/* Live indicator in the sidebar: 'live' (realtime connected) | 'polling' (fallback, checks every few seconds) | 'offline' */
+var LIVE_LABEL = { live: 'Live · update otomatis', polling: 'Sinkron tiap 5 detik', offline: 'Offline · menunggu koneksi' };
+function setLive(state) {
+  var el = document.getElementById('liveInd'); if (!el) return;
+  el.hidden = false; el.className = 'live-pill lv-' + state;
+  el.innerHTML = '<i></i>' + LIVE_LABEL[state];
+  el.title = state === 'live' ? 'Terhubung realtime: perubahan dari device lain langsung muncul.' : state === 'polling' ? 'Koneksi realtime belum tersambung, data dicek ulang otomatis tiap 5 detik.' : 'Tidak ada koneksi internet. Data diperbarui lagi saat online.';
+}
 
 /* ================= Boot ================= */
 var PUBLIC_CACHE = 'gx27.published.cache';
 function startPublic(Sync) {
   main.innerHTML = '<div class="empty" style="padding:80px 16px"><b>Memuat data…</b>Mengambil versi terbaru dari server.</div>';
+  var cur = null, chan = '', down = false, timer = null, busy = null;
   function fromCache(reason) {
     try {
       var c = JSON.parse(localStorage.getItem(PUBLIC_CACHE) || 'null');
@@ -1478,17 +1654,34 @@ function startPublic(Sync) {
     } catch (e) {}
     db = normalizeDb(seed()); storageError = reason + ' Menampilkan data awal.';
   }
+  function stamp(p) { return p ? p.version + '|' + p.updated_at : ''; }
   function load() {
     return Sync.loadPublished().then(function (p) {
+      cur = stamp(p);
       if (p && p.data) {
         db = normalizeDb(p.data); storageError = '';
         try { localStorage.setItem(PUBLIC_CACHE, JSON.stringify({ data: p.data, at: Date.now(), version: p.source_version })); } catch (e) {}
       } else { db = normalizeDb(seed()); storageError = ''; }
     });
   }
-  return load().catch(function (err) { fromCache('Tidak bisa terhubung ke database (' + err.message + ').'); }).then(function () {
-    render();
-    Sync.watch('published', function () { load().then(function () { render(); toast('Konten diperbarui'); }).catch(function () {}); });
+  function state() { return down || navigator.onLine === false ? 'offline' : chan === 'live' ? 'live' : 'polling'; }
+  // cheap check (no data) → full reload only when the published row changed
+  function check() {
+    if (busy) return busy;
+    busy = Sync.loadPublishedMeta().then(function (m) {
+      down = false;
+      if (stamp(m) !== cur) return load().then(function () { render(); toast('Konten diperbarui'); });
+    }, function () { down = true; }).then(function () { busy = null; setLive(state()); }, function () { busy = null; });
+    return busy;
+  }
+  function loop() { clearTimeout(timer); timer = setTimeout(function () { check().then(loop, loop); }, state() === 'live' ? 30000 : 5000); }
+  return load().catch(function (err) { down = true; fromCache('Tidak bisa terhubung ke database (' + err.message + ').'); }).then(function () {
+    render(); setLive(state());
+    Sync.watch('published', function () { check(); }, function (st) { chan = st; setLive(state()); if (st === 'live') check(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+    window.addEventListener('online', function () { down = false; check(); });
+    window.addEventListener('offline', function () { setLive(state()); });
+    loop();
   });
 }
 function boot() {

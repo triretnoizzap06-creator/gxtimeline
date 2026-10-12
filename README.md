@@ -20,21 +20,20 @@ app.js                Semua halaman & logika: timeline, rundown, tasks, finance,
 admin.js              Admin: login, Save/Publish, konflik versi, settings, logo, tim, riwayat, redeploy
 sync.js               Koneksi ke Supabase (Auth, DB via RPC, Storage, Realtime) + endpoint deploy
 styles.css            Tampilan
-data/budget-seed.js   Data awal budget (sheet "EDIT DISINI", Divisi Acara)
 api/config.js         GET /api/config → URL + anon key Supabase untuk browser (hanya nilai publik)
 api/deploy.js         POST /api/deploy → redeploy Vercel (khusus admin, dicek ke Supabase)
 api/deploy-status.js  GET /api/deploy-status → status build terakhir (admin/editor)
 api/_lib.js           Helper bersama (validasi env, cek role)
 supabase/schema.sql   Tabel, RLS, fungsi save/publish, storage logo, realtime, admin pertama
 tests/api.test.js     Tes otomatis fungsi API (node tests/api.test.js)
-scripts/build_seed.py Membuat ulang data/budget-seed.js dari file xlsx budget
+scripts/build_seed.py Memperbarui data budget bawaan di app.js dari file xlsx budget
 favicon*, apple-touch-icon.png   Ikon tab browser (logo bulat)
 vercel.json           Clean URL (/admin), header keamanan & cache
 package.json          Versi Node untuk Vercel (22.x), tanpa dependency
 .env.example          Daftar environment variable (tanpa nilai rahasia)
 ```
 
-Data timeline, task, rundown Festival Flow, zona/area, dan logo GlobalXtreme **tertanam di app.js**, jadi website selalu tampil dengan data, bahkan sebelum database diisi.
+Data timeline, task, budget (sheet *Budgeting_Anniv_GX_27TH_1.xlsx*, 76 baris, Rp 204.280.139), rundown Festival Flow, zona/area, dan logo GlobalXtreme **tertanam di app.js**, jadi website selalu tampil dengan data, bahkan sebelum database diisi.
 
 ---
 
@@ -158,12 +157,46 @@ Vercel deploy otomatis 1–2 menit setelah push.
 
 ---
 
+## 7b. Status task (bisa dikelola sendiri)
+
+Default ada 4 status, dipakai di **Tasks, Master Timeline, Calendar, Rundown, dan Overview**:
+
+| Status | Warna | Jenis |
+|---|---|---|
+| Not Started | abu-abu | Belum mulai |
+| In Progress | biru | Berjalan |
+| Pending | merah | Menunggu |
+| Done | hijau | Selesai (dicoret, masuk KPI Completed) |
+
+Kelola di **Tasks → Kelola kategori → Status task** (atau link "Kelola status" di form task/segmen): tambah, ganti nama, ganti warna, ubah urutan, hapus. Ganti nama otomatis memperbarui semua task & segmen rundown; status yang masih dipakai harus dipindah dulu sebelum dihapus. Data lama dengan status *Pending Approval* / *Blocked* otomatis dipindah ke **Pending**; status rundown lama (Planned/Confirmed/Changed/Cancelled) dipindah ke Not Started/Done/Pending.
+
+Status pembayaran di Finance (Pending Payment / DP Paid / Full Paid) tetap terpisah karena dipakai untuk menghitung nominal.
+
+## 7c. Data budget dari sheet
+
+- Finance otomatis terisi dari sheet bawaan kalau masih kosong.
+- Kalau data di database/browser berasal dari sheet versi lama, halaman Finance (untuk admin) menampilkan banner **"Data budget dari sheet terbaru tersedia" → Terapkan data sheet terbaru** → Save → Publish. Task, rundown, dan settings tidak berubah; versi lama tetap ada di Version history.
+
+## 7d. Realtime (beda device / beda email)
+
+- **Auto-save**: setiap perubahan di admin panel langsung tersimpan ke database (±1 detik). Tombol Save tetap ada untuk simpan manual.
+- **Auto-publish**: perubahan yang disimpan **admin** langsung tampil di website live. Perubahan **editor** masuk draft dan tampil di semua admin panel, tapi baru live setelah admin klik Publish.
+- Semua admin panel yang terbuka (device/email apa pun) ikut berubah tanpa refresh. Pengunjung website juga dapat versi live terbaru tanpa refresh.
+- Kalau dua orang mengedit bersamaan, perubahan digabung per item. Kalau field yang sama diubah dua-duanya, yang terakhir disimpan yang dipakai. Form yang sedang dibuka tidak ditimpa: update dari orang lain masuk setelah form ditutup.
+- Indikator di sidebar: **Live** = realtime tersambung; **Sinkron tiap 5 detik** = websocket belum tersambung, website mengecek ulang otomatis; **Offline** = tidak ada internet (perubahan disimpan di browser lalu dikirim saat online).
+- Kedua pengaturan bisa dimatikan admin di Admin panel → **Realtime & sinkronisasi**.
+- Supabase Realtime harus aktif untuk tabel `site_content` (sudah diatur oleh `schema.sql`). Cek di Supabase → Database → Publications → `supabase_realtime` → `site_content` tercentang.
+- Auto-save membuat banyak versi, jadi database otomatis menyimpan **300 versi terakhir** (ditambah versi yang sedang live) dan **2.000 baris riwayat**. Ini supaya tetap muat di paket gratis Supabase.
+- **Penting:** jalankan ulang `supabase/schema.sql` di SQL Editor setelah upload ZIP ini (aman dijalankan berulang).
+
 ## 8. Checklist testing setelah deploy
 
 Centang satu per satu di production:
 
 - [ ] `https://gxtimeline.vercel.app/api/config` menampilkan `"configured":true` dan URL Supabase (bukan error)
 - [ ] Halaman publik tampil lengkap: logo, Master Timeline, Rundown, Tasks, Finance, Calendar; favicon logo bulat di tab
+- [ ] Finance terisi (Estimated budget Rp 204.280.139, 76 rows). Kalau admin melihat banner "Data budget dari sheet terbaru tersedia" → klik Terapkan → Save → Publish
+- [ ] Status task hanya 4 (Not Started abu, In Progress biru, Pending merah, Done hijau) dan tampil di Tasks, Master Timeline, Calendar, Rundown
 - [ ] Pengunjung tidak melihat tombol "+ New task", "Kelola kategori", dll.
 - [ ] `/admin` → kirim magic link ke `triretnoizzap06@gmail.com` → email masuk → klik → masuk sebagai **ADMIN**
 - [ ] Database kosong langsung terisi & dipublish (cek Supabase → Table Editor → `site_content` ada baris `draft` dan `published`)
@@ -178,6 +211,9 @@ Centang satu per satu di production:
 - [ ] (Kalau diisi) Tombol **Redeploy** → status build berubah ke Published
 
 ---
+
+- [ ] Buka /admin di 2 device dengan 2 email admin. Ubah status task di device 1 tanpa klik Save. Device 2 dan website publik harus berubah dalam beberapa detik, dan sidebar menunjukkan "Live".
+- [ ] Ubah task berbeda di 2 device bersamaan. Kedua perubahan harus tetap ada.
 
 ## 9. Yang masih perlu kamu lakukan manual
 
@@ -199,6 +235,7 @@ Dijalankan di lingkungan lokal (bukan di production kamu):
 
 - **Database (PostgreSQL 16 asli + `schema.sql` final, 35/35 lolos):** schema bisa dijalankan 2× tanpa error; role admin/editor/pengunjung/akun asing; email belum terkonfirmasi ditolak; konflik versi; editor tidak bisa publish; tabel tidak bisa ditulis langsung; admin tidak bisa menghapus diri sendiri; kebijakan upload logo.
 - **End-to-end (34/34 lolos):** website asli + library `supabase-js` 2.49.4 asli + PostgREST (server REST yang dipakai Supabase) + PostgreSQL dengan `schema.sql`, plus fungsi `/api/config` asli. Mencakup magic link, isi otomatis & publish pertama, Save, Publish dengan konfirmasi, kategori, rundown, logo ke Storage, pengunjung read-only di browser lain, editor, konflik dua user, restore versi, logout.
+- **Status & budget (26/26 lolos):** isi otomatis Finance kosong, migrasi status lama ke 4 status, banner Terapkan sheet, kelola status (ganti nama/warna, tambah, hapus+pindah), status tampil di Timeline/Rundown/Calendar/Tasks, tampilan mobile.
 - **API (14/14 lolos):** `node tests/api.test.js` — config, penolakan service role key, deploy hanya untuk admin.
 
 **Belum bisa diuji dari sini** (perlu dicek lewat checklist di production):
