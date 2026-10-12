@@ -586,3 +586,28 @@ body.readonly [data-act="manage-columns"]{display:none !important}
 
 .save-ind{margin:6px 4px 0;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;width:max-content}
 .save-ind[hidden]{display:none}
+
+/* Payment column in Tasks: paid / outstanding / due items */
+td.pay-cell{width:230px;min-width:210px;white-space:normal}
+.pc-sum{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:4px;color:var(--muted)}
+.pc-sum b{color:var(--fg);font-weight:600}
+.pc-sum .pc-out b{color:var(--crit)}
+.pc-sum .pc-ok b{color:var(--ok)}
+.pc-due{list-style:none;margin:4px 0 0;padding:0;font-size:12px;display:flex;flex-direction:column;gap:2px}
+.pc-due li{line-height:1.35;padding:3px 0;border-top:1px dashed var(--line-2)}
+.pc-due .pc-item{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;color:var(--muted)}
+.pc-due .due{font-size:11.5px}
+.pc-due .due,.pc-due .pc-nodue{display:block;white-space:normal}
+
+/* PIC: several people per task */
+.pic-pick{display:flex;flex-wrap:wrap;gap:6px}
+.pic-opt{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line-2);border-radius:999px;font-size:13px;cursor:pointer;user-select:none}
+.pic-opt:has(input:checked){background:var(--accent-soft);border-color:#E0B800;font-weight:600}
+.pic-opt input{accent-color:#111}
+.pic-new{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.pic-new .input{max-width:220px}
+.pic-cell{white-space:normal;min-width:120px}
+.pic-chip{display:inline-block;padding:2px 8px;margin:1px 3px 1px 0;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12px;white-space:nowrap}
+.pic-edit{padding:1px 6px;opacity:.55}
+tr:hover .pic-edit,.pic-edit:focus{opacity:1}
+.pic-add{font-size:12px;color:var(--muted);border-style:dashed}

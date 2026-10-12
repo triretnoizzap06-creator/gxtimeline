@@ -229,6 +229,9 @@ function normalizeDb(d) {
   if (!Array.isArray(s.prepDeadlines)) s.prepDeadlines = SETTINGS_DEFAULT.prepDeadlines.slice();
   ['taskCategories', 'workstreams'].forEach(function (k) { if (!Array.isArray(s[k]) || !s[k].length) s[k] = SETTINGS_DEFAULT[k].slice(); });
   if (!Array.isArray(s.pics)) s.pics = SETTINGS_DEFAULT.pics.slice();
+  if (!Array.isArray(s.payStatuses) || !s.payStatuses.length) s.payStatuses = JSON.parse(JSON.stringify(PAY_DEFAULT));
+  s.payStatuses = s.payStatuses.filter(function (x) { return x && x.name; }).map(function (x) { return { name: String(x.name), type: ['unpaid', 'partial', 'paid'].indexOf(x.type) > -1 ? x.type : 'unpaid', color: x.color || 'neutral' }; });
+  (d.finance || []).forEach(function (f) { if (f.paymentStatus && !s.payStatuses.some(function (x) { return x.name === f.paymentStatus; })) s.payStatuses.push({ name: f.paymentStatus, type: PAY_GUESS[f.paymentStatus.toLowerCase()] || 'unpaid', color: 'neutral' }); });
   s.pics = s.pics.map(function (x) { return String(x).trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
   // one-time change requested by the team: every task starts on 1 Oct 2026 (a deadline before that keeps its own date)
   if (!d.startOct1) {
@@ -308,7 +311,21 @@ function sType(status) { return statusDef(status).type; }
 function isDone(t) { return sType(t.status) === 'done'; }
 function defaultStatus() { var d = statusDefs().filter(function (x) { return x.type === 'todo'; })[0] || statusDefs()[0]; return d ? d.name : 'Not Started'; }
 var COLOR_VAR = { neutral: 'var(--faint)', info: 'var(--info)', warn: 'var(--warn)', crit: 'var(--crit)', ok: 'var(--ok)', accent: 'var(--accent)' };
-var PAY_STATUS = ['Pending Payment','DP Paid','Full Paid'];
+// payment statuses are editable (settings.payStatuses); 'type' drives the maths:
+// unpaid = nothing paid yet, partial = DP paid (paid = DP amount), paid = lunas (paid = invoice/estimate)
+var PAY_DEFAULT = [
+  { name: 'Pending Payment', type: 'unpaid', color: 'warn' },
+  { name: 'Outstanding Payment', type: 'unpaid', color: 'crit' },
+  { name: 'DP Paid', type: 'partial', color: 'info' },
+  { name: 'Full Paid', type: 'paid', color: 'ok' }
+];
+var PAY_TYPES = [{ value: 'unpaid', label: 'Belum bayar' }, { value: 'partial', label: 'Bayar sebagian (DP)' }, { value: 'paid', label: 'Lunas' }];
+var PAY_GUESS = { 'full paid': 'paid', 'lunas': 'paid', 'dp paid': 'partial' };
+function payDefs() { return (db && db.settings && db.settings.payStatuses) || PAY_DEFAULT; }
+function payList() { return payDefs().map(function (x) { return x.name; }); }
+function payDef(name) { return payDefs().filter(function (x) { return x.name === name; })[0] || { name: name, type: PAY_GUESS[String(name || '').toLowerCase()] || 'unpaid', color: 'neutral' }; }
+function payType(name) { return payDef(name).type; }
+function payFirst(type) { var d = payDefs().filter(function (x) { return x.type === type; })[0]; return d ? d.name : (payDefs()[0] || {}).name || ''; }
 var INV_STATUS = ['Unsubmitted','Submitted'];
 // Rundown segments use the same managed statuses as tasks; older rundown statuses map onto them
 var RUNDOWN_STATUS_MIGRATE = { 'Planned': 'Not Started', 'Confirmed': 'Done', 'Changed': 'Pending', 'Cancelled': 'Pending' };
@@ -521,7 +538,7 @@ function statusBadge(s) {
   var c = 'b-' + (statusDef(s).color || 'neutral');
   return '<span class="badge ' + c + '">' + esc(s) + '</span>';
 }
-function payBadge(s) { var c = { 'Full Paid': 'b-ok', 'DP Paid': 'b-info', 'Pending Payment': 'b-warn' }[s] || 'b-neutral'; return '<span class="badge ' + c + '">' + esc(s) + '</span>'; }
+function payBadge(s) { return '<span class="badge b-' + esc(payDef(s).color || 'neutral') + '">' + esc(s) + '</span>'; }
 function invBadge(s) { return '<span class="badge ' + (s === 'Submitted' ? 'b-ok' : 'b-neutral') + '">' + esc(s) + '</span>'; }
 function srcTag(s) { return s === 'verify' ? '<span class="src verify" title="Needs verification">Verify</span>' : '<span class="src confirmed" title="Confirmed source data">Confirmed</span>'; }
 function opts(list, sel, emptyLabel) {
@@ -620,18 +637,19 @@ function calc(f) {
   }
   var base = inv != null ? inv : est, paid = 0;
   if (paidAmt != null) paid = paidAmt;
-  else if (f.paymentStatus === 'Full Paid') paid = base || 0;
-  else if (f.paymentStatus === 'DP Paid') paid = dp || 0;
-  if (f.paymentStatus === 'Full Paid' && inv == null) flags.push({ lvl: 'crit', msg: 'Full Paid tapi invoice amount kosong' });
-  if (f.paymentStatus === 'DP Paid' && dp == null && paidAmt == null) flags.push({ lvl: 'crit', msg: 'DP Paid tapi nominal DP kosong' });
-  if (f.paymentStatus === 'Pending Payment' && paidAmt != null && paidAmt > 0) flags.push({ lvl: 'warn', msg: 'Ada nominal transfer tapi status Pending Payment' });
+  var pt = payType(f.paymentStatus);
+  if (paidAmt == null && pt === 'paid') paid = base || 0;
+  else if (paidAmt == null && pt === 'partial') paid = dp || 0;
+  if (pt === 'paid' && inv == null) flags.push({ lvl: 'crit', msg: f.paymentStatus + ' tapi invoice amount kosong' });
+  if (pt === 'partial' && dp == null && paidAmt == null) flags.push({ lvl: 'crit', msg: f.paymentStatus + ' tapi nominal DP kosong' });
+  if (pt === 'unpaid' && paidAmt != null && paidAmt > 0) flags.push({ lvl: 'warn', msg: 'Ada nominal transfer tapi status ' + f.paymentStatus });
   if (dp != null && base != null && dp > base) flags.push({ lvl: 'crit', msg: 'DP (' + rp(dp) + ') lebih besar dari ' + (inv != null ? 'invoice' : 'estimasi') });
   if (base != null && paid > base) flags.push({ lvl: 'crit', msg: 'Transfer (' + rp(paid) + ') melebihi invoice ' + rp(base) });
-  if (f.paymentStatus === 'Full Paid' && base != null && paid < base) flags.push({ lvl: 'crit', msg: 'Full Paid tapi transfer kurang ' + rp(base - paid) });
+  if (pt === 'paid' && base != null && paid < base) flags.push({ lvl: 'crit', msg: f.paymentStatus + ' tapi transfer kurang ' + rp(base - paid) });
   if (inv != null && est != null && inv > est * 1.1) flags.push({ lvl: 'warn', msg: 'Invoice ' + Math.round((inv / est - 1) * 100) + '% di atas estimasi' });
-  if (f.paymentStatus !== 'Pending Payment' && !f.receipt) flags.push({ lvl: 'warn', msg: 'Bukti transfer belum dilampirkan' });
-  if (f.paymentStatus !== 'Pending Payment' && f.invoiceStatus === 'Unsubmitted') flags.push({ lvl: 'warn', msg: 'Sudah dibayar tapi invoice masih Unsubmitted' });
-  if (f.paymentDeadline && f.paymentDeadline < todayISO() && f.paymentStatus !== 'Full Paid') flags.push({ lvl: 'crit', msg: 'Lewat payment deadline (' + fmtDate(f.paymentDeadline, true) + ')' });
+  if (pt !== 'unpaid' && !f.receipt) flags.push({ lvl: 'warn', msg: 'Bukti transfer belum dilampirkan' });
+  if (pt !== 'unpaid' && f.invoiceStatus === 'Unsubmitted') flags.push({ lvl: 'warn', msg: 'Sudah dibayar tapi invoice masih Unsubmitted' });
+  if (f.paymentDeadline && f.paymentDeadline < todayISO() && pt !== 'paid') flags.push({ lvl: 'crit', msg: 'Lewat payment deadline (' + fmtDate(f.paymentDeadline, true) + ')' });
   if (base == null) flags.push({ lvl: 'warn', msg: 'Nominal belum diisi' });
   var outstanding = base == null ? null : Math.max(base - paid, 0);
   return { qty: qty, est: est, inv: inv, dp: dp, base: base, paid: paid, fee: fee, outstanding: outstanding, flags: flags, basedOnEstimate: inv == null && est != null };
@@ -854,7 +872,7 @@ function rundownForm(r, preset) {
     field('location', 'Lokasi', inp('location', r.location, 'text', 'list="rdLocList" maxlength="80"') + locList) +
     field('start', 'Mulai', inp('start', r.start, 'time'), { req: true }) +
     field('end', 'Selesai', inp('end', r.end, 'time'), { hint: 'Segmen dengan jam mulai & selesai yang sama tampil sebagai program paralel.' }) +
-    field('pic', 'PIC', sel('pic', withCurrent(picList(), r.pic), r.pic || '', '— Belum ada —'), { hint: canEdit() ? '<a href="#" data-act="manage-pics">Kelola nama PIC</a>' : '' }) +
+    picField(r.pic) +
     field('status', 'Status', sel('status', withCurrent(statusList(), r.status), r.status || defaultStatus()), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('flow', 'Deskripsi / alur', ta('flow', r.flow), { full: true }) +
     field('concurrent', 'Concurrent (aktivitas bersamaan)', ta('concurrent', (r.concurrent || []).join('\n')), { full: true, hint: 'Satu per baris. Tampil sebagai chip di Festival Flow.' }) +
@@ -922,7 +940,8 @@ var CAT_KINDS = {
   category: { label: 'Kategori task', key: 'taskCategories', hint: 'Dipakai di kolom Category pada task.' },
   workstream: { label: 'Workstream / program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' },
   status: { label: 'Status task', key: 'taskStatuses', hint: '' },
-  pic: { label: 'PIC', key: 'pics', hint: 'Nama yang muncul di dropdown PIC (task & rundown).' }
+  pic: { label: 'PIC', key: 'pics', hint: 'Nama yang muncul di dropdown PIC (task & rundown).' },
+  pay: { label: 'Status payment', key: 'payStatuses', hint: '' }
 };
 function catTabs(kind) {
   return '<div class="tabs" role="tablist" style="padding:0 18px;margin:0">' + Object.keys(CAT_KINDS).map(function (k) { return '<button type="button" role="tab" data-act="cat-tab" data-kind="' + k + '" aria-selected="' + (k === kind) + '">' + CAT_KINDS[k].label + '</button>'; }).join('') + '</div>';
@@ -966,17 +985,56 @@ function statusManager() {
     commit('Status disimpan' + (moved ? ' · ' + moved + ' task diperbarui' : '') + (blockedNoReason ? ' · ' + blockedNoReason + ' task terhambat belum punya blocker' : ''));
   };
 }
+function payManager() {
+  var list = db.settings.payStatuses;
+  var rows = list.map(function (x, i) {
+    var used = db.finance.filter(function (f) { return f.paymentStatus === x.name; }).length;
+    return '<div class="st-row"><span class="badge b-' + esc(x.color) + '" aria-hidden="true">' + esc(x.name) + '</span>' +
+      '<input class="input" id="pay-name-' + i + '" value="' + esc(x.name) + '" maxlength="40" aria-label="Nama status payment">' +
+      '<select class="select" id="pay-type-' + i + '" aria-label="Jenis">' + opts(PAY_TYPES, x.type) + '</select>' +
+      '<select class="select" id="pay-color-' + i + '" aria-label="Warna">' + opts(STATUS_COLORS, x.color) + '</select>' +
+      '<span class="cat-use">' + used + ' dipakai</span>' +
+      '<span class="st-btns"><button class="btn sm" type="button" data-act="cat-move" data-kind="pay" data-idx="' + i + '" data-dir="-1" aria-label="Naik"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="btn sm" type="button" data-act="cat-move" data-kind="pay" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="pay" data-idx="' + i + '">Hapus</button></span></div>';
+  }).join('');
+  openModal('<form id="payForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('pay') +
+    '<div class="modal-b one"><p class="muted" style="margin:0">Pilihan di dropdown Payment status (Finance). <b>Jenis</b> menentukan hitungan: <i>Belum bayar</i> = dibayar Rp 0, <i>Bayar sebagian (DP)</i> = dibayar sebesar DP, <i>Lunas</i> = dibayar penuh. Kalau kolom "Total transferred" diisi, angka itu yang dipakai. Ganti nama otomatis memperbarui semua item budget.</p>' +
+    '<div class="cat-list">' + rows + '</div>' +
+    '<div class="cat-add"><input class="input" id="payNew" placeholder="Nama status baru, mis. Waiting Invoice" maxlength="40"><select class="select" id="payNewType" aria-label="Jenis">' + opts(PAY_TYPES, 'unpaid') + '</select><button type="button" class="btn" data-act="cat-add" data-kind="pay">+ Tambah</button></div>' +
+    '<div class="form-err" id="catErr" hidden></div></div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan perubahan</button></div></div></form>', 'wide');
+  document.getElementById('payForm').onsubmit = function (e) {
+    e.preventDefault();
+    var next = [], names = [], moved = 0;
+    for (var i = 0; i < list.length; i++) {
+      var nm = document.getElementById('pay-name-' + i).value.trim();
+      if (!nm) { catErr('Nama status tidak boleh kosong.'); return; }
+      if (names.indexOf(nm.toLowerCase()) > -1) { catErr('Nama "' + nm + '" dipakai dua kali.'); return; }
+      names.push(nm.toLowerCase());
+      next.push({ name: nm, type: document.getElementById('pay-type-' + i).value, color: document.getElementById('pay-color-' + i).value });
+      if (nm !== list[i].name) {
+        var from = list[i].name;
+        db.finance.forEach(function (f) { if (f.paymentStatus === from) { f.paymentStatus = nm; f.updatedAt = Date.now(); moved++; } });
+        if (ui.finPay === from) ui.finPay = nm;
+      }
+    }
+    db.settings.payStatuses = next; closeModal();
+    commit('Status payment disimpan' + (moved ? ' · ' + moved + ' item diperbarui' : ''));
+  };
+}
 function catUsage(kind, name) {
-  if (kind === 'pic') return { tasks: db.tasks.filter(function (t) { return t.pic === name; }).length + (db.rundown || []).filter(function (r) { return r.pic === name; }).length, finance: 0 };
+  if (kind === 'pic') return { tasks: db.tasks.concat(db.rundown || []).filter(function (t) { return picsOf(t.pic).indexOf(name) > -1; }).length, finance: 0 };
   if (kind === 'category') return { tasks: db.tasks.filter(function (t) { return t.category === name; }).length, finance: 0 };
   return { tasks: db.tasks.filter(function (t) { return t.workstream === name; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
 }
 function categoryManager(kind) {
   kind = kind || 'category';
   if (kind === 'status') return statusManager();
+  if (kind === 'pay') return payManager();
   var K = CAT_KINDS[kind], list = db.settings[K.key];
   var unlisted = [];
-  (kind === 'pic' ? db.tasks.concat(db.rundown || []).map(function (t) { return t.pic; }) : kind === 'category' ? db.tasks.map(function (t) { return t.category; }) : db.tasks.concat(db.finance).map(function (r) { return r.workstream; }))
+  (kind === 'pic' ? [].concat.apply([], db.tasks.concat(db.rundown || []).map(function (t) { return picsOf(t.pic); })) : kind === 'category' ? db.tasks.map(function (t) { return t.category; }) : db.tasks.concat(db.finance).map(function (r) { return r.workstream; }))
     .forEach(function (v) { if (v && list.indexOf(v) < 0 && unlisted.indexOf(v) < 0) unlisted.push(v); });
   var rows = list.map(function (name, i) {
     var u = catUsage(kind, name);
@@ -1002,7 +1060,7 @@ function categoryManager(kind) {
 function catErr(msg) { var el = document.getElementById('catErr'); if (el) { el.textContent = msg; el.hidden = !msg; } }
 function catRename(kind, from, to) {
   var n = 0;
-  if (kind === 'pic') db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.pic === from) { t.pic = to; t.updatedAt = Date.now(); n++; } });
+  if (kind === 'pic') db.tasks.concat(db.rundown || []).forEach(function (t) { var a = picsOf(t.pic), k = a.indexOf(from); if (k > -1) { a[k] = to; t.pic = picJoin(a); t.updatedAt = Date.now(); n++; } });
   else if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
   else db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream === from) { r.workstream = to; r.updatedAt = Date.now(); n++; } });
   if (kind === 'workstream' && ui.fWs === from) ui.fWs = to;
@@ -1024,6 +1082,13 @@ function applyCatRenames(kind) {
   commit(changes.length + ' nama diganti' + (moved ? ' · ' + moved + ' record ikut diperbarui' : ''));
 }
 function catAdd(kind) {
+  if (kind === 'pay') {
+    var pn = (document.getElementById('payNew').value || '').trim(), pt = document.getElementById('payNewType').value;
+    if (!pn) { catErr('Isi nama status payment dulu.'); return; }
+    if (db.settings.payStatuses.some(function (x) { return x.name.toLowerCase() === pn.toLowerCase(); })) { catErr('"' + pn + '" sudah ada.'); return; }
+    db.settings.payStatuses.push({ name: pn, type: pt, color: { unpaid: 'warn', partial: 'info', paid: 'ok' }[pt] });
+    persist(db); render(); payManager(); toast('Status payment "' + pn + '" ditambahkan'); return;
+  }
   if (kind === 'status') {
     var nm = (document.getElementById('stNew').value || '').trim(), ty = document.getElementById('stNewType').value;
     if (!nm) { catErr('Isi nama status dulu.'); return; }
@@ -1039,6 +1104,22 @@ function catAdd(kind) {
   db.settings[K.key].push(v); persist(db); render(); categoryManager(kind); toast('"' + v + '" ditambahkan');
 }
 function catDelete(kind, idx) {
+  if (kind === 'pay') {
+    var PL = db.settings.payStatuses, ps = PL[idx]; if (!ps) return;
+    var pused = db.finance.filter(function (f) { return f.paymentStatus === ps.name; }).length, prest = PL.filter(function (_, i) { return i !== idx; });
+    if (!prest.length) { toast('Minimal harus ada satu status payment.', true); return; }
+    if (!pused) { confirmDialog('Hapus status "' + ps.name + '"?', 'Tidak ada item budget yang memakai status ini.', 'Hapus', function () { db.settings.payStatuses = prest; commit('Status payment dihapus'); payManager(); }); return; }
+    openModal('<form id="payDelForm" novalidate><div class="modal-h"><h3>Hapus status "' + esc(ps.name) + '"?</h3></div><div class="modal-b one"><p style="margin:0">Masih dipakai oleh <b>' + pused + ' item budget</b>. Pindahkan ke:</p>' +
+      field('moveTo', 'Status pengganti', sel('moveTo', prest.map(function (x) { return x.name; }), prest[0].name)) + '</div>' +
+      '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="pay">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; hapus</button></div></div></form>', 'sm');
+    document.getElementById('payDelForm').onsubmit = function (e) {
+      e.preventDefault(); var to = e.target.moveTo.value, n = 0;
+      db.finance.forEach(function (f) { if (f.paymentStatus === ps.name) { f.paymentStatus = to; f.updatedAt = Date.now(); n++; } });
+      if (ui.finPay === ps.name) ui.finPay = '';
+      db.settings.payStatuses = prest; closeModal(); commit('Status "' + ps.name + '" dihapus · ' + n + ' item dipindah ke "' + to + '"'); payManager();
+    };
+    return;
+  }
   if (kind === 'status') {
     var L = db.settings.taskStatuses, st = L[idx]; if (!st) return;
     var used = statusUsage(st.name), rest = L.filter(function (_, i) { return i !== idx; });
@@ -1198,6 +1279,36 @@ function renderTasks() {
 }
 // same order as the Master Timeline: by start date (or deadline when there is no start), then deadline; undated last
 function picList() { return (db.settings.pics || []).slice(); }
+// a PIC field can hold several people, stored as "Putri, Esi"
+function picsOf(v) { return String(v || '').split(/\s*[,;\/]\s*|\s+&\s+/).map(function (x) { return x.trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }); }
+function picJoin(arr) { return arr.filter(function (x, i, a) { return x && a.indexOf(x) === i; }).join(', '); }
+function picChips(v) { var a = picsOf(v); return a.length ? a.map(function (n) { return '<span class="pic-chip">' + esc(n) + '</span>'; }).join('') : '<span class="faint">Belum ada</span>'; }
+// checkbox list of names + "add a new name" box; the chosen names go into a hidden input "pic"
+function picField(v) {
+  var cur = picsOf(v), names = picList(); cur.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); });
+  return '<div class="field full" data-field="pic"><label>PIC <span class="hint" style="display:inline">· bisa pilih lebih dari satu</span></label>' +
+    '<div class="pic-pick" id="picPick">' + names.map(function (n) { return '<label class="pic-opt"><input type="checkbox" class="pic-cb" value="' + esc(n) + '"' + (cur.indexOf(n) > -1 ? ' checked' : '') + (canEdit() ? '' : ' disabled') + '> ' + esc(n) + '</label>'; }).join('') + '</div>' +
+    (canEdit() ? '<div class="pic-new"><input class="input" id="picNewName" placeholder="Tambah nama PIC baru" maxlength="60"><button type="button" class="btn sm" data-act="pic-add-inline">+ Tambah</button> <a href="#" data-act="manage-pics" class="hint">Kelola nama PIC</a></div>' : '') +
+    '<input type="hidden" id="f-pic" name="pic" value="' + esc(picJoin(cur)) + '"><span class="msg" hidden></span></div>';
+}
+function picSync() {
+  var h = document.getElementById('f-pic'); if (!h) return;
+  h.value = picJoin([].map.call(document.querySelectorAll('#picPick .pic-cb:checked'), function (c) { return c.value; }));
+}
+function picAddInline() {
+  var el = document.getElementById('picNewName'), n = (el && el.value || '').trim(); if (!n) { if (el) el.focus(); return; }
+  if (!db.settings.pics.some(function (x) { return x.toLowerCase() === n.toLowerCase(); })) { db.settings.pics.push(n); persist(db); }
+  var box = document.getElementById('picPick'), ex = [].filter.call(box.querySelectorAll('.pic-cb'), function (c) { return c.value.toLowerCase() === n.toLowerCase(); })[0];
+  if (ex) ex.checked = true;
+  else { var l = document.createElement('label'); l.className = 'pic-opt'; l.innerHTML = '<input type="checkbox" class="pic-cb" value="' + esc(n) + '" checked> ' + esc(n); box.appendChild(l); }
+  el.value = ''; picSync(); toast('"' + n + '" ditambahkan ke daftar PIC');
+}
+function picDialog(id) {
+  var t = taskById(id); if (!t) return;
+  openModal('<form id="picForm" novalidate><div class="modal-h"><h3>PIC · ' + esc(t.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' + picField(t.pic) + '</div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Batal</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'sm');
+  document.getElementById('picForm').onsubmit = function (e) { e.preventDefault(); picSync(); t.pic = document.getElementById('f-pic').value; t.updatedAt = Date.now(); closeModal(); commit('PIC → ' + (t.pic || 'kosong')); };
+}
 function tlKey(t) { return (t.start || t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
 function sortTh(key, label, cls) {
   var on = ui.sort.key === key;
@@ -1228,18 +1339,30 @@ function taskCell(key, t) {
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
     case 'deadline': return '<td>' + dueLabel(t) + '</td>';
-    case 'pic': return '<td>' + (canEdit() ? '<select class="inline-select" data-inline="pic" data-id="' + t.id + '" aria-label="PIC for ' + esc(t.name) + '">' + opts(withCurrent(picList(), t.pic), t.pic || '', '— Belum ada —') + '</select>' : (t.pic ? esc(t.pic) : '<span class="faint">Unassigned</span>')) + '</td>';
+    case 'pic':
+      if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
+      return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
     case 'blockers': return '<td style="max-width:240px">' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '') + (t.dependencies ? '<span class="tsub">Waiting on: ' + esc(t.dependencies) + '</span>' : '') + (!t.blockers && !t.dependencies ? '<span class="faint">—</span>' : '') + '</td>';
     case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
     case 'source': return '<td>' + srcTag(t.source) + '</td>';
     case 'payment':
-      var fins = finForTask(t.id), pay = '<span class="faint">—</span>';
-      if (fins.length) {
-        var tt = totals(fins), allPaid = fins.every(function (f) { return f.paymentStatus === 'Full Paid'; }), anyPaid = fins.some(function (f) { return f.paymentStatus !== 'Pending Payment'; });
-        pay = payBadge(allPaid ? 'Full Paid' : anyPaid ? 'DP Paid' : 'Pending Payment') + (tt.outstanding ? ' <span class="num muted" style="font-size:12px">' + rp(tt.outstanding) + ' due</span>' : '');
-      }
-      return '<td>' + pay + '</td>';
+      // paid so far, what is still outstanding, and which items are due when
+      var fins = finForTask(t.id);
+      if (!fins.length) return '<td><span class="faint">—</span></td>';
+      var tt = totals(fins), allPaid = fins.every(function (f) { return payType(f.paymentStatus) === 'paid'; }), anyPaid = fins.some(function (f) { return payType(f.paymentStatus) !== 'unpaid'; });
+      var due = fins.map(function (f) { return { f: f, c: calc(f) }; })
+        .filter(function (x) { return !x.c.inherited && !x.c.allocation && x.c.outstanding > 0; })
+        .sort(function (a, b) { return (a.f.paymentDeadline || '9999') < (b.f.paymentDeadline || '9999') ? -1 : 1; });
+      var today = todayISO();
+      var dueHtml = due.slice(0, 3).map(function (x) {
+        var d = x.f.paymentDeadline, late = d && d < today;
+        return '<li><span class="pc-item" title="' + esc(x.f.item) + '">' + esc(x.f.item || '(tanpa nama)') + '</span><b class="num">' + rp(x.c.outstanding) + '</b> ' +
+          (d ? '<span class="due ' + (late ? 'overdue' : (daysBetween(today, d) <= 3 ? 'soon' : '')) + '">due ' + fmtDate(d, true) + (late ? ' · lewat' : '') + '</span>' : '<span class="faint pc-nodue">due date belum diisi</span>') + '</li>';
+      }).join('') + (due.length > 3 ? '<li class="faint">+' + (due.length - 3) + ' item lain</li>' : '');
+      return '<td class="pay-cell">' + payBadge(fins.length === 1 ? fins[0].paymentStatus : allPaid ? payFirst('paid') : anyPaid ? payFirst('partial') : payFirst('unpaid')) +
+        '<div class="pc-sum"><span>Dibayar <b class="num">' + rp(tt.paid) + '</b></span><span class="' + (tt.outstanding > 0 ? 'pc-out' : 'pc-ok') + '">Sisa <b class="num">' + rp(tt.outstanding) + '</b></span></div>' +
+        (dueHtml ? '<ul class="pc-due">' + dueHtml + '</ul>' : '') + '</td>';
   }
   return '<td></td>';
 }
@@ -1326,7 +1449,7 @@ function renderFinance() {
   }
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
     '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All categories') + '</select>' +
-    '<select class="select" id="finPay" aria-label="Payment status">' + opts(PAY_STATUS, ui.finPay, 'All payment status') + '</select>' +
+    '<select class="select" id="finPay" aria-label="Payment status">' + opts(payList(), ui.finPay, 'All payment status') + '</select>' +
     '<select class="select" id="finInv" aria-label="Invoice status">' + opts(INV_STATUS, ui.finInv, 'All invoice status') + '</select>' +
     ((ui.finQ || ui.finWs || ui.finPay || ui.finInv) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear filters</button>' : '') + '</div>';
   if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No budget items yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
@@ -1368,8 +1491,9 @@ function renderFinance() {
       inv = rp(c.inv); dpc = rp(c.dp);
       paid = rp(c.base == null && !c.paid ? null : c.paid) + (c.fee ? '<span class="tsub">+ fee ' + rp(c.fee) + '</span>' : '');
       rem = rp(c.outstanding) + (c.basedOnEstimate && c.outstanding ? '<span class="tsub" title="Invoice belum ada; dihitung dari estimasi">est.</span>' : '');
-      pd = f.paymentDeadline ? '<span class="due ' + (f.paymentStatus !== 'Full Paid' && f.paymentDeadline < todayISO() ? 'overdue' : '') + '">' + fmtDate(f.paymentDeadline, true) + '</span>' : '<span class="faint">—</span>';
-      ivs = invBadge(f.invoiceStatus); pay = payBadge(f.paymentStatus);
+      pd = f.paymentDeadline ? '<span class="due ' + (payType(f.paymentStatus) !== 'paid' && f.paymentDeadline < todayISO() ? 'overdue' : '') + '">' + fmtDate(f.paymentDeadline, true) + '</span>' : '<span class="faint">—</span>';
+      ivs = invBadge(f.invoiceStatus);
+      pay = canEdit() ? '<select class="inline-select st-' + esc(payDef(f.paymentStatus).color) + '" data-inline="paystatus" data-id="' + f.id + '" aria-label="Payment status ' + esc(f.item) + '">' + opts(withCurrent(payList(), f.paymentStatus), f.paymentStatus) + '</select>' : payBadge(f.paymentStatus);
       rec = f.receipt ? '<span class="badge b-ok nodot" title="' + esc(f.receipt) + '" style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(f.receipt) + '</span>' : '<span class="faint">—</span>';
     }
     var cell = {
@@ -1481,7 +1605,7 @@ function taskForm(t, preset) {
     field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola kategori</a>' : '' }) +
     field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
-    field('pic', 'PIC', sel('pic', withCurrent(picList(), t.pic), t.pic || '', '— Belum ada —'), { hint: canEdit() ? '<a href="#" data-act="manage-pics">Kelola nama PIC</a>' : '' }) +
+    picField(t.pic) +
     field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
     field('blockers', 'Blockers', ta('blockers', t.blockers)) +
@@ -1510,7 +1634,7 @@ function taskForm(t, preset) {
 function finForm(f, presetTask) {
   var isNew = !f;
   f = f || { item: '', workstream: presetTask ? (taskById(presetTask) || {}).workstream || '' : '', qty: null, unit: '', unitCost: null, estimated: null, invoice: null, dp: null, fee: null, paidAmount: null,
-    paymentDeadline: '', invoiceStatus: 'Unsubmitted', paymentStatus: 'Pending Payment', receipt: '', invoiceRef: '', taskId: presetTask || '', notes: '', kind: '', parentId: null, source: 'confirmed', verifyNote: '' };
+    paymentDeadline: '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', invoiceRef: '', taskId: presetTask || '', notes: '', kind: '', parentId: null, source: 'confirmed', verifyNote: '' };
   var taskOpts = db.tasks.slice().sort(function (a, b) { return (a.workstream + a.name).localeCompare(b.workstream + b.name); }).map(function (t) { return { value: t.id, label: t.workstream + ' · ' + t.name }; });
   var parentOpts = db.finance.filter(function (x) { return x.kind && x.id !== f.id; }).sort(rowOrder).map(function (x) { return { value: x.id, label: x.workstream + ' · ' + x.item }; });
   var hasKids = !isNew && kidsOf(f).length > 0;
@@ -1532,7 +1656,7 @@ function finForm(f, presetTask) {
     field('fee', 'Biaya transfer (Rp)', inp('fee', amt(f.fee), 'text', 'inputmode="numeric"')) +
     field('paymentDeadline', 'Payment deadline', inp('paymentDeadline', f.paymentDeadline, 'date')) +
     field('invoiceStatus', 'Invoice status', sel('invoiceStatus', INV_STATUS, f.invoiceStatus)) +
-    field('paymentStatus', 'Payment status', sel('paymentStatus', PAY_STATUS, f.paymentStatus)) +
+    field('paymentStatus', 'Payment status', sel('paymentStatus', withCurrent(payList(), f.paymentStatus), f.paymentStatus), { hint: canEdit() ? '<a href="#" data-act="manage-pay">Kelola status payment</a>' : '' }) +
     field('invoiceRef', 'Invoice / quotation file', inp('invoiceRef', f.invoiceRef, 'text', 'maxlength="300"')) +
     field('receipt', 'Bukti transfer', inp('receipt', f.receipt, 'text', 'maxlength="300" placeholder="Link Drive / nama file / no. referensi"')) +
     '<div class="calc-preview" id="calcPreview"></div><div class="calc-flags" id="calcFlags"></div>' +
@@ -1706,7 +1830,7 @@ function importCsvDialog() {
       ['unitCost','estimated','invoice','dp'].forEach(function (k) { if (map[k] == null) return; var p = parseAmount(r[map[k]]); if (p.ok) rec[k] = p.value; else problems.push('Row ' + (i + 2) + ': "' + r[map[k]] + '" in ' + k + ' is not a number'); });
       if (map.qty != null && r[map.qty]) { var q = Number(String(r[map.qty]).replace(/[^\d.,]/g, '').replace(',', '.')); if (!isNaN(q)) rec.qty = q; }
       if (map.paymentDeadline != null && r[map.paymentDeadline]) { var d = parseFlexDate(r[map.paymentDeadline]); if (d) rec.paymentDeadline = d; else problems.push('Row ' + (i + 2) + ': date "' + r[map.paymentDeadline] + '" not recognised'); }
-      if (map.paymentStatus != null) { var ps = (r[map.paymentStatus] || '').toLowerCase(); rec.paymentStatus = /full|lunas/.test(ps) ? 'Full Paid' : /dp/.test(ps) ? 'DP Paid' : 'Pending Payment'; }
+      if (map.paymentStatus != null) { var ps = (r[map.paymentStatus] || '').toLowerCase(); var hit = payDefs().filter(function (x) { return x.name.toLowerCase() === ps; })[0]; rec.paymentStatus = hit ? hit.name : /full|lunas/.test(ps) ? payFirst('paid') : /dp/.test(ps) ? payFirst('partial') : payFirst('unpaid'); }
       if (map.invoiceStatus != null) { var is = (r[map.invoiceStatus] || '').toLowerCase(); rec.invoiceStatus = /unsub|belum|not/.test(is) || !is ? 'Unsubmitted' : 'Submitted'; }
       if (map.receipt != null) rec.receipt = r[map.receipt] || '';
       if (map.notes != null) rec.notes = r[map.notes] || '';
@@ -1761,7 +1885,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -1779,6 +1903,9 @@ function handleAct(el, e) {
     case 'manage-categories': e.preventDefault(); closeModal(); categoryManager('category'); break;
     case 'manage-statuses': e.preventDefault(); closeModal(); statusManager(); break;
     case 'manage-pics': e.preventDefault(); closeModal(); categoryManager('pic'); break;
+    case 'manage-pay': e.preventDefault(); closeModal(); payManager(); break;
+    case 'pick-pic': picDialog(id); break;
+    case 'pic-add-inline': picAddInline(); break;
     case 'manage-columns': e.preventDefault(); closeModal(); columnManager(el.dataset.table); break;
     case 'col-tab': if (colApply(document.querySelector('#colForm [aria-selected="true"]').dataset.table)) { persist(db); render(); } closeModal(); columnManager(el.dataset.table); break;
     case 'col-add': colAdd(el.dataset.table); break;
@@ -1844,6 +1971,8 @@ main.addEventListener('input', function (e) {
   else if (t.id === 'rdSearch') { ui.rdQ = t.value; render(); }
   else if (t.id === 'finSearch') { ui.finQ = t.value; render(); }
 });
+document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('pic-cb')) picSync(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'picNewName') { e.preventDefault(); picAddInline(); } });
 main.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.inline && !canEdit()) return;
@@ -1858,6 +1987,10 @@ main.addEventListener('change', function (e) {
     rec.cf = rec.cf || {};
     if (pr.value == null || pr.value === false) delete rec.cf[col.key]; else rec.cf[col.key] = pr.value;
     rec.updatedAt = Date.now(); commit(col.label + ' diperbarui'); return;
+  }
+  if (t.dataset.inline === 'paystatus') {
+    var fp = finById(t.dataset.id); if (!fp || !canEdit()) return;
+    fp.paymentStatus = t.value; fp.updatedAt = Date.now(); commit('Payment → ' + t.value); return;
   }
   if (t.dataset.inline === 'pic') {
     var tp = taskById(t.dataset.id); if (!tp || !canEdit()) return;

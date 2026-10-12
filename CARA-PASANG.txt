@@ -1,11 +1,16 @@
-GX27 — Patch: start date 1 Oktober + PIC dropdown
+GX27 — Patch: status payment bisa diatur + PIC bisa beberapa orang
 
-Isi: app.js, admin.js
-Upload dua file ini ke GitHub (timpa yang lama). Vercel deploy otomatis.
-Tidak perlu jalankan SQL.
+Isi: app.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
 
-Hasil:
-- Semua task: start date = 1 Okt 2026 (otomatis sekali saat website dibuka, tersimpan untuk semua).
-  Task baru juga default start 1 Okt.
-- PIC jadi dropdown: Putri, Esi, Pak Atong (di tabel Tasks, form task, dan rundown).
-- Tambah/ganti/hapus nama PIC: Kelola kategori -> tab PIC (atau link "Kelola nama PIC" di form).
+STATUS PAYMENT
+- Default: Pending Payment (kuning), Outstanding Payment (merah), DP Paid (biru), Full Paid (hijau).
+- Atur: Kelola kategori -> tab "Status payment" (atau link "Kelola status payment" di form budget).
+  Tambah, ganti nama, ganti warna, urutkan, hapus.
+- Jenis menentukan hitungan: Belum bayar = Rp 0, Bayar sebagian (DP) = sebesar DP, Lunas = penuh.
+- Di tabel Finance, kolom Payment jadi dropdown (ganti langsung).
+
+PIC
+- Satu task / segmen rundown bisa punya beberapa PIC (centang lebih dari satu).
+- Tambah nama baru langsung dari form ("Tambah nama PIC baru").
+- Di tabel Tasks klik tombol pensil di kolom PIC untuk ubah cepat.
+- Ganti nama / hapus nama: Kelola kategori -> tab PIC.
