@@ -671,7 +671,7 @@ function render() {
   var html = '', Admin = MODE === 'admin' ? window.GX27Admin : null;
   var gate = Admin ? Admin.gate() : '';
   if (gate) { main.innerHTML = gate; saveUI(); if (Admin.afterRender) Admin.afterRender(); return; }
-  if (ui.page === 'admin' && !Admin) ui.page = 'timeline';
+  if (ui.page === 'admin' && (!Admin || (Admin.isGuest && Admin.isGuest()))) ui.page = 'timeline';
   try {
     if (ui.page === 'admin') html = Admin.renderPage();
     else if (ui.page === 'timeline') html = renderMaster();
@@ -1768,7 +1768,7 @@ function handleAct(el, e) {
     case 'col-move': colMove(el.dataset.table, +el.dataset.idx, +el.dataset.dir); break;
     case 'col-show': colApply(el.dataset.table); colList(el.dataset.table).forEach(function (c) { if (c.key === el.dataset.key) c.visible = true; }); persist(db); render(); closeModal(); columnManager(el.dataset.table); break;
     case 'budget-apply':
-      confirmDialog('Terapkan data budget sheet terbaru?', 'Isi Finance diganti dengan ' + (SHEET_SEED.items || []).length + ' baris dari ' + esc((SHEET_SEED.meta || {}).file || 'sheet') + '. Perubahan manual di Finance setelah import terakhir akan diganti. Task, rundown, dan settings tidak berubah.' + (MODE === 'admin' ? ' Setelah itu klik Save & Publish.' : ''), 'Terapkan', function () {
+      confirmDialog('Terapkan data budget sheet terbaru?', 'Isi Finance diganti dengan ' + (SHEET_SEED.items || []).length + ' baris dari ' + esc((SHEET_SEED.meta || {}).file || 'sheet') + '. Perubahan manual di Finance setelah import terakhir akan diganti. Task, rundown, dan settings tidak berubah.' + '', 'Terapkan', function () {
         applyBudgetSeed(db); db.budgetUpdateAvailable = false; commit('Data budget sheet diterapkan · ' + db.finance.length + ' baris');
       });
       break;
@@ -1925,9 +1925,9 @@ function startPublic(Sync) {
 function boot() {
   var Sync = window.GX27Sync || {}, cfg = window.GX27_CONFIG, wantAdmin = window.GX27_MODE === 'admin';
   if (Sync.ready) {
-    MODE = wantAdmin && window.GX27Admin ? 'admin' : 'public';
-    if (MODE === 'admin') { window.GX27Admin.start(); return; }
-    startPublic(Sync); return;
+    // everyone edits the shared data directly — no login, no admin
+    if (window.GX27Admin) { MODE = 'admin'; window.GX27Admin.start({ guest: true }); return; }
+    MODE = 'public'; startPublic(Sync); return;
   }
   if (cfg && cfg.configured && !Sync.libLoaded) {
     // config says a database exists but we can't reach it: never fall back to an editable local copy

@@ -80,7 +80,41 @@ language sql stable security definer set search_path = public as $$
   select coalesce(public.my_role() = 'admin', false)
 $$;
 
--- ───────────────────────── Save draft (editor + admin) ─────────────────────────
+-- ───────────────────────── Open edit: anyone can edit without login ─────────────────────────
+-- site_flags.open_edit = true → visitors (no login) may save and publish. Admins switch it in
+-- Admin panel → Realtime & sinkronisasi, or: update public.site_flags set value = false where key = 'open_edit';
+create table if not exists public.site_flags (
+  key   text primary key,
+  value boolean not null default false
+);
+-- this site has no login: editing is always open to everyone
+insert into public.site_flags (key, value) values ('open_edit', true) on conflict (key) do update set value = true;
+
+create or replace function public.open_edit() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select value from public.site_flags where key = 'open_edit'), false)
+$$;
+create or replace function public.can_edit() returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_editor() or public.open_edit()
+$$;
+create or replace function public.can_publish() returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_admin() or public.open_edit()
+$$;
+create or replace function public.set_open_edit(p_value boolean) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'not_authorized'; end if;
+  insert into public.site_flags (key, value) values ('open_edit', coalesce(p_value, false))
+  on conflict (key) do update set value = excluded.value;
+  insert into public.publish_log (kind, status, message, actor)
+  values ('content', 'Published', case when p_value then 'Edit terbuka untuk semua orang: ON' else 'Edit terbuka untuk semua orang: OFF' end, public.current_email());
+  return coalesce(p_value, false);
+end;
+$$;
+
+-- ───────────────────────── Save draft (editor + admin, or anyone when open edit is on) ─────────────────────────
 -- p_base_version = the draft version being edited. If someone else saved in the meantime,
 -- fails with 'conflict:<current version>' unless p_force = true.
 -- Every save also goes into content_versions, so overwrites never lose data.
@@ -90,9 +124,9 @@ language plpgsql security definer set search_path = public as $$
 declare
   v_current integer;
   v_next    integer;
-  v_email   text := public.current_email();
+  v_email   text := coalesce(public.current_email(), 'pengunjung');
 begin
-  if not public.is_editor() then
+  if not public.can_edit() then
     raise exception 'not_authorized';
   end if;
   if p_data is null
@@ -136,9 +170,9 @@ returns json
 language plpgsql security definer set search_path = public as $$
 declare
   d       public.site_content%rowtype;
-  v_email text := public.current_email();
+  v_email text := coalesce(public.current_email(), 'pengunjung');
 begin
-  if not public.is_admin() then
+  if not public.can_publish() then
     raise exception 'not_authorized: hanya admin yang bisa publish';
   end if;
 
@@ -223,7 +257,7 @@ alter table public.publish_log      enable row level security;
 
 drop policy if exists "read published or editor" on public.site_content;
 create policy "read published or editor" on public.site_content
-  for select to anon, authenticated using (id = 'published' or public.is_editor());
+  for select to anon, authenticated using (id = 'published' or public.is_editor() or (id = 'draft' and public.open_edit()));
 
 drop policy if exists "editors read versions" on public.content_versions;
 create policy "editors read versions" on public.content_versions
@@ -250,8 +284,16 @@ revoke execute on function public.publish_content(text)                     from
 revoke execute on function public.log_event(text, text, integer, text)      from public, anon;
 revoke execute on function public.set_admin(text, text)                     from public, anon;
 revoke execute on function public.remove_admin(text)                        from public, anon;
-grant  execute on function public.save_draft(jsonb, integer, boolean)       to authenticated;
-grant  execute on function public.publish_content(text)                     to authenticated;
+grant  execute on function public.save_draft(jsonb, integer, boolean)       to anon, authenticated;
+grant  execute on function public.publish_content(text)                     to anon, authenticated;
+alter table public.site_flags enable row level security;
+drop policy if exists "anyone reads flags" on public.site_flags;
+create policy "anyone reads flags" on public.site_flags for select to anon, authenticated using (true);
+revoke insert, update, delete, truncate on public.site_flags from anon, authenticated;
+grant select on public.site_flags to anon, authenticated;
+revoke execute on function public.set_open_edit(boolean) from public, anon;
+grant  execute on function public.set_open_edit(boolean) to authenticated;
+grant  execute on function public.open_edit(), public.can_edit(), public.can_publish() to anon, authenticated;
 grant  execute on function public.log_event(text, text, integer, text)      to authenticated;
 grant  execute on function public.set_admin(text, text)                     to authenticated;
 grant  execute on function public.remove_admin(text)                        to authenticated;

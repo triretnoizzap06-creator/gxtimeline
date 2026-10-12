@@ -66,6 +66,9 @@
   };
   Sync.signOut = function () { return client.auth.signOut().then(function (r) { if (r && r.error) fail(r.error); }); };
   Sync.myRole = function () { return client.rpc('my_role').then(unwrap); };
+  // open edit: anyone may edit without login (set by an admin; enforced by the database)
+  Sync.openEdit = function () { return client.rpc('open_edit').then(unwrap).then(function (v) { return v === true; }); };
+  Sync.setOpenEdit = function (on) { return client.rpc('set_open_edit', { p_value: !!on }).then(unwrap); };
 
   /* ---------- Content ---------- */
   Sync.loadDraft = function () {

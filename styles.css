@@ -583,3 +583,6 @@ tr.subtotal td, tr.grand td{border-top:1.5px solid #BDBCB4}
 .cf-cb{display:flex;gap:6px;align-items:center;font-size:13px}
 body.readonly [data-act="manage-columns"]{display:none !important}
 @media (max-width:640px){.col-row{grid-template-columns:auto 1fr;}.col-row .col-type,.col-row .st-btns{grid-column:2}}
+
+.save-ind{margin:6px 4px 0;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;width:max-content}
+.save-ind[hidden]{display:none}

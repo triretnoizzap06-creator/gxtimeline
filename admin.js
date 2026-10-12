@@ -25,12 +25,14 @@
   function rerender() { App.render(); }
 
   Admin.canEdit = function () { return S.phase === 'ready' && (S.role === 'admin' || S.role === 'editor'); };
+  Admin.isGuest = function () { return !!S.guest; };
   Admin.isAdmin = function () { return S.role === 'admin'; };
 
   /* ================= Boot & auth ================= */
-  Admin.start = function () {
+  Admin.start = function (opts) {
     App = window.GX27App; Sync = window.GX27Sync;
-    addNav();
+    S.guestPage = !!(opts && opts.guest);     // public page in open-edit mode: no login needed
+    if (!S.guestPage) addNav();
     rerender();
     Sync.onAuth(function (ev, session) {
       if (ev === 'SIGNED_IN' && session && !S.email && S.phase !== 'loading') init();
@@ -76,12 +78,21 @@
   function init() {
     if (initRun) return initRun;            // auth listener + login button can both ask; run once
     S.phase = 'loading'; rerender();
+    if (S.guestPage) {
+      // no login: everyone edits the same shared data
+      S.guest = true; S.email = ''; S.role = 'admin';
+      initRun = loadContent().catch(function (err) { S.phase = 'error'; S.errorMsg = err.message; }).then(function () { initRun = null; rerender(); });
+      return initRun;
+    }
     initRun = Sync.getSession().then(function (session) {
-      if (!session) { S.phase = 'login'; return; }
+      // open edit on the public page: everyone edits as a guest (logged-in admins keep their role)
+      var asGuest = function () { S.guest = true; S.email = ''; S.role = 'admin'; return loadContent(); };
+      if (!session) { if (S.guestPage) return asGuest(); S.phase = 'login'; return; }
       S.email = (session.user && session.user.email || '').toLowerCase();
       return Sync.myRole().then(function (role) {
         S.role = role || null;
-        if (!S.role) { S.phase = 'denied'; return; }
+        if (!S.role) { if (S.guestPage) return asGuest(); S.phase = 'denied'; return; }
+        if (S.guestPage) addNav();
         return loadContent();
       });
     }).catch(function (err) { S.phase = 'error'; S.errorMsg = err.message; }).then(function () { initRun = null; rerender(); });
@@ -94,7 +105,7 @@
         // Empty database: fill it straight away so the site has data without any extra step.
         // Prefer the data this browser already has (latest edits), otherwise the built-in data.
         var cands = findLocalData(), pick = cands[0];
-        S.notice = 'Database masih kosong, jadi otomatis diisi dari ' + (pick.key === 'seed' ? 'data bawaan website' : 'data yang tersimpan di browser ini') + ' dan langsung dipublish. Mau pakai data lain? Admin panel → Data tools.';
+        S.notice = S.guest ? '' : 'Database masih kosong, jadi otomatis diisi dari ' + (pick.key === 'seed' ? 'data bawaan website' : 'data yang tersimpan di browser ini') + ' dan langsung dipublish. Mau pakai data lain? Admin panel → Data tools.';
         initWith(JSON.parse(JSON.stringify(pick.data)), true);
         return;
       }
@@ -465,7 +476,8 @@
     var jobs = [
       Sync.listLog(25).then(function (r) { S.log = r; }, function (e) { S.sideErr.log = e.message; }),
       Sync.listVersions(30).then(function (r) { S.versions = r; }, function (e) { S.sideErr.versions = e.message; }),
-      Sync.listAdmins().then(function (r) { S.admins = r; }, function (e) { S.sideErr.admins = e.message; })
+      Sync.listAdmins().then(function (r) { S.admins = r; }, function (e) { S.sideErr.admins = e.message; }),
+      Sync.openEdit().then(function (v) { S.openEdit = v; }, function () { S.openEdit = null; })
     ];
     if (window.GX27Sync.deployStatusEnabled) jobs.push(Sync.deployStatus().then(function (r) { S.deploy.configured = r.configured; S.deploy.latest = r.latest; S.deploy.recent = r.recent; }, function (e) { S.sideErr.deploy = e.message; }));
     Promise.all(jobs).then(rerender);
@@ -482,7 +494,8 @@
   /* ================= Gates (login, access, first-time setup) ================= */
   Admin.gate = function () {
     var back = '<a class="btn ghost" href="/">← Lihat website</a>';
-    if (S.phase === 'loading') return card('Memuat admin panel…', '<p class="muted">Menghubungkan ke database.</p>');
+    if (S.phase === 'loading') return S.guestPage ? '<div class="empty" style="padding:80px 16px"><b>Memuat data…</b>Mengambil versi terbaru dari server.</div>' : card('Memuat admin panel…', '<p class="muted">Menghubungkan ke database.</p>');
+    if (S.phase === 'error' && S.guestPage) return '<div class="banner" role="alert">Tidak bisa memuat data: ' + esc(S.errorMsg) + ' <button class="btn sm" data-admin="retry">Coba lagi</button></div>';
     if (S.phase === 'error') return card('Tidak bisa memuat admin panel', '<p>' + esc(S.errorMsg) + '</p><div class="gate-actions"><button class="btn primary" data-admin="retry">Coba lagi</button>' + back + '</div>');
     if (S.phase === 'login' || S.phase === 'sent') {
       return card('Admin login', (S.phase === 'sent'
@@ -510,7 +523,7 @@
     if (filling) return; filling = true;
     if (!data || !Array.isArray(data.tasks) || !Array.isArray(data.finance)) { App.toast('Data tidak valid: butuh tasks dan finance.', true); return; }
     App.setDb(data); S.phase = 'ready'; S.draft = null; S.dirty = true; Admin.markDirty(App.getDb());
-    startWatching(); App.setPage('admin');
+    startWatching(); if (!S.guest) App.setPage('admin');
     var note = S.notice;
     save(false).then(function (ok) {
       if (!ok) return;
@@ -531,7 +544,7 @@
   var PILL = { Draft: 'b-warn', Publishing: 'b-info', Published: 'b-ok', Failed: 'b-crit' };
   function updBar() {
     var el = document.querySelector('.admin-bar');
-    if (!el) return;
+    if (!el) { if (S.guest) barCore(); return; }
     var tmp = document.createElement('div'); tmp.innerHTML = barCore();
     el.parentNode.replaceChild(tmp.firstChild, el);
   }
@@ -541,6 +554,17 @@
     var saveState = S.saving || S.merging ? ['b-info', auto ? 'Menyimpan…' : 'Saving…'] : S.saveError ? ['b-crit', 'Gagal simpan'] :
       S.dirty ? (auto ? ['b-info', 'Menyimpan…'] : ['b-warn', 'Unsaved changes']) : ['b-ok', (auto ? 'Tersimpan otomatis' : 'Saved') + (S.draft ? ' · v' + S.draft.version : '')];
     var ps = pubStatus();
+    if (S.guest) {
+      var si = document.getElementById('saveInd');
+      if (si) { si.hidden = false; si.className = 'save-ind ' + saveState[0]; si.textContent = saveState[1] + (S.pub === 'Publishing' ? ' · mengirim…' : ''); }
+      return '';
+      return '<div class="admin-bar guest" role="region" aria-label="Edit controls">' +
+        '<div class="ab-who"><span class="ab-tag">EDIT</span><span class="ab-email">Siapa pun bisa edit · perubahan langsung tersimpan untuk semua</span></div>' +
+        '<div class="ab-status"><span class="badge ' + saveState[0] + '">' + saveState[1] + '</span>' +
+        '<span class="badge ' + PILL[ps] + '">' + (ps === 'Draft' ? 'Belum tayang' : ps === 'Published' ? 'Tayang' : ps) + '</span></div>' +
+        '<div class="ab-actions">' + (auto ? '' : '<button class="btn primary" data-admin="save" ' + (S.saving || !S.dirty ? 'disabled' : '') + '>Simpan</button>') +
+        (autoPublishOn() ? '' : '<button class="btn accent" data-admin="publish" ' + (S.pub === 'Publishing' || S.saving ? 'disabled' : '') + '>' + (S.pub === 'Publishing' ? 'Publishing…' : 'Tayangkan') + '</button>') + '</div></div>';
+    }
     return '<div class="admin-bar" role="region" aria-label="Admin controls">' +
       '<div class="ab-who"><span class="ab-tag">' + (S.role === 'admin' ? 'ADMIN' : 'EDITOR') + '</span><span class="ab-email">' + esc(S.email) + '</span></div>' +
       '<div class="ab-status"><span class="badge ' + saveState[0] + '" title="Status penyimpanan ke database">' + saveState[1] + '</span>' +
@@ -586,6 +610,7 @@
       '<ul class="adm-list"><li>Semua yang membuka admin panel (beda device / beda email) melihat perubahan draft dalam hitungan detik.</li><li>Pengunjung website melihat versi live terbaru tanpa refresh.</li><li>Kalau dua orang mengedit bersamaan, perubahan digabung per item. Kalau field yang sama diubah dua-duanya, yang terakhir disimpan yang dipakai.</li><li>Kalau koneksi realtime putus, website otomatis cek ulang tiap 5 detik.</li></ul></div><div>' +
       '<label class="tgl"><input type="checkbox" data-admin-toggle="autoSave"' + (aS ? ' checked' : '') + (isAdmin ? '' : ' disabled') + '><span><b>Auto-save</b><br><span class="muted">Setiap perubahan langsung tersimpan ke database (±1 detik). Tidak perlu klik Save.</span></span></label>' +
       '<label class="tgl"><input type="checkbox" data-admin-toggle="autoPublish"' + (aP ? ' checked' : '') + (isAdmin ? '' : ' disabled') + '><span><b>Auto-publish perubahan admin</b><br><span class="muted">Perubahan yang disimpan admin langsung tampil di website live. Perubahan editor tetap menunggu admin Publish.</span></span></label>' +
+      '<label class="tgl"><input type="checkbox" data-admin-openedit' + (S.openEdit ? ' checked' : '') + (isAdmin && S.openEdit != null ? '' : ' disabled') + '><span><b>Siapa pun bisa edit tanpa login</b><br><span class="muted">Semua orang yang membuka website bisa tambah, ubah, dan hapus data. Matikan kalau mau edit hanya lewat /admin.' + (S.openEdit == null ? ' (memuat…)' : '') + '</span></span></label>' +
       (isAdmin ? '' : '<p class="muted" style="font-size:12.5px">Hanya admin yang bisa mengubah pengaturan ini.</p>') + '</div></div>');
 
     // What is managed where
@@ -768,6 +793,10 @@
     } else if (t.id === 'logoUrlText') {
       var hid2 = document.getElementById('f-logoUrl'), p2 = document.getElementById('logoPreview');
       if (hid2) hid2.value = t.value.trim(); if (p2) p2.src = t.value.trim() || App.DEFAULT_LOGO;
+    } else if (t.hasAttribute('data-admin-openedit')) {
+      var on = t.checked; t.disabled = true;
+      Sync.setOpenEdit(on).then(function (v) { S.openEdit = v; rerender(); App.toast(v ? 'Siapa pun sekarang bisa edit website tanpa login' : 'Edit sekarang hanya lewat /admin'); },
+        function (err) { t.checked = !on; t.disabled = false; App.toast(err.message, true); });
     } else if (t.hasAttribute('data-admin-toggle')) {
       if (S.role !== 'admin') { t.checked = !t.checked; return; }
       var key = t.getAttribute('data-admin-toggle');
