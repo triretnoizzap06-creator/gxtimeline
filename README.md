@@ -8,11 +8,12 @@ It's a static site (HTML/CSS/JS) with no build step and no backend.
 ```
 index.html              Public page (read-only once the database is active)
 admin.html              Admin page (/admin): login, Save, Publish, admin panel
-admin.js                Admin logic: Save/Publish, settings, team, history, deploy
-sync.js                 Connection to Supabase + deploy endpoints
+admin.js                Admin logic: Save/Publish, settings, categories, team, history, deploy
+sync.js                 Connection to Firebase (Firestore + Auth) + deploy endpoints
 api/                    Vercel functions: config, deploy (hook), deploy-status
-supabase/schema.sql     Tables, role-based permissions, save/publish functions
-SETUP.md                Database, login and Vercel setup steps
+firebase/firestore.rules  Security rules: visitors read-only, editors save, admins publish
+data/festival-flow-seed.js  Festival Flow rundown (from Figma) + activity zones & areas
+SETUP.md                Firebase, login, GitHub and Vercel setup steps
 styles.css              All styling (Inter font, white theme)
 app.js                  App logic: pages, CRUD, financial calculations, calendar
 data/budget-seed.js     Initial budget data (sheet "EDIT DISINI", Acara division)
@@ -72,10 +73,10 @@ Alternative via CLI: `npx vercel` from this folder, then `npx vercel --prod`.
 
 ## Where data is stored
 
-- **Online database (Supabase)** after setup (see **SETUP.md**): admins edit at `/admin`, click **Save changes** (draft in the database, synced across devices), then **Publish** (visitors see it live).
+- **Firebase (Firestore)** after setup (see **SETUP.md**): admins edit at `/admin`, click **Save changes** (draft in the database, synced across devices), then **Publish** (visitors see it live).
 - Visitors at `/` only see the published version (read-only).
-- If the database isn't configured (no Vercel env vars / when opened locally), the site falls back to the old way: data is stored in this browser's localStorage (`gx27.dashboard.v3`). That data is never deleted, and it can be pulled into the database the first time an admin logs in.
-- Data tools (export, restore, import sheet, reset) are in **Admin panel → Data tools**.
+- If Firebase isn't configured (no `FIREBASE_CONFIG` env var / when opened locally), the site falls back to the old way: data is stored in this browser's localStorage (`gx27.dashboard.v3`). That data is never deleted, and it can be pulled into the database the first time an admin logs in.
+- The logo is built into the code (no separate file needed). A custom logo can be uploaded from Admin panel → Website settings.
 
 ## Calculation rules (Finance)
 

@@ -6,7 +6,8 @@ var STORE_KEY = 'gx27.dashboard.v3';
 var UI_KEY = 'gx27.ui.v2';
 var EVENT_DATE = '2026-11-21';
 var PREP_DEADLINES = ['2026-10-13','2026-10-16','2026-10-20','2026-10-23','2026-10-24','2026-10-26','2026-10-30'];
-var DEFAULT_LOGO = 'assets/globalxtreme-logo.png';
+// Logo embedded in the code so it never depends on a separate file being uploaded/deployed
+var DEFAULT_LOGO = 'data:image/png;base64,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';
 var SETTINGS_DEFAULT = {
   siteTitle: 'GX27 Operations',
   siteSubtitle: 'Festival of Connectivity · 21 Nov 2026',
@@ -16,7 +17,10 @@ var SETTINGS_DEFAULT = {
   timelineSubtitle: 'Pre-event programs hingga Festival of Connectivity · Oktober–November 2026',
   timelineTagline: 'One journey · Four programs · One celebration',
   logoUrl: '',
-  budgetSheetUrl: ''
+  budgetSheetUrl: '',
+  taskCategories: ['Program Milestone','Preparation','Procurement','Production','Coordination','Event Day'],
+  workstreams: ['GX Connect','GX Got Talent','Mobile Legends','HYROX','Event Day','Preparation','Design & Production','Games & Competition','Entertainment','Tenants','Doorprize',"Winners' Prizes",'Procurement','Emergency Fund'],
+  rundownTitle: ''
 };
 // 'local'  = no database configured: edits stay in this browser (original behaviour)
 // 'public' = visitors: read-only view of the published content
@@ -31,7 +35,20 @@ function normalizeDb(d) {
   for (k in SETTINGS_DEFAULT) s[k] = SETTINGS_DEFAULT[k];
   if (d.settings && typeof d.settings === 'object') for (k in d.settings) if (d.settings[k] !== undefined && d.settings[k] !== null) s[k] = d.settings[k];
   if (!Array.isArray(s.prepDeadlines)) s.prepDeadlines = SETTINGS_DEFAULT.prepDeadlines.slice();
+  ['taskCategories', 'workstreams'].forEach(function (k) { if (!Array.isArray(s[k]) || !s[k].length) s[k] = SETTINGS_DEFAULT[k].slice(); });
   d.settings = s;
+  // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
+  if (!Array.isArray(d.rundown)) { d.rundown = rundownSeed(); d.flowMeta = FLOW_SEED.meta; }
+  if (!d.rundown.some(function (r) { return r.group === 'flow'; }) && !d.flowSeeded) {
+    d.rundown = flowSeedItems().concat(d.rundown); d.flowMeta = FLOW_SEED.meta;
+  }
+  d.flowSeeded = true;
+  // the detailed cue sheet (sheet R5) was removed from the site
+  d.rundown = d.rundown.filter(function (r) { return r.group === 'flow' || !r.group; });
+  delete d.rundownMeta;
+  d.rundown.forEach(function (r) { r.group = 'flow'; if (!Array.isArray(r.concurrent)) r.concurrent = r.concurrent ? String(r.concurrent).split('\n').filter(Boolean) : []; });
+  if (!Array.isArray(d.zones)) d.zones = zonesSeed();
+  if (!d.flowMeta) d.flowMeta = FLOW_SEED.meta;
   return d;
 }
 function logoSrc() { return (db && db.settings && db.settings.logoUrl) || DEFAULT_LOGO; }
@@ -47,10 +64,18 @@ function applySettings() {
   document.title = title + (MODE === 'admin' ? ' · Admin' : '');
 }
 var TASK_STATUS = ['Not Started','In Progress','Pending Approval','Blocked','Done'];
-var CATEGORIES = ['Program Milestone','Preparation','Procurement','Production','Coordination','Event Day'];
 var PAY_STATUS = ['Pending Payment','DP Paid','Full Paid'];
 var INV_STATUS = ['Unsubmitted','Submitted'];
-var BASE_WS = ['GX Connect','GX Got Talent','Mobile Legends','HYROX','Event Day','Preparation','Design & Production','Games & Competition','Entertainment','Tenants','Doorprize',"Winners' Prizes",'Procurement','Emergency Fund'];
+var RUNDOWN_STATUS = ['Planned','Confirmed','Changed','Cancelled'];
+var FLOW_SEED = window.GX27_FLOW_SEED || { meta: null, zones: [], items: [] };
+function flowSeedItems() {
+  return JSON.parse(JSON.stringify(FLOW_SEED.items || [])).map(function (r, i) {
+    return Object.assign({ order: i + 1, duration: '', mcCue: '', av: '', ops: '', docs: '', pic: '', status: 'Planned', source: 'confirmed', verifyNote: '' }, r, { group: 'flow' });
+  });
+}
+function rundownSeed() { return flowSeedItems(); }
+function zonesSeed() { return JSON.parse(JSON.stringify(FLOW_SEED.zones || [])); }
+function taskCategories() { return (db.settings.taskCategories || []).slice(); }
 var WS_CLASS = {'GX Connect':'connect','GX Got Talent':'ggt','Mobile Legends':'ml','HYROX':'hyrox','Event Day':'event'};
 
 /* ================= Seed data ================= */
@@ -144,7 +169,7 @@ function seed() {
     f.createdAt = f.updatedAt = Date.now();
     finance.push(f);
   });
-  return { version: 3, seq: n, tasks: tasks, finance: finance, meta: SHEET_SEED.meta, settings: JSON.parse(JSON.stringify(SETTINGS_DEFAULT)), savedAt: Date.now() };
+  return { version: 3, seq: n, tasks: tasks, finance: finance, rundown: rundownSeed(), flowMeta: FLOW_SEED.meta, zones: zonesSeed(), flowSeeded: true, meta: SHEET_SEED.meta, settings: JSON.parse(JSON.stringify(SETTINGS_DEFAULT)), savedAt: Date.now() };
 }
 
 /* ================= Utilities ================= */
@@ -228,23 +253,29 @@ function commit(msg) {
   var ok = persist(db); render();
   if (msg) toast(ok ? msg + (MODE === 'admin' ? ' · klik Save untuk menyimpan ke database' : '') : 'Change kept for this session only — storage unavailable', !ok);
 }
-function nextId(prefix) { db.seq = (db.seq || 0) + 1; return prefix + String(db.seq).padStart(3, '0'); }
+function nextId(prefix) {
+  var used = {};
+  [db.tasks, db.finance, db.rundown || [], db.zones || []].forEach(function (arr) { arr.forEach(function (x) { used[x.id] = 1; }); });
+  var id;
+  do { db.seq = (db.seq || 0) + 1; id = prefix + String(db.seq).padStart(3, '0'); } while (used[id]);
+  return id;
+}
 function taskById(id) { for (var i = 0; i < db.tasks.length; i++) if (db.tasks[i].id === id) return db.tasks[i]; return null; }
 function finById(id) { for (var i = 0; i < db.finance.length; i++) if (db.finance[i].id === id) return db.finance[i]; return null; }
 function finForTask(id) { return db.finance.filter(function (f) { return f.taskId === id; }); }
 function allWorkstreams() {
-  var set = BASE_WS.slice();
+  var set = (db.settings.workstreams || []).slice();
   db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream && set.indexOf(r.workstream) < 0) set.push(r.workstream); });
   return set;
 }
 
 var ui = loadUI();
 function loadUI() {
-  var d = { page: 'timeline', mtHide: [], taskView: 'all', q: '', fWs: '', fStatus: '', fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
+  var d = { page: 'timeline', mtHide: [], rdLoc: '', rdQ: '', taskView: 'all', q: '', fWs: '', fStatus: '', fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
     finQ: '', finWs: '', finPay: '', finInv: '', calMonth: '2026-10' };
   try { var raw = localStorage.getItem(UI_KEY); if (raw) { var p = JSON.parse(raw); for (var k in p) d[k] = p[k]; } } catch (e) {}
   var h = (location.hash || '').replace('#', '');
-  if (['timeline','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
+  if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
   return d;
 }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
@@ -346,6 +377,7 @@ function render() {
   try {
     if (ui.page === 'admin') html = Admin.renderPage();
     else if (ui.page === 'timeline') html = renderMaster();
+    else if (ui.page === 'rundown') html = renderRundown();
     else if (ui.page === 'overview') html = renderOverview();
     else if (ui.page === 'tasks') html = renderTasks();
     else if (ui.page === 'finance') html = renderFinance();
@@ -410,6 +442,258 @@ function renderMaster() {
   h += '<div class="mt-grid"><div class="mt-col">' + left + '</div><div class="mt-col">' + right + '</div></div>';
   h += '<div class="mt-foot"><img src="' + esc(logoSrc()) + '" alt="Logo"><span>' + esc(db.settings.timelineTagline || '') + '</span></div>';
   return h;
+}
+
+
+/* ---------- Rundown ---------- */
+function rdMinutes(t) { var m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+function rdItems(group) {
+  return db.rundown.filter(function (r) { return (r.group || 'flow') === group; }).sort(function (a, b) { return (rdMinutes(a.start) || 0) - (rdMinutes(b.start) || 0) || (rdMinutes(b.end) || 0) - (rdMinutes(a.end) || 0) || (a.order || 0) - (b.order || 0); });
+}
+function rdLocations(group) { var out = []; rdItems(group).forEach(function (r) { if (r.location && out.indexOf(r.location) < 0) out.push(r.location); }); return out; }
+function rdFilter(list) {
+  var q = (ui.rdQ || '').trim().toLowerCase();
+  return list.filter(function (r) {
+    if (ui.rdLoc && r.location !== ui.rdLoc) return false;
+    if (q && [r.segment, r.location, r.flow, r.mcCue, r.av, r.ops, r.docs, r.pic, (r.concurrent || []).join(' ')].join(' ').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+}
+function rdNow() { return todayISO() === EVENT_DATE ? new Date().getHours() * 60 + new Date().getMinutes() : null; }
+function rdLive(r, now) { var s = rdMinutes(r.start), e = rdMinutes(r.end); return now != null && s != null && e != null && now >= s && now < e; }
+function renderRundown() {
+  var fm = db.flowMeta || {};
+  var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Festival run of show</div><h1 class="mt-title">GX 27 <span class="rd-accent">FESTIVAL FLOW</span></h1><p>' + esc(fm.subtitle || 'Main program dan aktivitas paralel dalam satu alur festival.') + ' · ' + fmtDate(EVENT_DATE) + '</p></div>' +
+    '<div class="rd-gate"><span><i></i>Open gate ' + esc(fm.openGate || '09:00') + '</span><span class="rd-gate-line"></span><span>Close ' + esc(fm.close || '20:00') + '</span></div></div>';
+  h += '<div class="toolbar"><input class="input search" id="rdSearch" type="search" placeholder="Cari segmen, lokasi, catatan…" value="' + esc(ui.rdQ || '') + '" aria-label="Cari rundown">' +
+    '<select class="select" id="rdLoc" aria-label="Lokasi">' + opts(rdLocations('flow'), ui.rdLoc || '', 'Semua lokasi') + '</select>' +
+    ((ui.rdQ || ui.rdLoc) ? '<button class="btn ghost sm" data-act="rd-clear">Clear filters</button>' : '') +
+    '<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="new-zone">+ Zona / area</button><button class="btn primary" data-act="new-rundown">+ Segmen</button></span></div>';
+  return h + renderFlow();
+}
+function zoneCard(z, i) {
+  var cls = ['connect', 'ggt', 'ml', 'hyrox', 'event', ''][i % 6];
+  return '<button class="zone-card ' + (z.kind === 'area' ? 'area ' : '') + 'z-' + (i % 6) + '" data-act="edit-zone" data-id="' + z.id + '">' +
+    '<span class="zone-top">' + (z.kind === 'area' ? '<span class="zone-no">' + String(i + 1).padStart(2, '0') + '</span>' : '<b>' + esc(z.name) + '</b>') +
+    '<span class="zone-tag">' + esc(z.kind === 'area' ? z.location : z.time) + '</span></span>' +
+    (z.kind === 'area' ? '<b class="zone-name">' + esc(z.name) + '</b>' : '<span class="zone-bar"></span>') +
+    '<span class="zone-detail">' + esc(z.detail || '') + '</span></button>';
+}
+function renderFlow() {
+  var zones = (db.zones || []).slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+  var acts = zones.filter(function (z) { return z.kind !== 'area'; }), areas = zones.filter(function (z) { return z.kind === 'area'; });
+  var h = '';
+  if (acts.length) h += '<div class="zone-grid">' + acts.map(zoneCard).join('') + '</div>';
+  if (areas.length) h += '<div class="area-intro"><div class="area-head"><div><span class="mt-eyebrow" style="color:var(--accent)">Explore the festival</span><h2>Area introduction</h2></div><div class="area-path">' + areas.map(function (z) { return '<span>' + esc(z.location) + '</span>'; }).join('<i>→</i>') + '</div></div><div class="area-grid">' + areas.map(zoneCard).join('') + '</div></div>';
+  var list = rdFilter(rdItems('flow')), now = rdNow();
+  if (!rdItems('flow').length) return h + '<div class="table-wrap">' + emptyBox('Festival Flow masih kosong', 'Tambah segmen pertama dengan tombol + Segmen.') + '</div>';
+  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('Tidak ada segmen yang cocok', 'Coba kata kunci lain atau hapus filter.') + '</div>';
+  // group items that share the same start + end into one "parallel" block
+  var blocks = [], key = {};
+  list.forEach(function (r) { var k = r.start + '|' + r.end; if (key[k]) key[k].items.push(r); else { key[k] = { start: r.start, end: r.end, items: [r] }; blocks.push(key[k]); } });
+  var parts = [];
+  blocks.forEach(function (b) {
+    var h = '';
+    if (b.items.length > 1) {
+      var mins = rdMinutes(b.end) - rdMinutes(b.start);
+      h += '<div class="flow-par' + (b.items.some(function (r) { return rdLive(r, now); }) ? ' live' : '') + '"><div class="flow-par-h"><div><b class="flow-par-time">' + esc(b.start) + ' → ' + esc(b.end) + '</b><h3>' + b.items.length + ' program berjalan bersamaan</h3></div>' +
+        (mins > 0 ? '<span class="badge b-accent nodot">' + (mins % 60 ? mins + ' menit' : (mins / 60) + (mins === 60 ? ' hour' : ' hours')) + '</span>' : '') + '</div><div class="flow-par-grid">' +
+        b.items.map(function (r, i) {
+          return '<button class="flow-par-item p-' + (i % 4) + '" data-act="rd-open" data-id="' + r.id + '"><span class="fp-loc">' + esc(r.location) + ' · ' + esc(r.start) + '–' + esc(r.end) + '</span><b>' + esc(r.segment) + '</b><span class="fp-bar"></span><span class="fp-desc">' + esc(r.flow || '') + '</span>' + rdBadges(r) + '</button>';
+        }).join('') + '</div></div>';
+      parts.push({ html: h, par: true }); return;
+    }
+    var r = b.items[0], live = rdLive(r, now), others = list.filter(function (x) { return x !== r && x.start === r.start; }).length;
+    h += '<button class="flow-item' + (live ? ' live' : '') + (r.status === 'Cancelled' ? ' cancelled' : '') + '" data-act="rd-open" data-id="' + r.id + '">' +
+      '<span class="flow-time"><b>' + esc(r.start) + '</b><span>→ ' + esc(r.end) + '</span></span>' +
+      '<span class="flow-card"><span class="flow-title"><b>' + esc(r.segment) + '</b>' + (r.location ? '<span class="flow-loc">' + esc(r.location) + '</span>' : '') + (others ? '<span class="badge b-info nodot">Paralel</span>' : '') + (live ? '<span class="badge b-accent nodot">Sedang berjalan</span>' : '') + rdBadges(r) + '</span>' +
+      (r.flow ? '<span class="flow-desc">' + esc(r.flow) + '</span>' : '') +
+      ((r.concurrent || []).length ? '<span class="flow-conc"><span class="fc-label">Concurrent</span>' + r.concurrent.map(function (c) { return '<span class="fc-chip">' + esc(c) + '</span>'; }).join('') + '</span>' : '') +
+      '</span></button>';
+    parts.push({ html: h, par: false });
+  });
+  // two columns like the Figma page: before the first parallel block, then from it to the finale
+  var cut = parts.findIndex(function (x) { return x.par; });
+  if (cut <= 0 || ui.rdQ || ui.rdLoc) cut = Math.ceil(parts.length / 2);
+  var col = function (arr, label) { return arr.length ? '<div class="flow-col"><div class="flow-col-h">' + label + '</div>' + arr.map(function (x) { return x.html; }).join('') + '</div>' : ''; };
+  h += '<div class="flow-list">' + col(parts.slice(0, cut), 'Morning → afternoon') + col(parts.slice(cut), 'Peak program → finale');
+  return h + '</div>';
+}
+function rdBadges(r) {
+  return (r.pic ? '<span class="fp-pic">PIC: ' + esc(r.pic) + '</span>' : '') +
+    (r.status && r.status !== 'Planned' ? '<span class="badge ' + ({ Confirmed: 'b-ok', Changed: 'b-warn', Cancelled: 'b-crit' }[r.status] || 'b-neutral') + '">' + esc(r.status) + '</span>' : '') +
+    (r.source === 'verify' ? '<span class="src verify">Verify</span>' : '');
+}
+function rdDetail(r) {
+  var cols = [['Deskripsi', r.flow], ['Catatan', r.ops]];
+  if ((r.concurrent || []).length) cols.splice(1, 0, ['Concurrent', r.concurrent.join('\n')]);
+  return (r.verifyNote ? '<p class="flag" style="white-space:normal;margin:0 0 10px">⚠ ' + esc(r.verifyNote) + '</p>' : '') +
+    '<div class="rd-grid">' + cols.filter(function (c) { return c[1]; }).map(function (c) { return '<div><h4>' + c[0] + '</h4><p>' + (c[1] ? esc(c[1]) : '<span class="faint">—</span>') + '</p></div>'; }).join('') + '</div>' +
+    (canEdit() ? '<div class="rd-actions"><button class="btn sm primary" data-act="edit-rundown" data-id="' + r.id + '">Edit segmen</button><button class="btn sm danger" data-act="delete-rundown" data-id="' + r.id + '">Hapus</button>' + '</div>' : '');
+}
+function rdOpenDialog(id) {
+  var r = rdById(id); if (!r) return;
+  if (canEdit()) { rundownForm(r); return; }
+  openModal('<div class="modal-h"><h3>' + esc(r.start) + '–' + esc(r.end) + ' · ' + esc(r.segment) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
+    (r.location ? '<div><span class="flow-loc">' + esc(r.location) + '</span></div>' : '') + rdDetail(r) + '</div>', 'sm', { allowReadonly: true });
+}
+function rundownForm(r, preset) {
+  var isNew = !r;
+  r = r || Object.assign({ group: 'flow', start: '', end: '', duration: '', segment: '', location: '', flow: '', concurrent: [], mcCue: '', av: '', ops: '', docs: '', pic: '', status: 'Planned', source: 'confirmed', verifyNote: '' }, preset || {});
+  var locs = rdLocations('flow');
+  var locList = '<datalist id="rdLocList">' + locs.map(function (l) { return '<option value="' + esc(l) + '">'; }).join('') + '</datalist>';
+  openModal('<form id="rdForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Segmen baru' : 'Edit segmen') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+    field('segment', 'Segmen', inp('segment', r.segment, 'text', 'maxlength="160"'), { req: true, full: true }) +
+    field('location', 'Lokasi', inp('location', r.location, 'text', 'list="rdLocList" maxlength="80"') + locList) +
+    field('start', 'Mulai', inp('start', r.start, 'time'), { req: true }) +
+    field('end', 'Selesai', inp('end', r.end, 'time'), { hint: 'Segmen dengan jam mulai & selesai yang sama tampil sebagai program paralel.' }) +
+    field('pic', 'PIC', inp('pic', r.pic, 'text', 'maxlength="120"')) +
+    field('status', 'Status', sel('status', RUNDOWN_STATUS, r.status || 'Planned')) +
+    field('flow', 'Deskripsi / alur', ta('flow', r.flow), { full: true }) +
+    field('concurrent', 'Concurrent (aktivitas bersamaan)', ta('concurrent', (r.concurrent || []).join('\n')), { full: true, hint: 'Satu per baris. Tampil sebagai chip di Festival Flow.' }) +
+    field('ops', 'Catatan', ta('ops', r.ops), { full: true, hint: 'Opsional: crew, props, cue MC, dll.' }) +
+    field('duration', 'Durasi (label)', inp('duration', r.duration, 'text', 'maxlength="30"'), { hint: 'Kosongkan untuk dihitung otomatis' }) +
+    field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], r.source)) +
+    field('verifyNote', 'Verification note', inp('verifyNote', r.verifyNote, 'text', 'maxlength="300"')) +
+    '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-rundown" data-id="' + r.id + '">Hapus</button>') +
+    '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Tambah segmen' : 'Simpan') + '</button></div></div></form>', 'wide');
+  document.getElementById('rdForm').onsubmit = function (e) {
+    e.preventDefault();
+    var v = {}, errs = {};
+    new FormData(e.target).forEach(function (val, k) { v[k] = String(val).trim(); });
+    if (!v.segment) errs.segment = 'Nama segmen wajib diisi.';
+    if (!/^\d{2}:\d{2}$/.test(v.start)) errs.start = 'Isi jam mulai.';
+    if (v.end && v.start && v.end <= v.start) errs.end = 'Jam selesai harus setelah jam mulai.';
+    if (Object.keys(errs).length) return showErrors(e.target, errs);
+    v.group = 'flow';
+    v.concurrent = v.concurrent.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!v.duration && v.end) { var m = rdMinutes(v.end) - rdMinutes(v.start); v.duration = m >= 60 ? Math.floor(m / 60) + ' hr' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + "'"; }
+    if (isNew) { var o = Object.assign({ id: nextId('R'), order: db.rundown.length + 1 }, v, { updatedAt: Date.now() }); db.rundown.push(o); ui.rdOpen = o.id; closeModal(); commit('Segmen ditambahkan'); }
+    else { Object.assign(r, v, { updatedAt: Date.now() }); closeModal(); commit('Segmen disimpan'); }
+  };
+}
+function zoneById(id) { return (db.zones || []).filter(function (z) { return z.id === id; })[0] || null; }
+function zoneForm(z) {
+  if (!canEdit()) {
+    if (!z) return;
+    openModal('<div class="modal-h"><h3>' + esc(z.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one"><div><span class="flow-loc">' + esc(z.kind === 'area' ? z.location : z.time) + '</span></div><p style="margin:0;white-space:pre-wrap">' + esc(z.detail || '') + '</p></div>', 'sm', { allowReadonly: true });
+    return;
+  }
+  var isNew = !z; z = z || { kind: 'activity', name: '', time: '', location: '', detail: '', order: (db.zones || []).length + 1 };
+  openModal('<form id="zoneForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Zona / area baru' : 'Edit ' + esc(z.name)) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+    field('name', 'Nama', inp('name', z.name, 'text', 'maxlength="80"'), { req: true }) +
+    field('kind', 'Jenis', sel('kind', [{ value: 'activity', label: 'Aktivitas paralel (kartu atas)' }, { value: 'area', label: 'Area introduction' }], z.kind)) +
+    field('time', 'Jam (label)', inp('time', z.time, 'text', 'maxlength="40" placeholder="10:00–16:00 atau Start 09:00"')) +
+    field('location', 'Lokasi', inp('location', z.location, 'text', 'maxlength="60"')) +
+    field('detail', 'Detail', ta('detail', z.detail), { full: true, hint: 'Boleh beberapa baris.' }) +
+    field('order', 'Urutan', inp('order', z.order, 'number', 'min="1" max="99"')) +
+    '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-zone" data-id="' + z.id + '">Hapus</button>') +
+    '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Tambah' : 'Simpan') + '</button></div></div></form>', 'sm');
+  document.getElementById('zoneForm').onsubmit = function (e) {
+    e.preventDefault();
+    var v = {}; new FormData(e.target).forEach(function (val, k) { v[k] = String(val).trim(); });
+    if (!v.name) return showErrors(e.target, { name: 'Nama wajib diisi.' });
+    v.order = +v.order || 99;
+    if (isNew) { db.zones.push(Object.assign({ id: nextId('Z') }, v)); closeModal(); commit('Zona ditambahkan'); }
+    else { Object.assign(z, v); closeModal(); commit('Zona disimpan'); }
+  };
+}
+function deleteZone(id) {
+  var z = zoneById(id); if (!z) return;
+  confirmDialog('Hapus "' + z.name + '"?', 'Kartu ini hilang dari halaman Rundown.', 'Hapus', function () { db.zones = db.zones.filter(function (x) { return x.id !== id; }); commit('Zona dihapus'); });
+}
+function rdById(id) { return db.rundown.filter(function (r) { return r.id === id; })[0] || null; }
+function deleteRundown(id) {
+  var r = rdById(id); if (!r) return;
+  confirmDialog('Hapus segmen?', '<b>' + esc(r.start) + ' · ' + esc(r.segment.split('\n')[0]) + '</b> akan dihapus dari rundown.', 'Hapus segmen', function () {
+    db.rundown = db.rundown.filter(function (x) { return x.id !== id; }); if (ui.rdOpen === id) ui.rdOpen = null; commit('Segmen dihapus');
+  });
+}
+
+/* ---------- Category manager (task categories + workstreams) ---------- */
+var CAT_KINDS = {
+  category: { label: 'Kategori task', key: 'taskCategories', hint: 'Dipakai di kolom Category pada task.' },
+  workstream: { label: 'Workstream / program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' }
+};
+function catUsage(kind, name) {
+  if (kind === 'category') return { tasks: db.tasks.filter(function (t) { return t.category === name; }).length, finance: 0 };
+  return { tasks: db.tasks.filter(function (t) { return t.workstream === name; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
+}
+function categoryManager(kind) {
+  kind = kind || 'category';
+  var K = CAT_KINDS[kind], list = db.settings[K.key];
+  var unlisted = [];
+  (kind === 'category' ? db.tasks.map(function (t) { return t.category; }) : db.tasks.concat(db.finance).map(function (r) { return r.workstream; }))
+    .forEach(function (v) { if (v && list.indexOf(v) < 0 && unlisted.indexOf(v) < 0) unlisted.push(v); });
+  var rows = list.map(function (name, i) {
+    var u = catUsage(kind, name);
+    return '<div class="cat-row"><input class="input" id="cat-' + i + '" data-cat-idx="' + i + '" value="' + esc(name) + '" aria-label="Nama ' + esc(name) + '" maxlength="60">' +
+      '<span class="cat-use">' + u.tasks + ' task' + (kind === 'workstream' ? ' · ' + u.finance + ' budget' : '') + '</span>' +
+      '<button class="btn sm" type="button" data-act="cat-move" data-kind="' + kind + '" data-idx="' + i + '" data-dir="-1" aria-label="Naik"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="btn sm" type="button" data-act="cat-move" data-kind="' + kind + '" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="' + kind + '" data-idx="' + i + '">Hapus</button></div>';
+  }).join('');
+  openModal('<form id="catForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+    '<div class="tabs" role="tablist" style="padding:0 18px;margin:0">' + Object.keys(CAT_KINDS).map(function (k) { return '<button type="button" role="tab" data-act="cat-tab" data-kind="' + k + '" aria-selected="' + (k === kind) + '">' + CAT_KINDS[k].label + '</button>'; }).join('') + '</div>' +
+    '<div class="modal-b one"><p class="muted" style="margin:0">' + K.hint + ' Ganti nama langsung di kotaknya; semua task/budget yang memakai nama lama ikut diganti.</p>' +
+    '<div class="cat-list">' + (rows || '<p class="faint">Belum ada.</p>') + '</div>' +
+    (unlisted.length ? '<div class="banner warn" style="margin:0">Dipakai di data tapi belum ada di daftar: ' + unlisted.map(function (u) { return '<button type="button" class="btn sm" data-act="cat-adopt" data-kind="' + kind + '" data-name="' + esc(u) + '">+ ' + esc(u) + '</button>'; }).join(' ') + '</div>' : '') +
+    '<div class="cat-add"><input class="input" id="catNew" placeholder="Nama ' + K.label.toLowerCase() + ' baru" maxlength="60"><button type="button" class="btn" data-act="cat-add" data-kind="' + kind + '">+ Tambah</button></div>' +
+    '<div class="form-err" id="catErr" hidden></div></div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan nama</button></div></div></form>', 'sm');
+  var form = document.getElementById('catForm');
+  form.dataset.kind = kind;
+  form.onsubmit = function (e) { e.preventDefault(); applyCatRenames(kind); };
+  var nw = document.getElementById('catNew'); if (nw) nw.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); catAdd(kind); } });
+}
+function catErr(msg) { var el = document.getElementById('catErr'); if (el) { el.textContent = msg; el.hidden = !msg; } }
+function catRename(kind, from, to) {
+  var n = 0;
+  if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
+  else db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream === from) { r.workstream = to; r.updatedAt = Date.now(); n++; } });
+  if (kind === 'workstream' && ui.fWs === from) ui.fWs = to;
+  if (kind === 'workstream' && ui.finWs === from) ui.finWs = to;
+  return n;
+}
+function applyCatRenames(kind) {
+  var K = CAT_KINDS[kind], list = db.settings[K.key], next = [], changes = [], moved = 0;
+  var inputs = document.querySelectorAll('[data-cat-idx]');
+  for (var i = 0; i < inputs.length; i++) {
+    var v = inputs[i].value.trim(), old = list[+inputs[i].dataset.catIdx];
+    if (!v) { catErr('Nama tidak boleh kosong.'); inputs[i].focus(); return; }
+    if (next.map(function (x) { return x.toLowerCase(); }).indexOf(v.toLowerCase()) > -1) { catErr('Nama "' + v + '" dipakai dua kali.'); inputs[i].focus(); return; }
+    next.push(v); if (v !== old) changes.push([old, v]);
+  }
+  if (!changes.length) { closeModal(); return; }
+  changes.forEach(function (c) { moved += catRename(kind, c[0], c[1]); });
+  db.settings[K.key] = next; closeModal();
+  commit(changes.length + ' nama diganti' + (moved ? ' · ' + moved + ' record ikut diperbarui' : ''));
+}
+function catAdd(kind) {
+  var K = CAT_KINDS[kind], el = document.getElementById('catNew'), v = (el && el.value || '').trim();
+  if (!v) { catErr('Isi nama dulu.'); return; }
+  if (db.settings[K.key].some(function (x) { return x.toLowerCase() === v.toLowerCase(); })) { catErr('"' + v + '" sudah ada.'); return; }
+  db.settings[K.key].push(v); persist(db); render(); categoryManager(kind); toast('"' + v + '" ditambahkan');
+}
+function catDelete(kind, idx) {
+  var K = CAT_KINDS[kind], list = db.settings[K.key], name = list[idx], u = catUsage(kind, name), total = u.tasks + u.finance;
+  if (!total) {
+    confirmDialog('Hapus "' + name + '"?', 'Tidak ada task' + (kind === 'workstream' ? '/budget' : '') + ' yang memakai ini.', 'Hapus', function () {
+      db.settings[K.key] = list.filter(function (_, i) { return i !== idx; }); commit('"' + name + '" dihapus'); categoryManager(kind);
+    });
+    return;
+  }
+  var others = list.filter(function (_, i) { return i !== idx; });
+  if (!others.length) { toast('Tambah ' + K.label.toLowerCase() + ' lain dulu sebelum menghapus yang terakhir.', true); return; }
+  openModal('<form id="catDelForm" novalidate><div class="modal-h"><h3>Hapus "' + esc(name) + '"?</h3></div><div class="modal-b one"><p style="margin:0">Masih dipakai oleh <b>' + u.tasks + ' task</b>' + (kind === 'workstream' ? ' dan <b>' + u.finance + ' baris budget</b>' : '') + '. Pindahkan ke:</p>' +
+    field('moveTo', 'Pindahkan ke', sel('moveTo', others, others[0])) + '</div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="' + kind + '">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; hapus</button></div></div></form>', 'sm');
+  document.getElementById('catDelForm').onsubmit = function (e) {
+    e.preventDefault();
+    var to = e.target.moveTo.value, n = catRename(kind, name, to);
+    db.settings[K.key] = db.settings[K.key].filter(function (x) { return x !== name; });
+    closeModal(); commit('"' + name + '" dihapus · ' + n + ' record dipindah ke "' + to + '"'); categoryManager(kind);
+  };
 }
 
 /* ---------- Overview ---------- */
@@ -502,7 +786,7 @@ function filteredTasks(view) {
 }
 function renderTasks() {
   var views = [['all', 'All Tasks'], ['operational', 'Operational'], ['pending', 'Pending & Blocked'], ['timeline', 'Timeline']];
-  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.', '<button class="btn primary" data-act="new-task">+ New task</button>');
+  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.', '<button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
   }).join('') + '</div>';
@@ -759,13 +1043,14 @@ function confirmDialog(title, message, yesLabel, onYes) {
   document.getElementById('confirmYes').focus();
 }
 
+function withCurrent(list, v) { return v && list.indexOf(v) < 0 ? list.concat([v]) : list; }
 function taskForm(t, preset) {
   var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '', deadline: '', pic: '', status: 'Not Started', notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
     field('workstream', 'Workstream', inp('workstream', t.workstream, 'text', 'list="wsList" required') + wsList, { req: true, hint: 'Pilih dari list atau ketik baru' }) +
-    field('category', 'Category', sel('category', CATEGORIES, t.category)) +
+    field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola kategori</a>' : '' }) +
     field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
     field('pic', 'PIC', inp('pic', t.pic, 'text', 'maxlength="80"')) +
@@ -1043,12 +1328,30 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv'];
+var MUTATING = ['new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
   switch (act) {
     case 'new-task': taskForm(null); break;
+    case 'rd-toggle': ui.rdOpen = ui.rdOpen === id ? null : id; render(); break;
+    case 'rd-open': rdOpenDialog(id); break;
+    case 'new-zone': zoneForm(null); break;
+    case 'edit-zone': zoneForm(zoneById(id)); break;
+    case 'delete-zone': closeModal(); deleteZone(id); break;
+    case 'rd-clear': ui.rdQ = ''; ui.rdLoc = ''; render(); break;
+    case 'new-rundown': rundownForm(null); break;
+    case 'edit-rundown': closeModal(); if (rdById(id)) rundownForm(rdById(id)); break;
+    case 'delete-rundown': closeModal(); deleteRundown(id); break;
+    case 'manage-categories': e.preventDefault(); closeModal(); categoryManager('category'); break;
+    case 'cat-tab': closeModal(); categoryManager(el.dataset.kind); break;
+    case 'cat-add': catAdd(el.dataset.kind); break;
+    case 'cat-delete': closeModal(); catDelete(el.dataset.kind, +el.dataset.idx); break;
+    case 'cat-adopt': var Kd = CAT_KINDS[el.dataset.kind]; db.settings[Kd.key].push(el.dataset.name); persist(db); render(); closeModal(); categoryManager(el.dataset.kind); break;
+    case 'cat-move':
+      var Km = CAT_KINDS[el.dataset.kind], li = db.settings[Km.key], ix = +el.dataset.idx, to = ix + (+el.dataset.dir);
+      if (to >= 0 && to < li.length) { var tmp = li[ix]; li[ix] = li[to]; li[to] = tmp; persist(db); render(); closeModal(); categoryManager(el.dataset.kind); }
+      break;
     case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: 'GX Connect' }); break;
     case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: 'Event Day', deadline: EVENT_DATE }); break;
     case 'mt-toggle': var w = el.dataset.ws, hd = ui.mtHide || []; ui.mtHide = hd.indexOf(w) > -1 ? hd.filter(function (x) { return x !== w; }) : hd.concat([w]); render(); break;
@@ -1090,12 +1393,13 @@ document.addEventListener('keydown', function (e) {
 main.addEventListener('input', function (e) {
   var t = e.target;
   if (t.id === 'taskSearch') { ui.q = t.value; render(); }
+  else if (t.id === 'rdSearch') { ui.rdQ = t.value; render(); }
   else if (t.id === 'finSearch') { ui.finQ = t.value; render(); }
 });
 main.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.inline && !canEdit()) return;
-  var map = { fWs: 'fWs', fStatus: 'fStatus', fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv' };
+  var map = { fWs: 'fWs', fStatus: 'fStatus', fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
   if (t.dataset.inline === 'status') {
     var task = taskById(t.dataset.id); if (!task) return;
@@ -1108,7 +1412,7 @@ main.addEventListener('change', function (e) {
     task2.deadline = t.value; task2.updatedAt = Date.now(); commit('Deadline moved to ' + fmtDate(t.value, true));
   }
 });
-window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
+window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
 window.addEventListener('storage', function (e) { if (MODE === 'local' && e.key === STORE_KEY && e.newValue) { try { db = JSON.parse(e.newValue); render(); toast('Updated from another tab'); } catch (x) {} } });
 
 /* ================= Public API (used by admin.js) ================= */
@@ -1119,6 +1423,7 @@ window.GX27App = {
   openModal: openModal, closeModal: closeModal, confirmDialog: confirmDialog, showErrors: showErrors,
   field: field, inp: inp, sel: sel, ta: ta, esc: esc, rp: rp, fmtDate: fmtDate, todayISO: todayISO, parseFlexDate: parseFlexDate,
   seed: function () { return normalizeDb(seed()); }, normalizeDb: normalizeDb, totals: totals, taskStats: taskStats,
+  categoryManager: categoryManager, CAT_KINDS: CAT_KINDS, catUsage: catUsage,
   exportDialog: exportDialog, importJsonDialog: importJsonDialog, importCsvDialog: importCsvDialog,
   STORE_KEY: STORE_KEY, LEGACY_KEYS: [STORE_KEY, 'gx27.dashboard.v2', 'gx27.dashboard.v1'],
   SETTINGS_DEFAULT: SETTINGS_DEFAULT, DEFAULT_LOGO: DEFAULT_LOGO,
@@ -1167,7 +1472,7 @@ function boot() {
   }
   // No database configured yet: original local behaviour (edits saved in this browser)
   MODE = 'local'; db = normalizeDb(load());
-  if (wantAdmin) storageError = 'Database belum dikonfigurasi. Admin panel aktif setelah SUPABASE_URL dan SUPABASE_ANON_KEY diisi di Vercel (lihat SETUP.md). Sementara ini perubahan hanya tersimpan di browser ini.';
+  if (wantAdmin) storageError = (cfg && cfg.configError) || 'Database belum dikonfigurasi. Admin panel aktif setelah FIREBASE_CONFIG diisi di Vercel lalu redeploy (lihat SETUP.md). Sementara ini perubahan hanya tersimpan di browser ini.';
   render();
 }
 boot();

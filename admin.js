@@ -1,4 +1,4 @@
-/* GX27 Admin — login, Save (to Supabase), Publish (to the live site), settings, team,
+/* GX27 Admin — login, Save (to Firebase), Publish (to the live site), settings, team,
    history, data tools and code redeploy. Loaded only by admin.html; app.js calls into it. */
 (function () {
   'use strict';
@@ -32,7 +32,7 @@
     addNav();
     rerender();
     Sync.onAuth(function (ev, session) {
-      if (ev === 'SIGNED_IN' && session && !S.email) init();
+      if (ev === 'SIGNED_IN' && session && !S.email && S.phase !== 'loading') init();
       if (ev === 'SIGNED_OUT') { resetState(); S.phase = 'login'; rerender(); }
     });
     init();
@@ -53,9 +53,11 @@
     b.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>Admin panel';
     nav.appendChild(sep); nav.appendChild(b);
   }
+  var initRun = null;
   function init() {
+    if (initRun) return initRun;            // auth listener + login button can both ask; run once
     S.phase = 'loading'; rerender();
-    return Sync.getSession().then(function (session) {
+    initRun = Sync.getSession().then(function (session) {
       if (!session) { S.phase = 'login'; return; }
       S.email = (session.user && session.user.email || '').toLowerCase();
       return Sync.myRole().then(function (role) {
@@ -63,12 +65,20 @@
         if (!S.role) { S.phase = 'denied'; return; }
         return loadContent();
       });
-    }).catch(function (err) { S.phase = 'error'; S.errorMsg = err.message; }).then(rerender);
+    }).catch(function (err) { S.phase = 'error'; S.errorMsg = err.message; }).then(function () { initRun = null; rerender(); });
+    return initRun;
   }
   function loadContent() {
     return Promise.all([Sync.loadDraft(), Sync.loadPublishedMeta()]).then(function (r) {
       var draft = r[0]; S.published = r[1] || null;
-      if (!draft) { S.draft = null; S.candidates = findLocalData(); S.phase = 'init'; return; }
+      if (!draft) {
+        // Empty database: fill it straight away so the site has data without any extra step.
+        // Prefer the data this browser already has (latest edits), otherwise the built-in data.
+        var cands = findLocalData(), pick = cands[0];
+        S.notice = 'Database masih kosong, jadi otomatis diisi dari ' + (pick.key === 'seed' ? 'data bawaan website' : 'data yang tersimpan di browser ini') + ' dan langsung dipublish. Mau pakai data lain? Admin panel → Data tools.';
+        initWith(JSON.parse(JSON.stringify(pick.data)), true);
+        return;
+      }
       S.draft = { version: draft.version, updated_at: draft.updated_at, updated_by: draft.updated_by };
       var cache = readUnsaved();
       if (cache && cache.email === S.email && cache.data) {
@@ -177,7 +187,7 @@
     }
     var sa = (a && a.settings) || {}, sb = (b && b.settings) || {}, sets = [];
     Object.keys(Object.assign({}, sa, sb)).forEach(function (k) { if (stable(sa[k]) !== stable(sb[k])) sets.push(k); });
-    return { tasks: part('tasks', 'name'), finance: part('finance', 'item'), settings: b ? sets : Object.keys(sa) };
+    return { tasks: part('tasks', 'name'), finance: part('finance', 'item'), rundown: part('rundown', 'segment'), zones: part('zones', 'name'), settings: b ? sets : Object.keys(sa) };
   }
   function diffHtml(dd, first) {
     if (first) return '<p style="margin:0">Belum ada versi live di database. Publish pertama akan menampilkan seluruh draft ke website.</p>';
@@ -187,7 +197,7 @@
       function names(arr) { return arr.slice(0, 4).map(function (x) { return esc(x || '(tanpa nama)'); }).join(', ') + (arr.length > 4 ? ' +' + (arr.length - 4) : ''); }
       return '<li><b>' + label + ':</b> ' + [r.added.length ? r.added.length + ' baru (' + names(r.added) + ')' : '', r.changed.length ? r.changed.length + ' diubah (' + names(r.changed) + ')' : '', r.removed.length ? r.removed.length + ' dihapus (' + names(r.removed) + ')' : ''].filter(Boolean).join(' · ') + '</li>';
     }
-    return '<ul class="diff-list">' + line('Tasks', dd.tasks) + line('Budget', dd.finance) + '<li><b>Settings:</b> ' + (dd.settings.length ? esc(dd.settings.join(', ')) : '<span class="muted">tidak ada perubahan</span>') + '</li></ul>';
+    return '<ul class="diff-list">' + line('Tasks', dd.tasks) + line('Budget', dd.finance) + line('Rundown', dd.rundown) + line('Zona & area', dd.zones) + '<li><b>Settings:</b> ' + (dd.settings.length ? esc(dd.settings.join(', ')) : '<span class="muted">tidak ada perubahan</span>') + '</li></ul>';
   }
   function publishFlow() {
     if (S.role !== 'admin') { App.toast('Hanya admin yang bisa publish. Kamu login sebagai editor.', true); return; }
@@ -278,10 +288,12 @@
     if (S.phase === 'login' || S.phase === 'sent') {
       return card('Admin login', (S.phase === 'sent'
         ? '<p>Link login sudah dikirim ke <b>' + esc(S.loginEmail) + '</b>. Buka email itu di perangkat ini dan klik linknya.</p><p class="muted">Tidak masuk? Cek folder spam, atau kirim ulang.</p>'
-        : '<p class="muted">Masukkan email yang terdaftar sebagai admin/editor. Kami kirim link login sekali pakai.</p>') +
+        : Sync.pendingLink ? '<p>Masukkan lagi email yang kamu pakai saat minta link login, untuk menyelesaikan login di perangkat ini.</p>'
+        : '<p class="muted">Login dengan akun Google atau email yang terdaftar sebagai admin/editor.</p>') +
+        (Sync.pendingLink ? '' : '<button class="btn google" type="button" data-admin="google"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Login dengan Google</button><div class="gate-or">atau pakai link email</div>') +
         '<form id="loginForm" class="gate-form" novalidate><label for="loginEmail">Email</label><input class="input" id="loginEmail" type="email" autocomplete="email" required placeholder="nama@globalxtreme.net">' +
         (S.loginMsg ? '<div class="form-err">' + esc(S.loginMsg) + '</div>' : '') +
-        '<div class="gate-actions"><button class="btn primary" type="submit">' + (S.phase === 'sent' ? 'Kirim ulang link' : 'Kirim link login') + '</button>' + back + '</div></form>');
+        '<div class="gate-actions"><button class="btn primary" type="submit">' + (Sync.pendingLink ? 'Selesaikan login' : S.phase === 'sent' ? 'Kirim ulang link' : 'Kirim link login') + '</button>' + back + '</div></form>');
     }
     if (S.phase === 'denied') return card('Akun belum punya akses', '<p><b>' + esc(S.email) + '</b> sudah login, tapi belum terdaftar sebagai admin atau editor.</p><p class="muted">Minta admin menambahkan email ini di Admin panel → Team & permissions.</p><div class="gate-actions"><button class="btn" data-admin="signout">Logout</button>' + back + '</div>');
     if (S.phase === 'init') {
@@ -294,11 +306,26 @@
     return '';
   };
   function card(title, body) { return '<div class="gate"><div class="gate-card"><img class="gate-logo" src="' + esc((App.getDb().settings || {}).logoUrl || App.DEFAULT_LOGO) + '" alt=""><h1>' + esc(title) + '</h1>' + body + '</div></div>'; }
-  function initWith(data) {
+  var filling = false;
+  function initWith(data, auto) {
+    if (filling) return; filling = true;
     if (!data || !Array.isArray(data.tasks) || !Array.isArray(data.finance)) { App.toast('Data tidak valid: butuh tasks dan finance.', true); return; }
     App.setDb(data); S.phase = 'ready'; S.draft = null; S.dirty = true; Admin.markDirty(App.getDb());
     startWatching(); App.setPage('admin');
-    save(false).then(function (ok) { if (ok) App.toast('Database terisi. Cek datanya, lalu Publish supaya tampil di website.'); });
+    var note = S.notice;
+    save(false).then(function (ok) {
+      if (!ok) return;
+      if (note) { S.notice = note; rerender(); }   // save() clears notices; keep the explanation visible
+      if (S.role === 'admin' && !S.published) {
+        // first fill goes live immediately so the public site shows the same data
+        S.pub = 'Publishing'; rerender();
+        return Sync.publish(auto ? 'Publish awal otomatis' : 'Publish awal').then(function (r) {
+          S.published = { source_version: r.source_version, updated_at: r.published_at, updated_by: r.published_by };
+          S.pub = ''; rerender(); App.toast('Database terisi dan website live sudah menampilkan datanya.');
+        }, function (err) { S.pub = 'Failed'; S.pubError = err.message; rerender(); });
+      }
+      App.toast('Database terisi. Admin perlu klik Publish supaya tampil di website.');
+    });
   }
 
   /* ================= Admin bar (every page) ================= */
@@ -336,13 +363,17 @@
       admCard('Website live', '<div class="adm-big"><span class="badge ' + PILL[ps] + '" style="font-size:13px">' + ps + '</span></div><div class="muted">' + (S.published ? 'Live: draft v' + S.published.source_version + ' · ' + when(S.published.updated_at) + ' oleh ' + esc(S.published.updated_by || '—') : 'Belum pernah dipublish') + '</div>' +
         (S.pub === 'Failed' ? '<div class="flag crit" style="white-space:normal">' + esc(S.pubError) + '</div>' : '') +
         '<button class="btn accent" data-admin="publish" ' + (!isAdmin || S.pub === 'Publishing' ? 'disabled' : '') + '>' + (S.pub === 'Publishing' ? 'Publishing…' : 'Publish to live site') + '</button>' + (!isAdmin ? '<span class="muted" style="font-size:12px">Hanya admin yang bisa publish.</span>' : '')) +
-      admCard('Konten', '<div class="adm-big">' + st.total + ' <span class="muted" style="font-size:14px;font-weight:500">task</span> · ' + db.finance.length + ' <span class="muted" style="font-size:14px;font-weight:500">budget</span></div><div class="muted">Est. budget ' + App.rp(ft.est) + ' · paid ' + App.rp(ft.paid) + '</div>' +
-        '<div class="adm-links"><button class="btn sm" data-admin="go" data-page="timeline">Timeline</button><button class="btn sm" data-admin="go" data-page="tasks">Tasks</button><button class="btn sm" data-admin="go" data-page="finance">Finance</button><button class="btn sm" data-admin="go" data-page="calendar">Calendar</button></div>') +
+      admCard('Konten', '<div class="adm-big">' + st.total + ' <span class="muted" style="font-size:14px;font-weight:500">task</span> · ' + db.finance.length + ' <span class="muted" style="font-size:14px;font-weight:500">budget</span> · ' + (db.rundown || []).length + ' <span class="muted" style="font-size:14px;font-weight:500">segmen</span></div><div class="muted">Est. budget ' + App.rp(ft.est) + ' · paid ' + App.rp(ft.paid) + '</div>' +
+        '<div class="adm-links"><button class="btn sm" data-admin="go" data-page="timeline">Timeline</button><button class="btn sm" data-admin="go" data-page="rundown">Rundown</button><button class="btn sm" data-admin="go" data-page="tasks">Tasks</button><button class="btn sm" data-admin="go" data-page="finance">Finance</button><button class="btn sm" data-admin="go" data-page="calendar">Calendar</button></div>') +
       '</div>';
 
     // What is managed where
-    h += section('Apa yang bisa diatur dari sini', '<div class="adm-two"><div><h4>Langsung dari website (Save → Publish)</h4><ul class="adm-list"><li>Task: tambah, edit, hapus, status, PIC, deadline, notes, blockers</li><li>Budget & pembayaran: item, invoice, DP, status, bukti transfer</li><li>Master Timeline & Calendar (ikut data task)</li><li>Judul, subjudul, nama & tanggal event, preparation deadlines, tagline</li><li>Logo (upload) dan link budget sheet</li><li>Tim admin/editor, riwayat publish, restore versi lama</li></ul></div>' +
+    h += section('Apa yang bisa diatur dari sini', '<div class="adm-two"><div><h4>Langsung dari website (Save → Publish)</h4><ul class="adm-list"><li>Task: tambah, edit, hapus, status, PIC, deadline, notes, blockers</li><li>Budget & pembayaran: item, invoice, DP, status, bukti transfer</li><li>Master Timeline & Calendar (ikut data task)</li><li>Rundown Event Day: tambah, edit, hapus segmen, PIC, status</li><li>Kategori task & workstream: tambah, ganti nama, urutkan, hapus</li><li>Judul, subjudul, nama & tanggal event, preparation deadlines, tagline</li><li>Logo (upload) dan link budget sheet</li><li>Tim admin/editor, riwayat publish, restore versi lama</li></ul></div>' +
       '<div><h4>Butuh perubahan kode + deploy (GitHub → Vercel)</h4><ul class="adm-list"><li>Layout, warna, font, halaman baru</li><li>Kolom/field baru dan aturan perhitungan finance</li><li>Fitur baru di admin panel</li><li>Mapping import dari sheet (scripts/build_seed.py)</li></ul><p class="muted" style="font-size:12.5px;margin:6px 0 0">Push perubahan kode ke GitHub → Vercel otomatis deploy. Tombol Redeploy di bawah untuk build ulang manual.</p></div></div>');
+
+    // Categories
+    var cats = function (kind) { var K = App.CAT_KINDS[kind], list = set[K.key] || []; return '<div class="adm-card"><h3>' + K.label + ' · ' + list.length + '</h3><div class="muted" style="font-size:13px">' + list.map(esc).join(' · ') + '</div><button class="btn" data-admin="categories" data-kind="' + kind + '">Kelola ' + K.label.toLowerCase() + '</button></div>'; };
+    h += section('Kategori & workstream', '<p class="muted" style="margin-top:0">Tambah, ganti nama, urutkan, atau hapus. Ganti nama otomatis memperbarui semua task & budget yang memakainya; hapus kategori yang masih dipakai akan minta pilih penggantinya dulu.</p><div class="adm-grid" style="margin:0">' + cats('category') + cats('workstream') + '</div>');
 
     // Settings
     h += section('Website settings', '<form id="settingsForm" class="adm-form" novalidate>' +
@@ -356,7 +387,7 @@
       App.field('budgetSheetUrl', 'Link budget sheet (admin only)', App.inp('budgetSheetUrl', set.budgetSheetUrl || ((db.meta && db.meta.url) || ''), 'url', 'maxlength="400"')) +
       App.field('prepDeadlines', 'Preparation deadlines', App.ta('prepDeadlines', (set.prepDeadlines || []).join('\n')), { full: true, hint: 'Satu tanggal per baris, format YYYY-MM-DD (atau 13/10/2026).' }) +
       '<div class="field full" data-field="logoUrl"><label>Logo</label><div class="logo-row"><img id="logoPreview" src="' + esc(set.logoUrl || App.DEFAULT_LOGO) + '" alt="Logo preview">' +
-        '<div class="logo-ctrl"><input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp"><input class="input" id="f-logoUrl" name="logoUrl" type="url" placeholder="atau URL gambar (kosongkan = logo bawaan)" value="' + esc(set.logoUrl || '') + '"><span class="hint">PNG/JPG/SVG/WebP maks 2 MB. Upload langsung disimpan di storage; tampil di website setelah Apply → Save → Publish.</span></div></div><span class="msg" hidden></span></div>' +
+        '<div class="logo-ctrl"><input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp"><input type="hidden" id="f-logoUrl" name="logoUrl" value="' + esc(set.logoUrl || '') + '"><input class="input" id="logoUrlText" type="url" placeholder="atau tempel URL gambar https://…" value="' + esc(/^https?:/.test(set.logoUrl || '') ? set.logoUrl : '') + '"><div class="gate-actions" style="margin:0"><button class="btn sm" type="button" data-admin="logo-default">Pakai logo bawaan</button>' + (/^data:/.test(set.logoUrl || '') ? '<span class="muted" style="font-size:12px">Sekarang: logo hasil upload</span>' : '') + '</div><span class="hint">PNG/JPG/SVG/WebP. Logo otomatis dikecilkan dan disimpan di database. Tampil di website setelah Apply → Save → Publish.</span></div></div><span class="msg" hidden></span></div>' +
       '</div><div class="gate-actions"><button class="btn primary" type="submit">Apply ke draft</button><button class="btn ghost" type="button" data-admin="reset-settings">Kembalikan ke default</button></div></form>');
 
     // Team
@@ -419,6 +450,12 @@
     if (el.disabled) return;
     switch (a) {
       case 'save': save(false); break;
+      case 'google': S.loginMsg = ''; Sync.signInGoogle().then(function () { if (!S.email) init(); }).catch(function (err) { S.loginMsg = err.message; rerender(); }); break;
+      case 'categories': App.categoryManager(el.getAttribute('data-kind') || 'category'); break;
+      case 'logo-default':
+        var hid = document.getElementById('f-logoUrl'), pv = document.getElementById('logoPreview'), tx = document.getElementById('logoUrlText');
+        if (hid) hid.value = ''; if (tx) tx.value = ''; if (pv) pv.src = App.DEFAULT_LOGO;
+        App.toast('Logo bawaan dipilih. Klik "Apply ke draft".'); break;
       case 'force-save': App.closeModal(); save(true); break;
       case 'load-latest': loadLatest(); break;
       case 'publish': publishFlow(); break;
@@ -477,7 +514,7 @@
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { S.loginMsg = 'Isi email yang valid.'; rerender(); return; }
       S.loginMsg = ''; S.loginEmail = email;
       var btn = f.querySelector('button[type=submit]'); if (btn) { btn.disabled = true; btn.textContent = 'Mengirim…'; }
-      Sync.signIn(email).then(function () { S.phase = 'sent'; }).catch(function (err) { S.loginMsg = err.message; }).then(rerender);
+      Sync.signIn(email).then(function (r) { if (r && r.completed) { init(); return; } S.phase = 'sent'; rerender(); }).catch(function (err) { S.loginMsg = err.message; rerender(); });
     } else if (f.id === 'publishForm') {
       e.preventDefault(); doPublish((document.getElementById('pubNote').value || '').trim());
     } else if (f.id === 'settingsForm') {
@@ -494,15 +531,16 @@
     if (t.id === 'logoFile' && t.files && t.files[0]) {
       var file = t.files[0];
       if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) { App.toast('Format logo harus PNG, JPG, SVG atau WebP.', true); t.value = ''; return; }
-      if (file.size > 2 * 1024 * 1024) { App.toast('Logo maksimal 2 MB.', true); t.value = ''; return; }
-      App.toast('Mengupload logo…');
+      if (file.size > 5 * 1024 * 1024) { App.toast('File logo maksimal 5 MB.', true); t.value = ''; return; }
+      App.toast('Memproses logo…');
       Sync.uploadLogo(file).then(function (url) {
-        var u = document.getElementById('f-logoUrl'), p = document.getElementById('logoPreview');
-        if (u) u.value = url; if (p) p.src = url;
-        App.toast('Logo terupload. Klik "Apply ke draft", lalu Save & Publish.');
+        var u = document.getElementById('f-logoUrl'), p = document.getElementById('logoPreview'), tx = document.getElementById('logoUrlText');
+        if (u) u.value = url; if (p) p.src = url; if (tx) tx.value = '';
+        App.toast('Logo siap. Klik "Apply ke draft", lalu Save & Publish.');
       }).catch(function (err) { App.toast('Upload gagal: ' + err.message, true); t.value = ''; });
-    } else if (t.id === 'f-logoUrl') {
-      var p2 = document.getElementById('logoPreview'); if (p2) p2.src = t.value || App.DEFAULT_LOGO;
+    } else if (t.id === 'logoUrlText') {
+      var hid2 = document.getElementById('f-logoUrl'), p2 = document.getElementById('logoPreview');
+      if (hid2) hid2.value = t.value.trim(); if (p2) p2.src = t.value.trim() || App.DEFAULT_LOGO;
     } else if (t.hasAttribute('data-admin-role')) {
       var em = t.getAttribute('data-admin-role'), role = t.value;
       Sync.setAdmin(em, role).then(function () { return Sync.listAdmins(); }).then(function (r) { S.admins = r; rerender(); App.toast(em + ' sekarang ' + role); }).catch(function (err) { App.toast(err.message, true); rerender(); });
@@ -517,7 +555,7 @@
     var dates = [], bad = [];
     (v.prepDeadlines || '').split(/[\n,;]+/).map(function (x) { return x.trim(); }).filter(Boolean).forEach(function (x) { var d = App.parseFlexDate(x); if (d) dates.push(d); else bad.push(x); });
     if (bad.length) errs.prepDeadlines = 'Tanggal tidak dikenali: ' + bad.join(', ');
-    if (v.logoUrl && !/^https?:\/\/|^assets\//.test(v.logoUrl)) errs.logoUrl = 'URL logo harus diawali https://';
+    if (v.logoUrl && !/^https:\/\/|^data:image\//.test(v.logoUrl)) errs.logoUrl = 'URL logo harus diawali https://';
     if (v.budgetSheetUrl && !/^https?:\/\//.test(v.budgetSheetUrl)) errs.budgetSheetUrl = 'Link harus diawali https://';
     if (Object.keys(errs).length) { App.showErrors(form, errs); return; }
     var s = App.getDb().settings;

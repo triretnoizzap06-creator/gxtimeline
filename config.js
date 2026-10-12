@@ -1,12 +1,14 @@
-// GET /api/config → a small script that tells the browser how to reach Supabase.
-// Only public values are exposed (the anon key is designed to be public; RLS protects the data).
+// GET /api/config → a small script that tells the browser how to reach Firebase.
+// The Firebase web config is public by design (security rules protect the data).
+const { firebaseConfig } = require('./_lib');
+
 module.exports = (req, res) => {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_ANON_KEY || '';
+  const fb = firebaseConfig();
+  const ok = Boolean(fb && fb.apiKey && fb.projectId && fb.authDomain);
   const cfg = {
-    configured: Boolean(url && key),
-    supabaseUrl: url,
-    supabaseAnonKey: key,
+    configured: ok,
+    firebase: ok ? { apiKey: fb.apiKey, authDomain: fb.authDomain, projectId: fb.projectId, appId: fb.appId || undefined, messagingSenderId: fb.messagingSenderId || undefined, storageBucket: fb.storageBucket || undefined } : null,
+    configError: process.env.FIREBASE_CONFIG && !ok ? 'FIREBASE_CONFIG tidak bisa dibaca. Paste ulang config dari Firebase Console.' : null,
     deployHook: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
     deployStatus: Boolean(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID)
   };

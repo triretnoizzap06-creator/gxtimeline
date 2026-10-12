@@ -1,0 +1,77 @@
+rules_version = '2';
+
+// GX27 Operations — Firestore Security Rules
+// Paste into Firebase Console → Firestore Database → Rules → Publish.
+//
+// Roles live in /admins/{email} with { role: 'admin' | 'editor' }.
+//   visitors : read the published content only
+//   editor   : read + save the draft, read history/team/log
+//   admin    : everything an editor can do + publish + manage the team
+// Hiding buttons in the UI is not the protection; these rules are.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function roleDoc() { return get(/databases/$(database)/documents/admins/$(myEmail())); }
+    function hasRole() { return signedIn() && exists(/databases/$(database)/documents/admins/$(myEmail())); }
+    function isEditor() { return hasRole() && roleDoc().data.role in ['admin', 'editor']; }
+    function isAdmin() { return hasRole() && roleDoc().data.role == 'admin'; }
+
+    function validContent() {
+      return request.resource.data.json is string
+        && request.resource.data.version is int
+        && request.resource.data.updated_by == myEmail();
+    }
+
+    // What visitors see
+    match /content/published {
+      allow read: if true;
+      allow create, update: if isAdmin() && validContent()
+        && request.resource.data.source_version is int;
+      allow delete: if false;
+    }
+
+    // What admins/editors are working on. Version must go up by exactly one per save.
+    match /content/draft {
+      allow read: if isEditor();
+      allow create: if isEditor() && validContent();
+      allow update: if isEditor() && validContent()
+        && request.resource.data.version == resource.data.version + 1;
+      allow delete: if false;
+    }
+
+    // Every saved draft. Append-only: nothing can be overwritten or deleted from the website.
+    match /versions/{id} {
+      allow read: if isEditor();
+      allow create: if isEditor()
+        && request.resource.data.json is string
+        && request.resource.data.version is int
+        && request.resource.data.saved_by == myEmail();
+      allow update, delete: if false;
+    }
+
+    // Save / publish / deploy history. Append-only.
+    match /log/{id} {
+      allow read: if isEditor();
+      allow create: if isEditor()
+        && request.resource.data.actor == myEmail()
+        && (request.resource.data.kind == 'save' || isAdmin());
+      allow update, delete: if false;
+    }
+
+    // Team. Admins manage other people; nobody can change or remove their own entry from the
+    // website, so there is always at least one admin left.
+    match /admins/{email} {
+      allow read: if signedIn() && (email == myEmail() || isEditor());
+      allow create, update: if isAdmin() && email != myEmail()
+        && request.resource.data.role in ['admin', 'editor'];
+      allow delete: if isAdmin() && email != myEmail();
+    }
+  }
+}
