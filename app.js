@@ -38,6 +38,186 @@ var SETTINGS_DEFAULT = {
 // 'admin'  = /admin: signed-in editors/admins edit the draft, Save + Publish
 var MODE = 'local';
 function canEdit() { return MODE === 'local' || (MODE === 'admin' && !!window.GX27Admin && window.GX27Admin.canEdit()); }
+/* ---------- Columns (Tasks & Finance tables): rename, hide/delete, add custom, reorder ----------
+   settings.columns = { tasks: [col], finance: [col] }, col = { key, label, visible, custom?, type?, options? }
+   Built-in columns can be renamed, moved and removed (removing only hides them; data stays and they can be restored).
+   Custom columns store their values in record.cf[<key>]. */
+var COL_BUILTIN = {
+  tasks: [
+    { key: 'name', label: 'Task', locked: true }, { key: 'workstream', label: 'Workstream' }, { key: 'category', label: 'Category' },
+    { key: 'start', label: 'Start', hidden: true }, { key: 'deadline', label: 'Deadline' }, { key: 'pic', label: 'PIC' }, { key: 'status', label: 'Status' },
+    { key: 'blockers', label: 'Blockers / waiting on', hidden: true }, { key: 'notes', label: 'Notes', hidden: true }, { key: 'source', label: 'Data source', hidden: true },
+    { key: 'payment', label: 'Payment' }
+  ],
+  finance: [
+    { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true }, { key: 'unitCost', label: 'Harga', num: true }, { key: 'est', label: 'Est. total', num: true, total: 'est' },
+    { key: 'invoice', label: 'Invoice', num: true, total: 'inv' }, { key: 'dp', label: 'DP', num: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' },
+    { key: 'paymentDeadline', label: 'Pay deadline' }, { key: 'invoiceStatus', label: 'Status invoice' }, { key: 'paymentStatus', label: 'Status payment' }, { key: 'receipt', label: 'Bukti TF' },
+    { key: 'task', label: 'Linked task' }, { key: 'check', label: 'Check' }
+  ]
+};
+var COL_TYPES = [{ value: 'text', label: 'Teks' }, { value: 'number', label: 'Angka' }, { value: 'money', label: 'Rupiah' }, { value: 'date', label: 'Tanggal' }, { value: 'select', label: 'Pilihan (dropdown)' }, { value: 'checkbox', label: 'Centang' }, { value: 'link', label: 'Link' }];
+var COL_TABLES = { tasks: 'Tasks', finance: 'Finance' };
+function builtinCol(table, key) { return COL_BUILTIN[table].filter(function (c) { return c.key === key; })[0] || null; }
+function normalizeColumns(s) {
+  var c = s.columns && typeof s.columns === 'object' ? s.columns : {};
+  var out = {};
+  Object.keys(COL_BUILTIN).forEach(function (table) {
+    var seen = {}, list = [];
+    (Array.isArray(c[table]) ? c[table] : []).forEach(function (col) {
+      if (!col || !col.key || seen[col.key]) return;
+      var b = builtinCol(table, col.key);
+      if (!b && !col.custom) return;
+      seen[col.key] = 1;
+      var x = { key: String(col.key), label: String(col.label || (b && b.label) || col.key).slice(0, 60), visible: col.visible !== false };
+      if (b && b.locked) x.visible = true;
+      if (!b) { x.custom = true; x.type = COL_TYPES.some(function (t) { return t.value === col.type; }) ? col.type : 'text'; x.options = Array.isArray(col.options) ? col.options.map(String).filter(Boolean) : []; }
+      list.push(x);
+    });
+    // built-ins missing from saved settings (first run, or added in a later version) are added at their default spot
+    COL_BUILTIN[table].forEach(function (b, i) {
+      if (seen[b.key]) return;
+      var x = { key: b.key, label: b.label, visible: !b.hidden }, at = list.length;
+      for (var j = i - 1; j >= 0; j--) { var k = list.map(function (y) { return y.key; }).indexOf(COL_BUILTIN[table][j].key); if (k > -1) { at = k + 1; break; } }
+      if (i === 0) at = 0;
+      list.splice(at, 0, x);
+    });
+    out[table] = list;
+  });
+  s.columns = out;
+}
+function colList(table) { return (db.settings.columns || {})[table] || []; }
+function visibleCols(table) { return colList(table).filter(function (c) { return c.visible; }); }
+function customCols(table) { return colList(table).filter(function (c) { return c.custom; }); }
+function cfVal(r, key) { return r && r.cf ? r.cf[key] : undefined; }
+function cfDisplay(col, v) {
+  if (v == null || v === '') return '<span class="faint">—</span>';
+  if (col.type === 'checkbox') return v ? '✓' : '<span class="faint">—</span>';
+  if (col.type === 'money') return rp(+v);
+  if (col.type === 'number') return esc(String(v));
+  if (col.type === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? fmtDate(v, true) : esc(v);
+  if (col.type === 'link') return /^https?:\/\//.test(v) ? '<a href="' + esc(v) + '" target="_blank" rel="noopener">' + esc(v.replace(/^https?:\/\//, '').slice(0, 28)) + '</a>' : esc(v);
+  return esc(String(v));
+}
+// a custom cell; editable in place when the visitor can edit
+function cfCell(table, col, r) {
+  var v = cfVal(r, col.key), a = ' data-inline="cf" data-table="' + table + '" data-col="' + esc(col.key) + '" data-id="' + esc(r.id) + '" aria-label="' + esc(col.label) + '"';
+  if (!canEdit()) return '<td' + (col.type === 'number' || col.type === 'money' ? ' class="num r"' : '') + '>' + cfDisplay(col, v) + '</td>';
+  if (col.type === 'checkbox') return '<td><input type="checkbox" class="cf-check"' + a + (v ? ' checked' : '') + '></td>';
+  if (col.type === 'select') return '<td><select class="inline-select"' + a + '>' + opts(withCurrent(col.options, v || ''), v || '', '—') + '</select></td>';
+  var type = col.type === 'date' ? 'date' : col.type === 'link' ? 'url' : 'text';
+  var val = col.type === 'money' && v != null && v !== '' ? rpFmt.format(v) : (v == null ? '' : v);
+  return '<td' + (col.type === 'number' || col.type === 'money' ? ' class="num r"' : '') + '><input class="cf-input' + (col.type === 'number' || col.type === 'money' ? ' r' : '') + '" type="' + type + '"' + a + ' value="' + esc(val) + '"' + (col.type === 'number' || col.type === 'money' ? ' inputmode="decimal"' : '') + '></td>';
+}
+function parseCf(col, raw) {
+  if (col.type === 'checkbox') return { ok: true, value: !!raw };
+  raw = raw == null ? '' : String(raw).trim();
+  if (raw === '') return { ok: true, value: null };
+  if (col.type === 'money') { var p = parseAmount(raw); return p.ok ? p : { ok: false, msg: 'Isi nominal, contoh 1.500.000' }; }
+  if (col.type === 'number') { var n = Number(raw.replace(',', '.')); return isNaN(n) ? { ok: false, msg: 'Isi angka.' } : { ok: true, value: n }; }
+  if (col.type === 'date') { var d = parseFlexDate(raw); return d ? { ok: true, value: d } : { ok: false, msg: 'Tanggal tidak dikenali.' }; }
+  return { ok: true, value: raw.slice(0, 500) };
+}
+// form fields for custom columns (task & budget forms)
+function cfFields(table, r) {
+  var list = customCols(table);
+  if (!list.length) return '';
+  return '<div class="field full cf-sep"><span class="hint">Kolom tambahan</span></div>' + list.map(function (col) {
+    var v = cfVal(r, col.key), name = 'cf__' + col.key, inputHtml;
+    if (col.type === 'checkbox') inputHtml = '<label class="cf-cb"><input type="checkbox" id="f-' + name + '" name="' + name + '" value="1"' + (v ? ' checked' : '') + '> Ya</label>';
+    else if (col.type === 'select') inputHtml = sel(name, withCurrent(col.options, v || ''), v || '', '—');
+    else inputHtml = inp(name, col.type === 'money' && v != null ? rpFmt.format(v) : v, col.type === 'date' ? 'date' : col.type === 'link' ? 'url' : 'text', col.type === 'number' || col.type === 'money' ? 'inputmode="decimal"' : 'maxlength="500"');
+    return field(name, esc(col.label), inputHtml);
+  }).join('');
+}
+// pulls cf__* keys out of a form-values object into a cf object; returns errors keyed by field name
+function takeCf(table, v, current) {
+  var cf = Object.assign({}, current || {}), errs = {};
+  customCols(table).forEach(function (col) {
+    var name = 'cf__' + col.key, raw = col.type === 'checkbox' ? (name in v) : v[name];
+    var p = parseCf(col, raw);
+    if (!p.ok) errs[name] = p.msg; else if (p.value == null || p.value === false) delete cf[col.key]; else cf[col.key] = p.value;
+  });
+  Object.keys(v).forEach(function (k) { if (k.indexOf('cf__') === 0) delete v[k]; });
+  return { cf: cf, errs: errs };
+}
+function columnManager(table) {
+  table = table || 'tasks';
+  var list = colList(table);
+  var rows = list.map(function (c, i) {
+    var b = builtinCol(table, c.key), locked = b && b.locked;
+    return '<div class="col-row' + (c.visible ? '' : ' off') + '">' +
+      '<label class="col-vis" title="Tampilkan di tabel"><input type="checkbox" data-col-vis="' + i + '"' + (c.visible ? ' checked' : '') + (locked ? ' disabled' : '') + '></label>' +
+      '<input class="input" id="col-' + i + '" data-col-idx="' + i + '" value="' + esc(c.label) + '" maxlength="60" aria-label="Nama kolom">' +
+      '<span class="col-type">' + (c.custom ? esc((COL_TYPES.filter(function (t) { return t.value === c.type; })[0] || {}).label || c.type) + (c.type === 'select' ? '<input class="input" id="colopt-' + i + '" value="' + esc((c.options || []).join(', ')) + '" placeholder="Pilihan, pisahkan koma" aria-label="Pilihan dropdown">' : '') : (b ? 'Bawaan' : '')) + '</span>' +
+      '<span class="st-btns"><button class="btn sm" type="button" data-act="col-move" data-table="' + table + '" data-idx="' + i + '" data-dir="-1" aria-label="Geser ke kiri"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="btn sm" type="button" data-act="col-move" data-table="' + table + '" data-idx="' + i + '" data-dir="1" aria-label="Geser ke kanan"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      (locked ? '<span class="col-lock">wajib</span>' : '<button class="btn sm danger" type="button" data-act="col-delete" data-table="' + table + '" data-idx="' + i + '">Hapus</button>') + '</span></div>';
+  }).join('');
+  var hidden = list.filter(function (c) { return !c.custom && !c.visible; });
+  openModal('<form id="colForm" novalidate><div class="modal-h"><h3>Kelola kolom</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+    '<div class="tabs" role="tablist" style="margin:0 20px">' + Object.keys(COL_TABLES).map(function (k) { return '<button type="button" role="tab" data-act="col-tab" data-table="' + k + '" aria-selected="' + (k === table) + '">' + COL_TABLES[k] + '</button>'; }).join('') + '</div>' +
+    '<div class="modal-b one"><p class="muted" style="margin:0">Urutan dari atas ke bawah = urutan kolom dari kiri ke kanan. Centang = tampil di tabel. Ganti nama langsung di kotaknya. Kolom bawaan yang dihapus hanya disembunyikan (datanya tetap ada, bisa dikembalikan). Kolom tambahan yang dihapus ikut menghapus isinya.</p>' +
+    '<div class="cat-list">' + rows + '</div>' +
+    (hidden.length ? '<div class="col-restore"><span class="muted">Kolom bawaan tersembunyi:</span> ' + hidden.map(function (c) { return '<button type="button" class="btn sm" data-act="col-show" data-table="' + table + '" data-key="' + esc(c.key) + '">+ ' + esc(c.label) + '</button>'; }).join(' ') + '</div>' : '') +
+    '<div class="col-add"><input class="input" id="colNew" placeholder="Nama kolom baru, mis. Vendor, Lokasi, Link file" maxlength="60"><select class="select" id="colNewType" aria-label="Tipe kolom">' + opts(COL_TYPES, 'text') + '</select>' +
+    '<input class="input" id="colNewOpts" placeholder="Pilihan dropdown, pisahkan koma" hidden><button type="button" class="btn" data-act="col-add" data-table="' + table + '">+ Tambah kolom</button></div>' +
+    '<div class="form-err" id="catErr" hidden></div></div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'wide');
+  var form = document.getElementById('colForm');
+  var ty = document.getElementById('colNewType'), op = document.getElementById('colNewOpts');
+  if (ty) ty.addEventListener('change', function () { op.hidden = ty.value !== 'select'; });
+  var nw = document.getElementById('colNew'); if (nw) nw.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); colAdd(table); } });
+  form.onsubmit = function (e) { e.preventDefault(); if (colApply(table)) { closeModal(); commit('Kolom disimpan'); } };
+}
+// reads names / visibility / dropdown options from the open dialog into settings; false if invalid
+function colApply(table) {
+  var list = colList(table), names = [];
+  for (var i = 0; i < list.length; i++) {
+    var el = document.getElementById('col-' + i); if (!el) continue;
+    var nm = el.value.trim();
+    if (!nm) { catErr('Nama kolom tidak boleh kosong.'); el.focus(); return false; }
+    if (names.indexOf(nm.toLowerCase()) > -1) { catErr('Nama kolom "' + nm + '" dipakai dua kali.'); el.focus(); return false; }
+    names.push(nm.toLowerCase());
+  }
+  list.forEach(function (c, i) {
+    var el = document.getElementById('col-' + i), vis = document.querySelector('[data-col-vis="' + i + '"]'), op = document.getElementById('colopt-' + i);
+    if (el) c.label = el.value.trim();
+    if (vis && !vis.disabled) c.visible = vis.checked;
+    if (op) c.options = op.value.split(',').map(function (x) { return x.trim(); }).filter(function (x, j, a) { return x && a.indexOf(x) === j; });
+  });
+  return true;
+}
+function colAdd(table) {
+  if (!colApply(table)) return;
+  var nm = (document.getElementById('colNew').value || '').trim(), type = document.getElementById('colNewType').value;
+  if (!nm) { catErr('Isi nama kolom dulu.'); return; }
+  if (colList(table).some(function (c) { return c.label.toLowerCase() === nm.toLowerCase(); })) { catErr('Kolom "' + nm + '" sudah ada.'); return; }
+  var options = type === 'select' ? (document.getElementById('colNewOpts').value || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [];
+  if (type === 'select' && !options.length) { catErr('Isi pilihan dropdown, pisahkan dengan koma.'); return; }
+  var key = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  colList(table).push({ key: key, label: nm, visible: true, custom: true, type: type, options: options });
+  persist(db); render(); columnManager(table); toast('Kolom "' + nm + '" ditambahkan');
+}
+function colDelete(table, idx) {
+  var list = colList(table), c = list[idx]; if (!c) return;
+  if (!c.custom) { c.visible = false; persist(db); render(); columnManager(table); toast('Kolom "' + c.label + '" disembunyikan · bisa dikembalikan di bawah'); return; }
+  var rows = table === 'tasks' ? db.tasks : db.finance, used = rows.filter(function (r) { var v = cfVal(r, c.key); return v != null && v !== '' && v !== false; }).length;
+  closeModal();
+  confirmDialog('Hapus kolom "' + c.label + '"?', used ? 'Isi kolom ini di ' + used + ' baris ikut terhapus. Versi sebelumnya tetap ada di Version history (admin).' : 'Kolom ini belum berisi data.', 'Hapus kolom', function () {
+    list.splice(idx, 1);
+    rows.forEach(function (r) { if (r.cf && c.key in r.cf) { delete r.cf[c.key]; r.updatedAt = Date.now(); } });
+    commit('Kolom "' + c.label + '" dihapus');
+  });
+}
+function colMove(table, idx, dir) {
+  if (!colApply(table)) return;
+  var list = colList(table), to = idx + dir;
+  if (to < 0 || to >= list.length) return;
+  var t = list[idx]; list[idx] = list[to]; list[to] = t;
+  persist(db); render(); columnManager(table);
+}
+
 function normalizeDb(d) {
   d = d && typeof d === 'object' ? d : {};
   if (!Array.isArray(d.tasks)) d.tasks = [];
@@ -59,6 +239,7 @@ function normalizeDb(d) {
   (d.tasks || []).forEach(function (t) {
     if (t.status && !s.taskStatuses.some(function (x) { return x.name === t.status; })) s.taskStatuses.push({ name: t.status, type: 'todo', color: 'neutral' });
   });
+  normalizeColumns(s);
   d.settings = s;
   // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
   if (!Array.isArray(d.rundown)) { d.rundown = rundownSeed(); d.flowMeta = FLOW_SEED.meta; }
@@ -956,7 +1137,7 @@ function filteredTasks(view) {
     if (ui.fWs && t.workstream !== ui.fWs) return false;
     if (ui.fStatus && t.status !== ui.fStatus) return false;
     if (ui.fSrc && t.source !== ui.fSrc) return false;
-    if (q && [t.name, t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].join(' ').toLowerCase().indexOf(q) < 0) return false;
+    if (q && [t.name, t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
     if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || ((t.blockers || t.dependencies) && ty !== 'done') || k === 'overdue')) return false; }
     return true;
@@ -967,15 +1148,17 @@ function filteredTasks(view) {
     var va, vb;
     if (key === 'status') { va = TYPE_ORDER[sType(a.status)] * 100 + sl.indexOf(a.status); vb = TYPE_ORDER[sType(b.status)] * 100 + sl.indexOf(b.status); }
     else if (key === 'deadline') { va = a.deadline || '9999'; vb = b.deadline || '9999'; }
+    else if (key.indexOf('cf:') === 0) { var ck = key.slice(3), xa = cfVal(a, ck), xb = cfVal(b, ck); va = typeof xa === 'number' ? xa : String(xa == null ? '\uffff' : xa).toLowerCase(); vb = typeof xb === 'number' ? xb : String(xb == null ? '\uffff' : xb).toLowerCase(); }
     else { va = String(a[key] || '').toLowerCase(); vb = String(b[key] || '').toLowerCase(); }
     if (va < vb) return -dir; if (va > vb) return dir;
     return (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1;
   });
   return list;
 }
+
 function renderTasks() {
   var views = [['all', 'All Tasks'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
-  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.', '<button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
+  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.', '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola kolom</button><button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
   }).join('') + '</div>';
@@ -1004,25 +1187,44 @@ function sortTh(key, label, cls) {
   return '<th class="sortable ' + (cls || '') + '" data-act="sort" data-key="' + key + '" aria-sort="' + (on ? (ui.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '">' + label + (on ? ' <span class="arr">' + (ui.sort.dir > 0 ? '↑' : '↓') + '</span>' : '') + '</th>';
 }
 function taskTable(list, compact, showBlockers) {
-  var cols = 7 + (showBlockers ? 1 : 0) - (compact ? 1 : 0);
-  var h = '<div class="table-wrap"><table><thead><tr>' + sortTh('name', 'Task') + (compact ? '' : sortTh('workstream', 'Workstream')) + sortTh('category', 'Category') + sortTh('deadline', 'Deadline') + sortTh('pic', 'PIC') + sortTh('status', 'Status') + (showBlockers ? '<th>Blockers / waiting on</th>' : '') + '<th>Payment</th></tr></thead><tbody>';
+  var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
+  if (showBlockers && !cols.some(function (c) { return c.key === 'blockers'; })) {
+    var bc = colList('tasks').filter(function (c) { return c.key === 'blockers'; })[0] || { key: 'blockers', label: 'Blockers / waiting on' };
+    var pi = cols.map(function (c) { return c.key; }).indexOf('payment'); cols.splice(pi > -1 ? pi : cols.length, 0, bc);
+  }
+  var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
+  var h = '<div class="table-wrap"><table><thead><tr>' + cols.map(function (c) {
+    if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '');
+    return SORTABLE[c.key] ? sortTh(c.key, esc(c.label)) : '<th>' + esc(c.label) + '</th>';
+  }).join('') + '</tr></thead><tbody>';
   list.forEach(function (t) {
-    var fins = finForTask(t.id), pay = '<span class="faint">—</span>';
-    if (fins.length) {
-      var tt = totals(fins), allPaid = fins.every(function (f) { return f.paymentStatus === 'Full Paid'; }), anyPaid = fins.some(function (f) { return f.paymentStatus !== 'Pending Payment'; });
-      pay = payBadge(allPaid ? 'Full Paid' : anyPaid ? 'DP Paid' : 'Pending Payment') + (tt.outstanding ? ' <span class="num muted" style="font-size:12px">' + rp(tt.outstanding) + ' due</span>' : '');
-    }
     var exp = ui.expanded === t.id;
-    h += '<tr class="row' + (exp ? ' expanded' : '') + '" data-act="expand" data-id="' + t.id + '" aria-expanded="' + exp + '">' +
-      '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>' +
-      (compact ? '' : '<td>' + wsTag(t.workstream) + '</td>') +
-      '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td><td>' + dueLabel(t) + '</td><td>' + (t.pic ? esc(t.pic) : '<span class="faint">Unassigned</span>') + '</td>' +
-      '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>' +
-      (showBlockers ? '<td style="max-width:240px">' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '') + (t.dependencies ? '<span class="tsub">Waiting on: ' + esc(t.dependencies) + '</span>' : '') + (!t.blockers && !t.dependencies ? '<span class="faint">—</span>' : '') + '</td>' : '') +
-      '<td>' + pay + '</td></tr>';
-    if (exp) h += '<tr class="expanded"><td colspan="' + cols + '">' + taskDetail(t) + '</td></tr>';
+    h += '<tr class="row' + (exp ? ' expanded' : '') + '" data-act="expand" data-id="' + t.id + '" aria-expanded="' + exp + '">' + cols.map(function (c) { return c.custom ? cfCell('tasks', c, t) : taskCell(c.key, t); }).join('') + '</tr>';
+    if (exp) h += '<tr class="expanded"><td colspan="' + cols.length + '">' + taskDetail(t) + '</td></tr>';
   });
   return h + '</tbody></table></div>';
+}
+function taskCell(key, t) {
+  switch (key) {
+    case 'name': return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
+    case 'workstream': return '<td>' + wsTag(t.workstream) + '</td>';
+    case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
+    case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
+    case 'deadline': return '<td>' + dueLabel(t) + '</td>';
+    case 'pic': return '<td>' + (t.pic ? esc(t.pic) : '<span class="faint">Unassigned</span>') + '</td>';
+    case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
+    case 'blockers': return '<td style="max-width:240px">' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '') + (t.dependencies ? '<span class="tsub">Waiting on: ' + esc(t.dependencies) + '</span>' : '') + (!t.blockers && !t.dependencies ? '<span class="faint">—</span>' : '') + '</td>';
+    case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
+    case 'source': return '<td>' + srcTag(t.source) + '</td>';
+    case 'payment':
+      var fins = finForTask(t.id), pay = '<span class="faint">—</span>';
+      if (fins.length) {
+        var tt = totals(fins), allPaid = fins.every(function (f) { return f.paymentStatus === 'Full Paid'; }), anyPaid = fins.some(function (f) { return f.paymentStatus !== 'Pending Payment'; });
+        pay = payBadge(allPaid ? 'Full Paid' : anyPaid ? 'DP Paid' : 'Pending Payment') + (tt.outstanding ? ' <span class="num muted" style="font-size:12px">' + rp(tt.outstanding) + ' due</span>' : '');
+      }
+      return '<td>' + pay + '</td>';
+  }
+  return '<td></td>';
 }
 function taskDetail(t) {
   var fins = finForTask(t.id);
@@ -1071,7 +1273,7 @@ function filteredFinance() {
     if (ui.finWs && f.workstream !== ui.finWs) return false;
     if (ui.finPay && f.paymentStatus !== ui.finPay) return false;
     if (ui.finInv && f.invoiceStatus !== ui.finInv) return false;
-    if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].join(' ').toLowerCase().indexOf(q) < 0) return false; }
+    if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].concat(Object.keys(f.cf || {}).map(function (k) { return f.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false; }
     return true;
   };
   var hit = {}; db.finance.forEach(function (f) { if (match(f)) hit[f.id] = 1; });
@@ -1090,7 +1292,7 @@ function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', meta ? 'Sumber: sheet <b>' + esc(meta.sheet) + '</b> · Divisi ' + esc(meta.division) + ' · baris ' + esc(meta.rows) + ' · snapshot ' + fmtDate(meta.snapshot) + '. Subtotal dihitung otomatis dari item, tidak disimpan.' : 'Total dihitung dari baris item; subtotal tidak disimpan sebagai record.',
-    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="manage-columns" data-table="finance">Kelola kolom</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
   if (db.budgetUpdateAvailable && canEdit()) {
     var sm = SHEET_SEED.meta || {};
     h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
@@ -1114,7 +1316,17 @@ function renderFinance() {
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No items match', 'Try a different search or clear the filters.') + '</div>';
   var groups = {};
   list.forEach(function (f) { (groups[f.workstream] = groups[f.workstream] || []).push(f); });
-  var head = '<tr><th>Item</th><th class="r">Qty</th><th class="r">Harga</th><th class="r">Est. total</th><th class="r">Invoice</th><th class="r">DP</th><th class="r">Paid</th><th class="r">Remaining</th><th>Pay deadline</th><th>Invoice</th><th>Payment</th><th>Bukti TF</th><th>Linked task</th><th>Check</th></tr>';
+  var FC = visibleCols('finance');
+  var head = '<tr>' + FC.map(function (c) { var b = builtinCol('finance', c.key); return '<th' + ((b && b.num) || c.type === 'number' || c.type === 'money' ? ' class="r"' : '') + '>' + esc(c.label) + '</th>'; }).join('') + '</tr>';
+  // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
+  function sumRow(cls, label, tot, tail) {
+    return '<tr class="' + cls + '">' + FC.map(function (c, i) {
+      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num">' + rp(tot[b.total]) + '</span>' : '';
+      if (i === 0) return '<td>' + label + (v ? ' · ' + v : '') + '</td>';
+      if (i === FC.length - 1 && tail && !v) return '<td class="muted">' + tail + '</td>';
+      return '<td' + (v ? ' class="num r"' : '') + '>' + v + '</td>';
+    }).join('') + '</tr>';
+  }
   var body = '';
   function row(f, child) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
@@ -1143,25 +1355,29 @@ function renderFinance() {
       ivs = invBadge(f.invoiceStatus); pay = payBadge(f.paymentStatus);
       rec = f.receipt ? '<span class="badge b-ok nodot" title="' + esc(f.receipt) + '" style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(f.receipt) + '</span>' : '<span class="faint">—</span>';
     }
-    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + '" data-act="edit-fin" data-id="' + f.id + '"><td><span class="tname">' + (child ? '<span class="faint">↳ </span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + '</td>' +
-      '<td class="num r">' + qtyTxt + '</td><td class="num r">' + rp(numOrNull(f.unitCost)) + '</td><td class="num r">' + rp(c.est) + '</td><td class="num r">' + inv + '</td><td class="num r">' + dpc + '</td><td class="num r">' + paid + '</td>' +
-      '<td class="num r">' + rem + '</td><td>' + pd + '</td><td>' + ivs + '</td><td>' + pay + '</td><td>' + rec + '</td>' +
-      '<td style="max-width:200px">' + (child ? (t ? '<span class="faint" style="font-size:12px">' + esc(t.name) + '</span>' : '') : t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" style="color:inherit">' + esc(t.name) + '</a><span class="tsub">' + statusBadge(t.status) + '</span>' : '<span class="flag">Not linked</span>') + '</td>' +
-      '<td>' + flagHtml + '</td></tr>';
+    var cell = {
+      item: '<td><span class="tname">' + (child ? '<span class="faint">↳ </span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + '</td>',
+      qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
+      invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
+      paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>',
+      task: '<td style="max-width:200px">' + (child ? (t ? '<span class="faint" style="font-size:12px">' + esc(t.name) + '</span>' : '') : t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" style="color:inherit">' + esc(t.name) + '</a><span class="tsub">' + statusBadge(t.status) + '</span>' : '<span class="flag">Not linked</span>') + '</td>',
+      check: '<td>' + flagHtml + '</td>'
+    };
+    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) { return col.custom ? cfCell('finance', col, f) : (cell[col.key] || '<td></td>'); }).join('') + '</tr>';
   }
   var inList = {}; list.forEach(function (f) { inList[f.id] = 1; });
   finCategories().filter(function (w) { return groups[w]; }).forEach(function (w) {
     var g = groups[w].slice().sort(rowOrder), st = totals(g);
-    body += '<tr class="group"><td colspan="14">' + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' row' + (g.length > 1 ? 's' : '') + '</span></td></tr>';
+    body += '<tr class="group"><td colspan="' + FC.length + '">' + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' row' + (g.length > 1 ? 's' : '') + '</span></td></tr>';
     g.forEach(function (f) {
       if (f.parentId && inList[f.parentId]) return;
       body += row(f, !!f.parentId);
       g.filter(function (k) { return k.parentId === f.id; }).forEach(function (k) { body += row(k, true); });
     });
-    body += '<tr class="subtotal"><td>Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(auto)</span></td><td></td><td></td><td class="num r">' + rp(st.est) + '</td><td class="num r">' + rp(st.inv) + '</td><td></td><td class="num r">' + rp(st.paid) + '</td><td class="num r">' + rp(st.outstanding) + '</td><td colspan="6"></td></tr>';
+    body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(auto)</span>', st);
   });
   var gt = totals(list);
-  body += '<tr class="grand"><td>' + (list.length === db.finance.length ? 'Grand total' : 'Total (filtered)') + '</td><td></td><td></td><td class="num r">' + rp(gt.est) + '</td><td class="num r">' + rp(gt.inv) + '</td><td></td><td class="num r">' + rp(gt.paid) + '</td><td class="num r">' + rp(gt.outstanding) + '</td><td colspan="6" class="muted">' + gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal</td></tr>';
+  body += sumRow('grand', list.length === db.finance.length ? 'Grand total' : 'Total (filtered)', gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
   h += '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
   h += '<p class="fin-note">Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p>';
   return h;
@@ -1255,13 +1471,15 @@ function taskForm(t, preset) {
     field('dependencies', 'Dependencies', ta('dependencies', t.dependencies), { hint: 'Menunggu apa / siapa' }) +
     field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], t.source)) +
     field('verifyNote', 'Verification note', inp('verifyNote', t.verifyNote, 'text', 'maxlength="200"'), { hint: 'Apa yang perlu dicek' }) +
+    cfFields('tasks', t) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-task" data-id="' + t.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
   document.getElementById('taskForm').onsubmit = function (e) {
     e.preventDefault();
     var fd = new FormData(e.target), v = {};
     fd.forEach(function (val, k) { v[k] = String(val).trim(); });
-    var errs = {};
+    var cfr = takeCf('tasks', v, t.cf), errs = cfr.errs;
+    if (Object.keys(cfr.cf).length || t.cf) v.cf = cfr.cf;
     if (!v.name) errs.name = 'Task name is required.';
     if (!v.workstream) errs.workstream = 'Pick or type a workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
@@ -1304,6 +1522,7 @@ function finForm(f, presetTask) {
     field('notes', 'Notes', ta('notes', f.notes), { full: true }) +
     field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], f.source)) +
     field('verifyNote', 'Verification note', inp('verifyNote', f.verifyNote, 'text', 'maxlength="300"')) +
+    cfFields('finance', f) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-fin" data-id="' + f.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Add item' : 'Save changes') + '</button></div></div></form>', 'wide');
   var form = document.getElementById('finForm');
@@ -1314,6 +1533,8 @@ function finForm(f, presetTask) {
     if (v.qty === '') v.qty = null; else { var q = Number(String(v.qty).replace(',', '.')); if (isNaN(q) || q < 0) errs.qty = 'Quantity harus angka ≥ 0.'; else v.qty = q; }
     v.parentId = v.parentId || null; v.kind = v.kind || '';
     v.id = f.id;
+    var cfr = takeCf('finance', v, f.cf); Object.assign(errs, cfr.errs);
+    if (Object.keys(cfr.cf).length || f.cf) v.cf = cfr.cf;
     return { v: v, errs: errs };
   }
   function preview() {
@@ -1523,7 +1744,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -1540,6 +1761,12 @@ function handleAct(el, e) {
     case 'delete-rundown': closeModal(); deleteRundown(id); break;
     case 'manage-categories': e.preventDefault(); closeModal(); categoryManager('category'); break;
     case 'manage-statuses': e.preventDefault(); closeModal(); statusManager(); break;
+    case 'manage-columns': e.preventDefault(); closeModal(); columnManager(el.dataset.table); break;
+    case 'col-tab': if (colApply(document.querySelector('#colForm [aria-selected="true"]').dataset.table)) { persist(db); render(); } closeModal(); columnManager(el.dataset.table); break;
+    case 'col-add': colAdd(el.dataset.table); break;
+    case 'col-delete': colDelete(el.dataset.table, +el.dataset.idx); break;
+    case 'col-move': colMove(el.dataset.table, +el.dataset.idx, +el.dataset.dir); break;
+    case 'col-show': colApply(el.dataset.table); colList(el.dataset.table).forEach(function (c) { if (c.key === el.dataset.key) c.visible = true; }); persist(db); render(); closeModal(); columnManager(el.dataset.table); break;
     case 'budget-apply':
       confirmDialog('Terapkan data budget sheet terbaru?', 'Isi Finance diganti dengan ' + (SHEET_SEED.items || []).length + ' baris dari ' + esc((SHEET_SEED.meta || {}).file || 'sheet') + '. Perubahan manual di Finance setelah import terakhir akan diganti. Task, rundown, dan settings tidak berubah.' + (MODE === 'admin' ? ' Setelah itu klik Save & Publish.' : ''), 'Terapkan', function () {
         applyBudgetSeed(db); db.budgetUpdateAvailable = false; commit('Data budget sheet diterapkan · ' + db.finance.length + ' baris');
@@ -1586,6 +1813,7 @@ function handleAct(el, e) {
 }
 document.addEventListener('click', function (e) {
   if (e.target.matches && e.target.matches('.overlay')) { closeModal(); return; }
+  if (e.target.closest && e.target.closest('[data-inline]')) return;   // editing a cell in place, not opening the row
   var el = e.target.closest('[data-act]'); if (el) handleAct(el, e);
 });
 document.addEventListener('keydown', function (e) {
@@ -1603,6 +1831,16 @@ main.addEventListener('change', function (e) {
   if (t.dataset.inline && !canEdit()) return;
   var map = { fWs: 'fWs', fStatus: 'fStatus', fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
+  if (t.dataset.inline === 'cf') {
+    if (!canEdit()) return;
+    var tbl = t.dataset.table, rec = tbl === 'tasks' ? taskById(t.dataset.id) : finById(t.dataset.id), col = colList(tbl).filter(function (c) { return c.key === t.dataset.col; })[0];
+    if (!rec || !col) return;
+    var pr = parseCf(col, col.type === 'checkbox' ? t.checked : t.value);
+    if (!pr.ok) { toast(col.label + ': ' + pr.msg, true); return; }
+    rec.cf = rec.cf || {};
+    if (pr.value == null || pr.value === false) delete rec.cf[col.key]; else rec.cf[col.key] = pr.value;
+    rec.updatedAt = Date.now(); commit(col.label + ' diperbarui'); return;
+  }
   if (t.dataset.inline === 'status') {
     var task = taskById(t.dataset.id); if (!task) return;
     if (sType(t.value) === 'blocked' && !task.blockers) { var want = t.value; t.value = task.status; taskForm(task); setTimeout(function () { var s = document.getElementById('f-status'); if (s) { s.value = want; var b = document.getElementById('f-blockers'); if (b) b.focus(); } }, 0); toast('Add the blocker to mark this task Blocked'); return; }
@@ -1625,7 +1863,7 @@ window.GX27App = {
   openModal: openModal, closeModal: closeModal, confirmDialog: confirmDialog, showErrors: showErrors,
   field: field, inp: inp, sel: sel, ta: ta, esc: esc, rp: rp, fmtDate: fmtDate, todayISO: todayISO, parseFlexDate: parseFlexDate,
   seed: function () { return normalizeDb(seed()); }, normalizeDb: normalizeDb, totals: totals, taskStats: taskStats,
-  categoryManager: categoryManager, CAT_KINDS: CAT_KINDS, catUsage: catUsage,
+  categoryManager: categoryManager, columnManager: columnManager, CAT_KINDS: CAT_KINDS, catUsage: catUsage,
   exportDialog: exportDialog, importJsonDialog: importJsonDialog, importCsvDialog: importCsvDialog,
   STORE_KEY: STORE_KEY, LEGACY_KEYS: [STORE_KEY, 'gx27.dashboard.v2', 'gx27.dashboard.v1'],
   SETTINGS_DEFAULT: SETTINGS_DEFAULT, DEFAULT_LOGO: DEFAULT_LOGO,

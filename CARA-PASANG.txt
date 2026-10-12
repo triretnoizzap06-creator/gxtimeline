@@ -1,0 +1,26 @@
+GX27 — Patch "Kelola kolom + garis tabel"
+
+Isi ZIP ini cuma 2 file: app.js dan styles.css.
+
+Cara pasang:
+1. Buka repo GitHub website GX27.
+2. Upload app.js dan styles.css ini ke folder paling atas repo (timpa file lama dengan nama sama).
+3. Commit. Vercel otomatis deploy ulang (1–2 menit).
+Tidak perlu jalankan SQL apa pun untuk patch ini.
+
+Yang baru:
+- Tasks & Finance: tombol "Kelola kolom"
+  · Tambah kolom baru (Teks, Angka, Rupiah, Tanggal, Dropdown, Centang, Link)
+  · Ganti nama kolom, sembunyikan/tampilkan, urutkan (↑ ↓), hapus
+  · Kolom bawaan yang dihapus hanya disembunyikan (data aman, bisa dikembalikan)
+  · Isi kolom baru bisa diedit langsung di tabel atau di form task/budget
+- Garis kolom & baris tabel lebih jelas di semua tabel.
+- Status: Done hijau, In Progress biru, Pending merah, Not Started abu
+  (bisa ditambah/ubah/hapus/urutkan di Kelola kategori → tab Status).
+
+Tambah / hapus task:
+- Tambah: tombol "+ New task" di halaman Tasks.
+- Hapus: klik baris task → tombol "Delete", atau buka Edit task → "Delete".
+- Di website publik (gxtimeline.vercel.app) semua tombol edit memang
+  disembunyikan supaya pengunjung tidak bisa mengubah. Untuk edit, buka
+  gxtimeline.vercel.app/admin lalu login dengan email admin.

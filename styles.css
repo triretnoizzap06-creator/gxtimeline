@@ -553,3 +553,33 @@ body.readonly [data-act="new-zone"], body.readonly [data-act="delete-zone"] { di
 .tgl:last-of-type{border-bottom:0}
 .tgl input{margin-top:3px;width:16px;height:16px;accent-color:#111;flex:none}
 .tgl .muted{font-size:12.5px}
+
+/* ===== Clear grid lines on every table ===== */
+.table-wrap{border:1px solid var(--line-2)}
+table th, table td{border-right:1px solid var(--line-2);border-bottom:1px solid var(--line-2)}
+table th:last-child, table td:last-child{border-right:0}
+table tbody tr:last-child td{border-bottom:0}
+table th{border-bottom:1.5px solid #BDBCB4}
+tr.group td, tr.expanded > td{border-right:0}
+tr.subtotal td, tr.grand td{border-top:1.5px solid #BDBCB4}
+
+/* ===== Column manager + custom columns ===== */
+.col-row{display:grid;grid-template-columns:auto minmax(120px,1fr) minmax(90px,1.1fr) auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line-soft)}
+.col-row.off .input{color:var(--faint)}
+.col-vis input{width:16px;height:16px;accent-color:#111}
+.col-type{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.col-type .input{font-size:12px;padding:4px 6px}
+.col-lock{font-size:11px;color:var(--faint);padding:0 6px}
+.col-restore{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.col-add{display:grid;grid-template-columns:1fr auto;gap:8px}
+.col-add #colNewOpts{grid-column:1 / -1}
+.col-add .btn{grid-column:1 / -1;justify-self:start}
+.cf-input{width:100%;min-width:110px;border:1px solid transparent;background:transparent;font:inherit;padding:4px 6px;border-radius:6px;color:inherit}
+.cf-input:hover{border-color:var(--line-2)}
+.cf-input:focus{border-color:#111;background:#fff;outline:none}
+.cf-input.r{text-align:right}
+.cf-check{width:16px;height:16px;accent-color:#111;cursor:pointer}
+.cf-sep{border-top:1px dashed var(--line-2);padding-top:6px}
+.cf-cb{display:flex;gap:6px;align-items:center;font-size:13px}
+body.readonly [data-act="manage-columns"]{display:none !important}
+@media (max-width:640px){.col-row{grid-template-columns:auto 1fr;}.col-row .col-type,.col-row .st-btns{grid-column:2}}
