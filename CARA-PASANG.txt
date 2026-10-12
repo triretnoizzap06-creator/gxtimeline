@@ -1,10 +1,12 @@
-GX27 — Patch: Tasks lebih simpel + filter pilih banyak
+GX27 — Patch: To-do list dari GX27_Rundown_1.xlsx jadi task
 
-Isi: index.html, app.js, admin.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
+Isi: index.html, app.js, admin.js. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
 
-- Blockers, Dependencies, dan Verification note dihapus dari Tasks (form, detail, dan kolom).
-  Isi yang sudah ada (mis. "Menunggu: Pak Arwin approve design") dipindah ke Notes, jadi tidak hilang.
-- Filter Workstream dan Status di Tasks sekarang bisa pilih lebih dari satu (centang beberapa).
-  "Tampilkan semua" / "Clear filters" untuk reset.
+- 78 baris dari sheet "To-do list" masuk ke Tasks, masing-masing di workstream sesuai kategori sheet
+  (Operasional, Stage, GX Access Point, GX Connect, GX Got Talent, HYROX, Tenants, Activation, Games, Entertainment, Doorprize).
+- Yang dicentang di sheet = Done (37 task), sisanya Not Started.
+- PIC, Output, dan Notes ikut masuk. Sub-grup (People of GX, DIY Totebag, Face Painting, Tarot, Bali Games, BUMI, Game Pass) jadi awalan nama task.
+- Deadline masih kosong (di sheet belum ada) - task-nya ada di bagian bawah daftar / "No deadline yet". Silakan atur sendiri.
+- Masuk otomatis sekali saat website dibuka, tersimpan untuk semua.
 
-Setelah deploy, buka website lalu tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
+Setelah deploy, tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
