@@ -1,23 +1,8 @@
-GX27 — Patch: timeline terbaru + Kelola kategori + Finance sub item
+GX27 — Patch: fix tampilan Kelola kategori (cache) + hapus baris "Sumber" di Finance
 
-Isi: app.js, admin.js, styles.css. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
+Isi: index.html, app.js, admin.js, styles.css. Upload semua ke GitHub (timpa yang lama). Tidak perlu SQL.
 
-1. Timeline (Tasks & Master Timeline) diupdate sesuai "Timeline Persiapan & Operasional":
-   - Semua item 13 Okt – 13 Nov masuk dengan tanggalnya masing-masing.
-   - ✅ = Done. "tunggu …" = Pending, dan yang ditunggu tertulis di kolom Waiting on / Blockers.
-   - Task lama yang sama diganti namanya (link ke Finance tetap). Penanda "Preparation deadline"
-     dihapus karena sudah diganti item-item aslinya.
-   - Pelunasan vendor (Hyrox, Spectrum, Not So Koplo, DJ, MC, Face Painting, Tarot) jadi task
-     masing-masing per 13 Nov, dan item budget-nya ikut pindah ke task itu.
-   - Update ini otomatis diterapkan sekali saat website pertama dibuka, lalu tersimpan untuk semua.
+- index.html sekarang memaksa browser memuat versi terbaru (tidak pakai file lama dari cache).
+- Baris "Sumber: sheet EDIT DISINI ..." di bawah judul Finance dihapus.
 
-2. Kelola kategori:
-   - Tampilan tidak kepotong lagi (dialog lebih lebar, tab bisa digeser).
-   - Kategori budget dari Finance (GX Game Pass, Activation, dll.) sekarang ikut ada di daftar,
-     jadi ganti nama / hapus langsung berlaku di Tasks dan Finance.
-   - Tombol "Kelola kategori" juga ada di halaman Finance.
-
-3. Finance:
-   - Sub item diberi warna (kuning muda + titik), item induknya ditandai garis kuning.
-   - "+ Item di <kategori>" di setiap judul kategori untuk menambah item baru.
-   - "+ Sub item" muncul saat kursor di atas item untuk menambah rincian di bawah item itu.
+Setelah deploy selesai, buka website lalu tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
