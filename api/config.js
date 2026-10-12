@@ -1,4 +1,4 @@
-const { supabaseConfig } = require('../_lib');
+const { supabaseConfig } = require('./_lib');
 
 module.exports = (req, res) => {
   const sb = supabaseConfig();
