@@ -657,3 +657,15 @@ tr.row.parent td.fin-item-cell{box-shadow:inset 4px 0 0 var(--rowfg,#C9A400)}
 tr.row.child td.fin-item-cell{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--rowfg,#C9A400) 55%,#fff)}
 tr.row.child .sub-dot{background:var(--rowfg,#C9A400)}
 td.merged{background:color-mix(in srgb,var(--rowbg,#FFF4C2) 45%,#fff) !important}
+
+/* multi-select filter */
+details.msel{position:relative}
+details.msel > summary{list-style:none;cursor:pointer;min-width:160px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:28px}
+details.msel > summary::-webkit-details-marker{display:none}
+details.msel.on > summary{border-color:#111;font-weight:600}
+.msel-pop{position:absolute;z-index:20;top:calc(100% + 4px);left:0;min-width:220px;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:2px}
+.msel-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap}
+.msel-opt:hover{background:var(--hover)}
+.msel-opt input{accent-color:#111;width:15px;height:15px}
+.msel-pop .btn{align-self:flex-start;margin-top:4px}
+details.msel > summary::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}

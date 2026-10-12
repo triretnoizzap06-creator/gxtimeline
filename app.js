@@ -47,7 +47,7 @@ var COL_BUILTIN = {
   tasks: [
     { key: 'name', label: 'Task', locked: true }, { key: 'workstream', label: 'Workstream' }, { key: 'category', label: 'Category' },
     { key: 'start', label: 'Start', hidden: true }, { key: 'deadline', label: 'Deadline' }, { key: 'pic', label: 'PIC' }, { key: 'status', label: 'Status' },
-    { key: 'blockers', label: 'Blockers / waiting on', hidden: true }, { key: 'notes', label: 'Notes', hidden: true }, { key: 'source', label: 'Data source', hidden: true },
+    { key: 'notes', label: 'Notes', hidden: true }, { key: 'source', label: 'Data source', hidden: true },
     { key: 'payment', label: 'Payment' }
   ],
   finance: [
@@ -287,7 +287,7 @@ function applyTimelineV3(d) {
     t.deadline = r[1]; t.workstream = r[2]; t.category = r[3]; t.name = r[4];
     if (!t.start || t.start > r[1]) t.start = r[1] < '2026-10-01' ? r[1] : '2026-10-01';
     if (r[5]) t.status = r[5];
-    if (r[6]) t.dependencies = r[6];
+    if (r[6]) t.notes = 'Menunggu: ' + r[6];
     if (r[7]) t.notes = r[7];
     else if (/^(Approval desain A4\.|Design belum selesai\.|Menunggu approval Pak X\.)$/.test(t.notes || '')) t.notes = '';
     t.source = 'confirmed'; t.updatedAt = now;
@@ -314,6 +314,18 @@ function normalizeDb(d) {
   s.pics = s.pics.map(function (x) { return String(x).trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
   // one-time change requested by the team: every task starts on 1 Oct 2026 (a deadline before that keeps its own date)
   if (!d.timelineV3) applyTimelineV3(d);
+  if (!d.taskFieldsV2) {
+    // Blockers, Dependencies and Verification note were removed from tasks: keep their text inside Notes
+    d.tasks.forEach(function (t) {
+      var add = [];
+      if (t.blockers) add.push('Blocker: ' + t.blockers);
+      if (t.dependencies) add.push('Menunggu: ' + t.dependencies);
+      add = add.filter(function (x) { return (t.notes || '').indexOf(x) < 0; });
+      if (add.length) t.notes = (t.notes ? t.notes + '\n' : '') + add.join('\n');
+      t.blockers = ''; t.dependencies = ''; t.verifyNote = '';
+    });
+    d.taskFieldsV2 = true;
+  }
   [['taskCategories', d.tasks.map(function (t) { return t.category; })],
    ['workstreams', d.tasks.concat(d.finance).map(function (r) { return r.workstream; })],
    ['pics', [].concat.apply([], d.tasks.concat(d.rundown || []).map(function (t) { return picsOf(t.pic); }))]].forEach(function (x) {
@@ -704,9 +716,11 @@ function allWorkstreams() {
 
 var ui = loadUI();
 function loadUI() {
-  var d = { page: 'timeline', mtHide: [], rdLoc: '', rdQ: '', taskView: 'all', q: '', fWs: '', fStatus: '', fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
+  var d = { page: 'timeline', mtHide: [], rdLoc: '', rdQ: '', taskView: 'all', q: '', fWs: [], fStatus: [], fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
     finQ: '', finWs: '', finPay: '', finInv: '', calMonth: '2026-10' };
   try { var raw = localStorage.getItem(UI_KEY); if (raw) { var p = JSON.parse(raw); for (var k in p) d[k] = p[k]; } } catch (e) {}
+  ['fWs', 'fStatus'].forEach(function (k) { if (!Array.isArray(d[k])) d[k] = d[k] ? [d[k]] : []; });
+  d.msOpen = '';
   if (d.sortV !== 2) { d.sort = { key: 'deadline', dir: 1 }; d.sortV = 2; }   // everyone starts on timeline order once
   var h = (location.hash || '').replace('#', '');
   if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
@@ -1090,8 +1104,8 @@ function statusManager() {
       if (nm !== list[i].name) renames.push([list[i].name, nm]);
     }
     var moved = 0;
-    renames.forEach(function (r) { db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.status === r[0]) { t.status = r[1]; t.updatedAt = Date.now(); moved++; } }); if (ui.fStatus === r[0]) ui.fStatus = r[1]; });
-    var blockedNoReason = db.tasks.filter(function (t) { return next.some(function (x) { return x.name === t.status && x.type === 'blocked'; }) && !t.blockers; }).length;
+    renames.forEach(function (r) { db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.status === r[0]) { t.status = r[1]; t.updatedAt = Date.now(); moved++; } }); ui.fStatus = ui.fStatus.map(function (x) { return x === r[0] ? r[1] : x; }); });
+    var blockedNoReason = 0;
     db.settings.taskStatuses = next; closeModal();
     commit('Status disimpan' + (moved ? ' · ' + moved + ' task diperbarui' : '') + (blockedNoReason ? ' · ' + blockedNoReason + ' task terhambat belum punya blocker' : ''));
   };
@@ -1174,7 +1188,7 @@ function catRename(kind, from, to) {
   if (kind === 'pic') db.tasks.concat(db.rundown || []).forEach(function (t) { var a = picsOf(t.pic), k = a.indexOf(from); if (k > -1) { a[k] = to; t.pic = picJoin(a); t.updatedAt = Date.now(); n++; } });
   else if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
   else db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream === from) { r.workstream = to; r.updatedAt = Date.now(); n++; } });
-  if (kind === 'workstream' && ui.fWs === from) ui.fWs = to;
+  if (kind === 'workstream') ui.fWs = ui.fWs.map(function (x) { return x === from ? to : x; });
   if (kind === 'workstream' && ui.finWs === from) ui.finWs = to;
   return n;
 }
@@ -1245,7 +1259,7 @@ function catDelete(kind, idx) {
     document.getElementById('stDelForm').onsubmit = function (e) {
       e.preventDefault(); var to = e.target.moveTo.value, n = 0;
       db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.status === st.name) { t.status = to; t.updatedAt = Date.now(); n++; } });
-      if (ui.fStatus === st.name) ui.fStatus = '';
+      ui.fStatus = ui.fStatus.filter(function (x) { return x !== st.name; });
       db.settings.taskStatuses = rest; closeModal(); commit('Status "' + st.name + '" dihapus · ' + n + ' task dipindah ke "' + to + '"'); statusManager();
     };
     return;
@@ -1338,12 +1352,12 @@ function listRow(t) {
 function filteredTasks(view) {
   var q = ui.q.trim().toLowerCase();
   var list = db.tasks.filter(function (t) {
-    if (ui.fWs && t.workstream !== ui.fWs) return false;
-    if (ui.fStatus && t.status !== ui.fStatus) return false;
+    if (ui.fWs.length && ui.fWs.indexOf(t.workstream) < 0) return false;
+    if (ui.fStatus.length && ui.fStatus.indexOf(t.status) < 0) return false;
     if (ui.fSrc && t.source !== ui.fSrc) return false;
     if (q && [t.name, t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
-    if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || ((t.blockers || t.dependencies) && ty !== 'done') || k === 'overdue')) return false; }
+    if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || k === 'overdue')) return false; }
     return true;
   });
   var key = ui.sort.key, dir = ui.sort.dir, pos = {};
@@ -1369,11 +1383,11 @@ function renderTasks() {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
   }).join('') + '</div>';
   h += '<div class="toolbar">' +
-    '<input class="input search" id="taskSearch" type="search" placeholder="Search task, PIC, notes, blockers…" value="' + esc(ui.q) + '" aria-label="Search tasks">' +
-    '<select class="select" id="fWs" aria-label="Workstream">' + opts(allWorkstreams(), ui.fWs, 'All workstreams') + '</select>' +
-    '<select class="select" id="fStatus" aria-label="Status">' + opts(statusList(), ui.fStatus, 'All statuses') + '</select>' +
+    '<input class="input search" id="taskSearch" type="search" placeholder="Search task, PIC, notes…" value="' + esc(ui.q) + '" aria-label="Search tasks">' +
+    multiSelect('fWs', 'All workstreams', 'workstream', allWorkstreams()) +
+    multiSelect('fStatus', 'All statuses', 'status', statusList()) +
     '<select class="select" id="fSrc" aria-label="Data source">' + opts([{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], ui.fSrc, 'All sources') + '</select>' +
-    ((ui.q || ui.fWs || ui.fStatus || ui.fSrc) ? '<button class="btn ghost sm" data-act="clear-filters">Clear filters</button>' : '') + '</div>';
+    ((ui.q || ui.fWs.length || ui.fStatus.length || ui.fSrc) ? '<button class="btn ghost sm" data-act="clear-filters">Clear filters</button>' : '') + '</div>';
   var list = filteredTasks(ui.taskView);
   if (!db.tasks.length) return h + '<div class="table-wrap">' + emptyBox('No tasks yet', 'Create the first task to get started.') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No tasks match', ui.taskView === 'pending' ? 'Nothing pending approval, blocked or overdue with these filters.' : 'Try a different search or clear the filters.') + '</div>';
@@ -1389,6 +1403,14 @@ function renderTasks() {
   return h + taskTable(list, false, ui.taskView === 'pending');
 }
 // same order as the Master Timeline: by start date (or deadline when there is no start), then deadline; undated last
+// dropdown with checkboxes: pick any number of values (empty = all)
+function multiSelect(key, allLabel, noun, list) {
+  var sel = (ui[key] || []).filter(function (v) { return list.indexOf(v) > -1 || true; });
+  var label = !sel.length ? allLabel : sel.length === 1 ? sel[0] : sel.length + ' ' + noun + ' dipilih';
+  return '<details class="msel' + (sel.length ? ' on' : '') + '" data-ms-box="' + key + '"' + (ui.msOpen === key ? ' open' : '') + '><summary class="select">' + esc(label) + '</summary><div class="msel-pop">' +
+    list.map(function (v) { return '<label class="msel-opt"><input type="checkbox" data-ms="' + key + '" value="' + esc(v) + '"' + (sel.indexOf(v) > -1 ? ' checked' : '') + '> ' + esc(v) + '</label>'; }).join('') +
+    (sel.length ? '<button type="button" class="btn sm ghost" data-act="ms-clear" data-key="' + key + '">Tampilkan semua</button>' : '') + '</div></details>';
+}
 function picList() { return (db.settings.pics || []).slice(); }
 // a PIC field can hold several people, stored as "Putri, Esi"
 function picsOf(v) { return String(v || '').split(/\s*[,;\/]\s*|\s+&\s+/).map(function (x) { return x.trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }); }
@@ -1427,10 +1449,6 @@ function sortTh(key, label, cls) {
 }
 function taskTable(list, compact, showBlockers) {
   var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
-  if (showBlockers && !cols.some(function (c) { return c.key === 'blockers'; })) {
-    var bc = colList('tasks').filter(function (c) { return c.key === 'blockers'; })[0] || { key: 'blockers', label: 'Blockers / waiting on' };
-    var pi = cols.map(function (c) { return c.key; }).indexOf('payment'); cols.splice(pi > -1 ? pi : cols.length, 0, bc);
-  }
   var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
   var h = '<div class="table-wrap"><table><thead><tr>' + cols.map(function (c) {
     if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '');
@@ -1454,7 +1472,6 @@ function taskCell(key, t) {
       if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
       return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
-    case 'blockers': return '<td style="max-width:240px">' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '') + (t.dependencies ? '<span class="tsub">Waiting on: ' + esc(t.dependencies) + '</span>' : '') + (!t.blockers && !t.dependencies ? '<span class="faint">—</span>' : '') + '</td>';
     case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
     case 'source': return '<td>' + srcTag(t.source) + '</td>';
     case 'payment':
@@ -1485,9 +1502,7 @@ function taskDetail(t) {
   }).join('') : '<p class="faint">No finance record linked.</p>';
   return '<div class="detail">' +
     '<div><h4>Notes</h4><p>' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</p></div>' +
-    '<div><h4>Blockers</h4><p>' + (t.blockers ? '<span class="flag crit">' + esc(t.blockers) + '</span>' : '<span class="faint">None</span>') + '</p>' +
-    '<h4 style="margin-top:10px">Dependencies</h4><p>' + (t.dependencies ? esc(t.dependencies) : '<span class="faint">None</span>') + '</p>' +
-    (t.verifyNote ? '<h4 style="margin-top:10px">Verification</h4><p class="flag" style="white-space:normal">' + esc(t.verifyNote) + '</p>' : '') + '</div>' +
+
     '<div><h4>Finance (payment tracked separately)</h4>' + finHtml + '</div>' +
     '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit task' : 'View details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
     '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(t.workstream) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
@@ -1728,10 +1743,7 @@ function taskForm(t, preset) {
     picField(t.pic) +
     field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
-    field('blockers', 'Blockers', ta('blockers', t.blockers)) +
-    field('dependencies', 'Dependencies', ta('dependencies', t.dependencies), { hint: 'Menunggu apa / siapa' }) +
     field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], t.source)) +
-    field('verifyNote', 'Verification note', inp('verifyNote', t.verifyNote, 'text', 'maxlength="200"'), { hint: 'Apa yang perlu dicek' }) +
     cfFields('tasks', t) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-task" data-id="' + t.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
@@ -1744,7 +1756,6 @@ function taskForm(t, preset) {
     if (!v.name) errs.name = 'Task name is required.';
     if (!v.workstream) errs.workstream = 'Pick or type a workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
-    if (sType(v.status) === 'blocked' && !v.blockers) errs.blockers = 'Status ini butuh keterangan blocker.';
     if (Object.keys(errs).length) return showErrors(e.target, errs);
     if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
     else { Object.assign(t, v, { updatedAt: Date.now() }); closeModal(); commit('Task saved'); }
@@ -1857,7 +1868,6 @@ function deadlineDialog(id) {
     e.preventDefault();
     var s = e.target.start.value, d = e.target.deadline.value, st = e.target.status.value;
     if (s && d && s > d) return showErrors(e.target, { start: 'Start date is after the deadline.' });
-    if (sType(st) === 'blocked' && !t.blockers) return showErrors(e.target, { status: 'Isi blocker dulu di form task lengkap.' });
     t.start = s; t.deadline = d; t.status = st; t.updatedAt = Date.now(); closeModal(); commit('Deadline updated');
   };
 }
@@ -2064,7 +2074,7 @@ function handleAct(el, e) {
     case 'open-task':
       e.preventDefault(); closeModal();
       if (!id || !taskById(id)) { toast('That task no longer exists', true); break; }
-      ui.page = 'tasks'; ui.taskView = 'all'; ui.q = ''; ui.fWs = ''; ui.fStatus = ''; ui.fSrc = ''; ui.expanded = id;
+      ui.page = 'tasks'; ui.taskView = 'all'; ui.q = ''; ui.fWs = []; ui.fStatus = []; ui.fSrc = ''; ui.expanded = id;
       go('tasks');
       setTimeout(function () { var row = main.querySelector('tr[data-id="' + id + '"]'); if (row) row.scrollIntoView({ block: 'center' }); }, 0);
       break;
@@ -2072,7 +2082,8 @@ function handleAct(el, e) {
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;
     case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : 1 }; render(); break;
     case 'expand': if (e.target.closest('select,a,button')) return; ui.expanded = ui.expanded === id ? null : id; render(); break;
-    case 'clear-filters': ui.q = ui.fWs = ui.fStatus = ui.fSrc = ''; render(); break;
+    case 'clear-filters': ui.q = ui.fSrc = ''; ui.fWs = []; ui.fStatus = []; ui.msOpen = ''; render(); break;
+    case 'ms-clear': ui[el.dataset.key] = []; render(); break;
     case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ''; render(); break;
     case 'import-csv': importCsvDialog(); break;
     case 'cal-prev': case 'cal-next':
@@ -2099,11 +2110,19 @@ main.addEventListener('input', function (e) {
   else if (t.id === 'finSearch') { ui.finQ = t.value; render(); }
 });
 document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('pic-cb')) picSync(); });
+// multi-select dropdowns: remember which one is open across re-renders, close when clicking elsewhere
+document.addEventListener('toggle', function (e) { var b = e.target; if (b.dataset && b.dataset.msBox) { if (b.open) ui.msOpen = b.dataset.msBox; else if (ui.msOpen === b.dataset.msBox) ui.msOpen = ''; } }, true);
+document.addEventListener('click', function (e) { document.querySelectorAll('details.msel[open]').forEach(function (d) { if (!d.contains(e.target)) { d.open = false; ui.msOpen = ''; } }); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'picNewName') { e.preventDefault(); picAddInline(); } });
 main.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.inline && !canEdit()) return;
-  var map = { fWs: 'fWs', fStatus: 'fStatus', fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc' };
+  if (t.dataset.ms) {
+    var key = t.dataset.ms, arr = (ui[key] || []).filter(function (x) { return x !== t.value; });
+    if (t.checked) arr.push(t.value);
+    ui[key] = arr; ui.msOpen = key; render(); return;
+  }
+  var map = { fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
   if (t.dataset.inline === 'cf') {
     if (!canEdit()) return;
@@ -2125,7 +2144,6 @@ main.addEventListener('change', function (e) {
   }
   if (t.dataset.inline === 'status') {
     var task = taskById(t.dataset.id); if (!task) return;
-    if (sType(t.value) === 'blocked' && !task.blockers) { var want = t.value; t.value = task.status; taskForm(task); setTimeout(function () { var s = document.getElementById('f-status'); if (s) { s.value = want; var b = document.getElementById('f-blockers'); if (b) b.focus(); } }, 0); toast('Add the blocker to mark this task Blocked'); return; }
     task.status = t.value; task.updatedAt = Date.now(); commit('Status → ' + t.value);
   } else if (t.dataset.inline === 'deadline') {
     var task2 = taskById(t.dataset.id); if (!task2) return;
