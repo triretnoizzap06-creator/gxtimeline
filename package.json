@@ -1,0 +1,11 @@
+{
+  "name": "gx27-timeline",
+  "private": true,
+  "description": "GX27 Festival of Connectivity \u2014 event management dashboard (static site + Vercel functions + Supabase)",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test:api": "node tests/api.test.js"
+  }
+}

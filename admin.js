@@ -1,4 +1,4 @@
-/* GX27 Admin — login, Save (to Firebase), Publish (to the live site), settings, team,
+/* GX27 Admin — login, Save (to Supabase), Publish (to the live site), settings, team,
    history, data tools and code redeploy. Loaded only by admin.html; app.js calls into it. */
 (function () {
   'use strict';
@@ -289,8 +289,8 @@
       return card('Admin login', (S.phase === 'sent'
         ? '<p>Link login sudah dikirim ke <b>' + esc(S.loginEmail) + '</b>. Buka email itu di perangkat ini dan klik linknya.</p><p class="muted">Tidak masuk? Cek folder spam, atau kirim ulang.</p>'
         : Sync.pendingLink ? '<p>Masukkan lagi email yang kamu pakai saat minta link login, untuk menyelesaikan login di perangkat ini.</p>'
-        : '<p class="muted">Login dengan akun Google atau email yang terdaftar sebagai admin/editor.</p>') +
-        (Sync.pendingLink ? '' : '<button class="btn google" type="button" data-admin="google"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Login dengan Google</button><div class="gate-or">atau pakai link email</div>') +
+        : '<p class="muted">' + (Sync.googleLogin ? 'Login dengan akun Google atau link email' : 'Masukkan email yang terdaftar sebagai admin/editor. Kami kirim link login sekali pakai') + '.</p>') +
+        (Sync.pendingLink || !Sync.googleLogin ? '' : '<button class="btn google" type="button" data-admin="google"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Login dengan Google</button><div class="gate-or">atau pakai link email</div>') +
         '<form id="loginForm" class="gate-form" novalidate><label for="loginEmail">Email</label><input class="input" id="loginEmail" type="email" autocomplete="email" required placeholder="nama@globalxtreme.net">' +
         (S.loginMsg ? '<div class="form-err">' + esc(S.loginMsg) + '</div>' : '') +
         '<div class="gate-actions"><button class="btn primary" type="submit">' + (Sync.pendingLink ? 'Selesaikan login' : S.phase === 'sent' ? 'Kirim ulang link' : 'Kirim link login') + '</button>' + back + '</div></form>');
@@ -387,7 +387,7 @@
       App.field('budgetSheetUrl', 'Link budget sheet (admin only)', App.inp('budgetSheetUrl', set.budgetSheetUrl || ((db.meta && db.meta.url) || ''), 'url', 'maxlength="400"')) +
       App.field('prepDeadlines', 'Preparation deadlines', App.ta('prepDeadlines', (set.prepDeadlines || []).join('\n')), { full: true, hint: 'Satu tanggal per baris, format YYYY-MM-DD (atau 13/10/2026).' }) +
       '<div class="field full" data-field="logoUrl"><label>Logo</label><div class="logo-row"><img id="logoPreview" src="' + esc(set.logoUrl || App.DEFAULT_LOGO) + '" alt="Logo preview">' +
-        '<div class="logo-ctrl"><input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp"><input type="hidden" id="f-logoUrl" name="logoUrl" value="' + esc(set.logoUrl || '') + '"><input class="input" id="logoUrlText" type="url" placeholder="atau tempel URL gambar https://…" value="' + esc(/^https?:/.test(set.logoUrl || '') ? set.logoUrl : '') + '"><div class="gate-actions" style="margin:0"><button class="btn sm" type="button" data-admin="logo-default">Pakai logo bawaan</button>' + (/^data:/.test(set.logoUrl || '') ? '<span class="muted" style="font-size:12px">Sekarang: logo hasil upload</span>' : '') + '</div><span class="hint">PNG/JPG/SVG/WebP. Logo otomatis dikecilkan dan disimpan di database. Tampil di website setelah Apply → Save → Publish.</span></div></div><span class="msg" hidden></span></div>' +
+        '<div class="logo-ctrl"><input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp"><input type="hidden" id="f-logoUrl" name="logoUrl" value="' + esc(set.logoUrl || '') + '"><input class="input" id="logoUrlText" type="url" placeholder="atau tempel URL gambar https://…" value="' + esc(/^https?:/.test(set.logoUrl || '') ? set.logoUrl : '') + '"><div class="gate-actions" style="margin:0"><button class="btn sm" type="button" data-admin="logo-default">Pakai logo bawaan</button>' + (/^data:/.test(set.logoUrl || '') ? '<span class="muted" style="font-size:12px">Sekarang: logo hasil upload</span>' : '') + '</div><span class="hint">PNG/JPG/SVG/WebP. Logo otomatis dikecilkan dan diupload ke Supabase Storage. Tampil di website setelah Apply → Save → Publish.</span></div></div><span class="msg" hidden></span></div>' +
       '</div><div class="gate-actions"><button class="btn primary" type="submit">Apply ke draft</button><button class="btn ghost" type="button" data-admin="reset-settings">Kembalikan ke default</button></div></form>');
 
     // Team
@@ -450,7 +450,8 @@
     if (el.disabled) return;
     switch (a) {
       case 'save': save(false); break;
-      case 'google': S.loginMsg = ''; Sync.signInGoogle().then(function () { if (!S.email) init(); }).catch(function (err) { S.loginMsg = err.message; rerender(); }); break;
+      case 'google': S.loginMsg = ''; el.disabled = true; el.lastChild.textContent = ' Mengalihkan ke Google…';
+        Sync.signInGoogle().catch(function (err) { S.loginMsg = err.message; rerender(); }); break;  // the page redirects to Google, then back to /admin
       case 'categories': App.categoryManager(el.getAttribute('data-kind') || 'category'); break;
       case 'logo-default':
         var hid = document.getElementById('f-logoUrl'), pv = document.getElementById('logoPreview'), tx = document.getElementById('logoUrlText');
@@ -532,11 +533,11 @@
       var file = t.files[0];
       if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(file.type)) { App.toast('Format logo harus PNG, JPG, SVG atau WebP.', true); t.value = ''; return; }
       if (file.size > 5 * 1024 * 1024) { App.toast('File logo maksimal 5 MB.', true); t.value = ''; return; }
-      App.toast('Memproses logo…');
+      App.toast('Mengupload logo…');
       Sync.uploadLogo(file).then(function (url) {
         var u = document.getElementById('f-logoUrl'), p = document.getElementById('logoPreview'), tx = document.getElementById('logoUrlText');
         if (u) u.value = url; if (p) p.src = url; if (tx) tx.value = '';
-        App.toast('Logo siap. Klik "Apply ke draft", lalu Save & Publish.');
+        App.toast('Logo terupload. Klik "Apply ke draft", lalu Save & Publish.');
       }).catch(function (err) { App.toast('Upload gagal: ' + err.message, true); t.value = ''; });
     } else if (t.id === 'logoUrlText') {
       var hid2 = document.getElementById('f-logoUrl'), p2 = document.getElementById('logoPreview');

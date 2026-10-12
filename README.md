@@ -1,89 +1,223 @@
 # GX27 Operations — Festival of Connectivity
 
-A dashboard for the GX27 event team: Master Timeline, Tasks, Finance & Procurement, and Calendar.
-It's a static site (HTML/CSS/JS) with no build step and no backend.
+Dashboard tim acara GX27: **Master Timeline, Rundown (Festival Flow), Overview, Tasks, Finance & Procurement, Calendar**, plus **Admin panel** dengan Save & Publish.
 
-## Folder structure
+- Website: **https://gxtimeline.vercel.app/** (pengunjung, read-only)
+- Admin: **https://gxtimeline.vercel.app/admin** (login → edit → Save → Publish)
+- Backend: **Supabase** (Auth, Database Postgres, Storage, Realtime) — menggantikan Firebase
+- Hosting: **Vercel** (deploy otomatis dari GitHub)
 
-```
-index.html              Public page (read-only once the database is active)
-admin.html              Admin page (/admin): login, Save, Publish, admin panel
-admin.js                Admin logic: Save/Publish, settings, categories, team, history, deploy
-sync.js                 Connection to Firebase (Firestore + Auth) + deploy endpoints
-api/                    Vercel functions: config, deploy (hook), deploy-status
-firebase/firestore.rules  Security rules: visitors read-only, editors save, admins publish
-data/festival-flow-seed.js  Festival Flow rundown (from Figma) + activity zones & areas
-SETUP.md                Firebase, login, GitHub and Vercel setup steps
-styles.css              All styling (Inter font, white theme)
-app.js                  App logic: pages, CRUD, financial calculations, calendar
-data/budget-seed.js     Initial budget data (sheet "EDIT DISINI", Acara division)
-assets/globalxtreme-logo.png
-scripts/build_seed.py   Regenerates data/budget-seed.js from the xlsx file
-```
+Desain, fitur, data, dan URL tetap sama. Yang berubah hanya backend.
 
-Initial task / timeline data (Master Timeline, task database, preparation deadlines) lives in `app.js`, inside the `seed()` function.
+---
 
-## Running locally
-
-Open `index.html` directly in a browser, or:
+## 1. Isi project
 
 ```
-npx serve .
-# or
-python3 -m http.server 8080
+index.html            Halaman publik (read-only setelah Supabase aktif)
+admin.html            Halaman /admin: login, Save, Publish, Admin panel
+app.js                Semua halaman & logika: timeline, rundown, tasks, finance, kalender, kategori
+admin.js              Admin: login, Save/Publish, konflik versi, settings, logo, tim, riwayat, redeploy
+sync.js               Koneksi ke Supabase (Auth, DB via RPC, Storage, Realtime) + endpoint deploy
+styles.css            Tampilan
+data/budget-seed.js   Data awal budget (sheet "EDIT DISINI", Divisi Acara)
+api/config.js         GET /api/config → URL + anon key Supabase untuk browser (hanya nilai publik)
+api/deploy.js         POST /api/deploy → redeploy Vercel (khusus admin, dicek ke Supabase)
+api/deploy-status.js  GET /api/deploy-status → status build terakhir (admin/editor)
+api/_lib.js           Helper bersama (validasi env, cek role)
+supabase/schema.sql   Tabel, RLS, fungsi save/publish, storage logo, realtime, admin pertama
+tests/api.test.js     Tes otomatis fungsi API (node tests/api.test.js)
+scripts/build_seed.py Membuat ulang data/budget-seed.js dari file xlsx budget
+favicon*, apple-touch-icon.png   Ikon tab browser (logo bulat)
+vercel.json           Clean URL (/admin), header keamanan & cache
+package.json          Versi Node untuk Vercel (22.x), tanpa dependency
+.env.example          Daftar environment variable (tanpa nilai rahasia)
 ```
 
-## Push to GitHub
+Data timeline, task, rundown Festival Flow, zona/area, dan logo GlobalXtreme **tertanam di app.js**, jadi website selalu tampil dengan data, bahkan sebelum database diisi.
 
+---
+
+## 2. Cara kerja data
+
+| Lokasi | Isi | Siapa |
+|---|---|---|
+| `site_content` baris **draft** | Versi yang sedang diedit admin/editor | Admin & editor (baca/tulis lewat Save) |
+| `site_content` baris **published** | Versi yang dilihat pengunjung | Semua orang baca, hanya admin Publish |
+| `content_versions` | Setiap Save tersimpan (tidak pernah ditimpa) | Admin & editor |
+| `site_admins` | Daftar email + role `admin`/`editor` | Dikelola admin dari Admin panel |
+| `publish_log` | Riwayat save, publish, deploy | Admin & editor |
+| Storage bucket `site-assets` | Logo yang di-upload | Publik baca, admin/editor upload |
+
+- **Save changes** → draft baru di database (tersinkron ke semua admin di semua perangkat).
+- **Publish** → draft disalin ke versi live → pengunjung langsung melihat (Realtime, tanpa refresh).
+- Kalau dua orang edit bersamaan, yang Save belakangan mendapat **dialog konflik** (tidak ada data yang tertimpa diam-diam).
+- **Login pertama admin ke database kosong**: database otomatis diisi (dari data di browser itu kalau ada, kalau tidak dari data bawaan) dan langsung dipublish.
+- Sebelum Supabase dikonfigurasi, website jalan seperti dulu (edit tersimpan di browser saja).
+
+**Keamanan**
+- Semua penulisan lewat fungsi database yang mengecek role. Tabel tidak bisa ditulis langsung dari browser.
+- Role dibaca dari akun Supabase yang **emailnya sudah terkonfirmasi**, bukan dari data yang bisa diubah user.
+- Browser hanya menerima **anon/publishable key** (memang aman untuk publik). **Service role / secret key tidak dipakai sama sekali** dan akan ditolak oleh `/api/config` kalau tidak sengaja dimasukkan.
+
+---
+
+## 3. Setup Supabase
+
+Project: `https://dorkvauioeotodkpeawo.supabase.co`
+
+1. **Jalankan schema**
+   Supabase Dashboard → **SQL Editor** → New query → paste **seluruh isi** `supabase/schema.sql` → **Run**.
+   - Aman dijalankan ulang (tidak menghapus data).
+   - Otomatis mendaftarkan **triretnoizzap06@gmail.com** sebagai **admin**.
+   - Membuat bucket Storage `site-assets` dan mengaktifkan Realtime untuk `site_content`.
+   - Hasil yang benar: "Success. No rows returned" (NOTICE "already exists, skipping" saat dijalankan ulang itu normal).
+
+2. **Atur URL login**
+   **Authentication → URL Configuration**
+   - Site URL: `https://gxtimeline.vercel.app`
+   - Redirect URLs → Add: `https://gxtimeline.vercel.app/admin`
+
+3. **Pastikan login email aktif**
+   **Authentication → Sign In / Providers → Email**: Enabled, dan **Confirm email = ON** (default).
+   Login memakai **magic link** (link sekali pakai ke email), tanpa password.
+
+4. **(Disarankan) Email SMTP sendiri**
+   Email bawaan Supabase dibatasi beberapa email per jam. Kalau tim sering login: **Authentication → Emails → SMTP Settings** (mis. Gmail App Password, Resend, Brevo).
+
+5. **(Opsional) Login Google**
+   Authentication → Providers → Google → isi Client ID & Secret dari Google Cloud Console (redirect URI: `https://dorkvauioeotodkpeawo.supabase.co/auth/v1/callback`). Setelah aktif, set `SUPABASE_GOOGLE_LOGIN=true` di Vercel agar tombolnya muncul.
+
+6. **Ambil anon key**
+   **Project Settings → API Keys** → copy **anon public** (`eyJ...`) atau **Publishable key** (`sb_publishable_...`).
+   ⚠ Jangan copy `service_role` / `secret`.
+
+---
+
+## 4. Setup Vercel
+
+Project **gxtimeline** → **Settings → Environment Variables** (centang Production + Preview):
+
+| Name | Value | Wajib |
+|---|---|---|
+| `SUPABASE_URL` | `https://dorkvauioeotodkpeawo.supabase.co` | ✅ |
+| `SUPABASE_ANON_KEY` | anon public / publishable key (langkah 3.6) | ✅ |
+| `SUPABASE_GOOGLE_LOGIN` | `true` kalau Google login sudah aktif, selain itu `false` | – |
+| `VERCEL_DEPLOY_HOOK_URL` | Settings → Git → Deploy Hooks → buat hook `main` → copy URL | untuk tombol Redeploy |
+| `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` (+ `VERCEL_TEAM_ID`) | untuk status build otomatis | – |
+
+**Hapus env lama yang tidak dipakai lagi:** `FIREBASE_CONFIG`.
+
+Env baru terbaca setelah deploy berikutnya: **Deployments → ⋯ → Redeploy** (atau push ke GitHub).
+
+Pengaturan Build di Vercel tetap: Framework Preset **Other**, Build Command **kosong**, Output Directory **kosong** (root).
+
+---
+
+## 5. Upload ke GitHub
+
+ZIP ini adalah **isi lengkap repo**.
+
+**Lewat website GitHub:**
+1. Extract ZIP.
+2. Buka repo → **Add file → Upload files** → drag **semua isi folder** (bukan foldernya) termasuk folder `api`, `data`, `supabase`, `scripts`, `tests` → Commit.
+3. **Hapus file/folder lama yang tidak dipakai lagi** (kalau ada di repo):
+   `firebase/`, `SETUP.md`, `assets/`, `data/festival-flow-seed.js`, `data/rundown-seed.js`, `scripts/build_rundown.py`.
+   (Buka file/folder → ikon ⋯ / tong sampah → Commit.)
+4. Cek di repo: `index.html`, `admin.html`, `sync.js`, folder `api/` (4 file), `supabase/schema.sql` ada di **halaman utama repo**, bukan di dalam subfolder.
+
+**Lewat terminal:**
+```bash
+cd repo-gxtimeline
+git rm -r --ignore-unmatch firebase SETUP.md assets data/festival-flow-seed.js data/rundown-seed.js scripts/build_rundown.py
+# copy seluruh isi ZIP ke sini (timpa)
+git add -A
+git commit -m "Migrasi backend Firebase → Supabase"
+git push
 ```
-cd gx27-site
-git init
-git add .
-git commit -m "GX27 Operations dashboard"
-git branch -M main
-git remote add origin https://github.com/<username>/gx27-operations.git
-git push -u origin main
+
+Vercel deploy otomatis 1–2 menit setelah push.
+
+---
+
+## 6. Login pertama
+
+1. Buka **https://gxtimeline.vercel.app/admin** di laptop yang selama ini dipakai edit dashboard.
+2. Masukkan `triretnoizzap06@gmail.com` → **Kirim link login** → buka email → klik link.
+3. Kembali di `/admin` sebagai **ADMIN**. Karena database masih kosong, data otomatis diisi & dipublish
+   (notifikasi di atas menyebut sumber datanya).
+4. Tambah tim: **Admin panel → Team & permissions** → email + role (`admin` / `editor`). Mereka login di `/admin` dengan email itu.
+
+---
+
+## 7. Pemakaian harian
+
+- Edit apa saja di `/admin` → **Save changes** (atau Ctrl/Cmd+S) → **Publish** → konfirmasi.
+- **Langsung dari website:** task, kategori & workstream, budget & pembayaran, rundown & zona, judul/tanggal event, preparation deadlines, logo, link sheet, tim, restore versi lama.
+- **Perlu ubah kode + push ke GitHub:** layout/warna/font, halaman baru, field baru, rumus finance. Tombol **Redeploy** di Admin panel hanya build ulang commit terakhir.
+
+---
+
+## 8. Checklist testing setelah deploy
+
+Centang satu per satu di production:
+
+- [ ] `https://gxtimeline.vercel.app/api/config` menampilkan `"configured":true` dan URL Supabase (bukan error)
+- [ ] Halaman publik tampil lengkap: logo, Master Timeline, Rundown, Tasks, Finance, Calendar; favicon logo bulat di tab
+- [ ] Pengunjung tidak melihat tombol "+ New task", "Kelola kategori", dll.
+- [ ] `/admin` → kirim magic link ke `triretnoizzap06@gmail.com` → email masuk → klik → masuk sebagai **ADMIN**
+- [ ] Database kosong langsung terisi & dipublish (cek Supabase → Table Editor → `site_content` ada baris `draft` dan `published`)
+- [ ] Ubah status satu task → **Save** → muncul "Tersimpan ke database · versi N"
+- [ ] **Publish** → konfirmasi menampilkan ringkasan perubahan → status **Published · live**
+- [ ] Buka website di HP / browser lain → perubahan sudah terlihat (tanpa login)
+- [ ] Upload logo di Admin panel → Apply → Save → Publish → logo baru tampil di website (Storage → `site-assets/logo/` ada filenya)
+- [ ] Tambah 1 editor → editor login → bisa Save, tombol Publish nonaktif
+- [ ] Dua admin edit bersamaan → yang Save belakangan dapat dialog konflik
+- [ ] Admin panel → Version history → "Muat ke editor" versi lama → Save → Publish
+- [ ] Akun yang tidak terdaftar → layar "Akun belum punya akses"
+- [ ] (Kalau diisi) Tombol **Redeploy** → status build berubah ke Published
+
+---
+
+## 9. Yang masih perlu kamu lakukan manual
+
+1. Jalankan `supabase/schema.sql` di SQL Editor Supabase.
+2. Atur **Site URL** dan **Redirect URL** `/admin` di Supabase Authentication.
+3. Copy **anon/publishable key** → isi `SUPABASE_URL` & `SUPABASE_ANON_KEY` di Vercel → hapus `FIREBASE_CONFIG`.
+4. Upload isi ZIP ke GitHub + hapus file lama Firebase (bagian 5).
+5. Redeploy di Vercel, lalu login pertama di `/admin`.
+6. (Disarankan) SMTP sendiri di Supabase supaya magic link tidak kena limit.
+7. (Opsional) Google login, Deploy Hook, Vercel token.
+8. Jalankan checklist bagian 8.
+9. Setelah semua jalan: matikan/hapus project Firebase lama kalau sudah tidak dipakai.
+
+---
+
+## 10. Tes yang sudah dijalankan sebelum ZIP ini dibuat
+
+Dijalankan di lingkungan lokal (bukan di production kamu):
+
+- **Database (PostgreSQL 16 asli + `schema.sql` final, 35/35 lolos):** schema bisa dijalankan 2× tanpa error; role admin/editor/pengunjung/akun asing; email belum terkonfirmasi ditolak; konflik versi; editor tidak bisa publish; tabel tidak bisa ditulis langsung; admin tidak bisa menghapus diri sendiri; kebijakan upload logo.
+- **End-to-end (34/34 lolos):** website asli + library `supabase-js` 2.49.4 asli + PostgREST (server REST yang dipakai Supabase) + PostgreSQL dengan `schema.sql`, plus fungsi `/api/config` asli. Mencakup magic link, isi otomatis & publish pertama, Save, Publish dengan konfirmasi, kategori, rundown, logo ke Storage, pengunjung read-only di browser lain, editor, konflik dua user, restore versi, logout.
+- **API (14/14 lolos):** `node tests/api.test.js` — config, penolakan service role key, deploy hanya untuk admin.
+
+**Belum bisa diuji dari sini** (perlu dicek lewat checklist di production):
+pengiriman email magic link sungguhan oleh Supabase, Realtime lewat server Supabase asli (di tes lokal, sinkronisasi dicek dengan memuat ulang halaman), login Google, Deploy Hook & API Vercel sungguhan.
+
+---
+
+## 11. Update data budget dari sheet
+
+```bash
+pip install openpyxl
+python3 scripts/build_seed.py Budgeting_Anniv_GX_27TH.xlsx
 ```
+Ini hanya mengubah **data bawaan**. Setelah database aktif, data utama ada di Supabase. Untuk memasukkan budget baru ke database pakai **Admin panel → Data tools → Import budget sheet**, lalu Save & Publish.
 
-## Deploy to Vercel
+## 12. Aturan hitung Finance
 
-1. Go to vercel.com → **Add New → Project** → import the GitHub repo above.
-2. **Framework Preset: Other**. Leave Build Command and Output Directory empty (the root folder is the site).
-3. Click Deploy. Every later `git push` to `main` redeploys automatically.
-
-Alternative via CLI: `npx vercel` from this folder, then `npx vercel --prod`.
-
-## Updating the budget data from the sheet
-
-1. Download the Google Sheet as `.xlsx` (File → Download → Microsoft Excel).
-2. Run:
-   ```
-   pip install openpyxl
-   python3 scripts/build_seed.py Budgeting_Anniv_GX_27TH.xlsx
-   ```
-   This rewrites `data/budget-seed.js` from the **EDIT DISINI** sheet, Acara division.
-   The row mapping (vendor groups, Emergency Fund, row numbers) lives in the script. If rows move in the sheet, adjust the row numbers in the script.
-3. Open `app.js` and bump the storage key so browsers load the new data:
-   ```js
-   var STORE_KEY = 'gx27.dashboard.v3';   // → 'gx27.dashboard.v4'
-   ```
-4. Commit and push. Vercel redeploys.
-
-> Bumping `STORE_KEY` replaces each browser's local data with the new seed. Edits made in the browser that haven't been moved into the seed will be lost.
-
-## Where data is stored
-
-- **Firebase (Firestore)** after setup (see **SETUP.md**): admins edit at `/admin`, click **Save changes** (draft in the database, synced across devices), then **Publish** (visitors see it live).
-- Visitors at `/` only see the published version (read-only).
-- If Firebase isn't configured (no `FIREBASE_CONFIG` env var / when opened locally), the site falls back to the old way: data is stored in this browser's localStorage (`gx27.dashboard.v3`). That data is never deleted, and it can be pulled into the database the first time an admin logs in.
-- The logo is built into the code (no separate file needed). A custom logo can be uploaded from Admin panel → Website settings.
-
-## Calculation rules (Finance)
-
-- **Est. total**: the sheet's Total Price column. If it's empty, it's qty × price.
-- **Vendor invoice** (Bali Games, BUMI, OJISAN, Doorprize): the invoice and payment are recorded on the vendor row. The line items below it only break down the estimate.
-- **Emergency Fund**: an allocation of 20 million. The rows below it are spending from the fund.
-- **Paid**: the DP or transferred amount. The Rp2,500 transfer fee (from the sheet's formula) is recorded separately.
-- **Remaining**: invoice − paid. If there's no invoice yet, the estimate is used instead.
-- Subtotals and the grand total are computed from item rows only, so nothing is counted twice.
-- Payment status never changes a task's operational status.
+- **Est. total** = kolom Total Price sheet (atau qty × harga).
+- **Vendor invoice** (Bali Games, BUMI, OJISAN, Doorprize): invoice & pembayaran dicatat di baris vendor; baris di bawahnya rincian estimasi.
+- **Emergency Fund**: alokasi; baris di bawahnya adalah pemakaian dana.
+- **Paid** = DP / nominal transfer; biaya transfer Rp2.500 dicatat terpisah. **Remaining** = invoice − paid (pakai estimasi kalau invoice belum ada).
+- Subtotal & grand total dihitung dari baris item, tanpa double count. Status pembayaran tidak mengubah status operasional task.

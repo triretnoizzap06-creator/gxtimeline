@@ -1493,7 +1493,6 @@ function startPublic(Sync) {
 }
 function boot() {
   var Sync = window.GX27Sync || {}, cfg = window.GX27_CONFIG, wantAdmin = window.GX27_MODE === 'admin';
-  var devHost = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(location.hostname);
   if (Sync.ready) {
     MODE = wantAdmin && window.GX27Admin ? 'admin' : 'public';
     if (MODE === 'admin') { window.GX27Admin.start(); return; }
@@ -1508,7 +1507,7 @@ function boot() {
   }
   // No database configured yet: original local behaviour (edits saved in this browser)
   MODE = 'local'; db = normalizeDb(load());
-  if (wantAdmin) storageError = (cfg && cfg.configError) || 'Database belum dikonfigurasi. Admin panel aktif setelah FIREBASE_CONFIG diisi di Vercel lalu redeploy (lihat SETUP.md). Sementara ini perubahan hanya tersimpan di browser ini.';
+  if (wantAdmin) storageError = (cfg && cfg.configError) || 'Database belum dikonfigurasi. Admin panel aktif setelah SUPABASE_URL dan SUPABASE_ANON_KEY diisi di Vercel lalu redeploy (lihat README.md). Sementara ini perubahan hanya tersimpan di browser ini.';
   render();
 }
 boot();

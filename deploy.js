@@ -7,6 +7,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' });
   const hook = process.env.VERCEL_DEPLOY_HOOK_URL;
   if (!hook) return send(res, 501, { error: 'VERCEL_DEPLOY_HOOK_URL belum diset di Vercel → Settings → Environment Variables.' });
+  if (!/^https:\/\/api\.vercel\.com\/v1\/integrations\/deploy\//.test(hook)) return send(res, 500, { error: 'VERCEL_DEPLOY_HOOK_URL tidak valid. Pakai URL dari Vercel → Settings → Git → Deploy Hooks.' });
 
   let role;
   try { role = await getRole(req); } catch (e) { return send(res, 500, { error: e.message }); }

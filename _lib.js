@@ -7,47 +7,43 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-// FIREBASE_CONFIG holds the web config from the Firebase console. People usually paste the
-// JavaScript object as-is ({ apiKey: "…", … }), so accept that as well as strict JSON.
-function firebaseConfig() {
-  const raw = (process.env.FIREBASE_CONFIG || '').trim();
-  if (!raw) return null;
-  const start = raw.indexOf('{'), end = raw.lastIndexOf('}');
-  if (start < 0 || end < start) return null;
-  const s = raw.slice(start, end + 1); // drops "const firebaseConfig =" and a trailing ";"
-  try { return JSON.parse(s); } catch (_) {}
-  try {
-    const json = s
-      .replace(/^\s*\/\/.*$/gm, '')                            // whole-line comments
-      .replace(/'([^']*)'/g, '"$1"')                            // single → double quotes
-      .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')   // quote keys
-      .replace(/,\s*}/g, '}');                                  // trailing comma
-    return JSON.parse(json);
-  } catch (_) { return null; }
+// Public Supabase settings. Only the URL and the PUBLIC key (anon / publishable) are used.
+// Never put the service_role / secret key here: this project does not need it.
+function supabaseConfig() {
+  const url = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+  const key = (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '').trim();
+  const problems = [];
+  if (!url) problems.push('SUPABASE_URL belum diisi');
+  else if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url)) problems.push('SUPABASE_URL harus berbentuk https://<project>.supabase.co');
+  if (!key) problems.push('SUPABASE_ANON_KEY belum diisi');
+  else if (/^sb_secret_/.test(key) || isServiceRoleJwt(key)) problems.push('SUPABASE_ANON_KEY berisi secret/service_role key. Ganti dengan anon (public) key');
+  return { url, key, ok: problems.length === 0, problems };
 }
 
-// Returns 'admin', 'editor' or null for the caller's Firebase ID token.
-// Firestore checks the token signature and the security rules: a caller can only read
-// their own /admins/{email} entry, so a valid answer proves who they are and their role.
+function isServiceRoleJwt(key) {
+  const parts = key.split('.');
+  if (parts.length !== 3) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    return payload.role === 'service_role';
+  } catch (_) { return false; }
+}
+
+// Returns 'admin', 'editor' or null for the caller's Supabase access token.
+// Supabase verifies the token; my_role() reads the role from site_admins for that user.
 async function getRole(req) {
   const auth = req.headers.authorization || '';
   if (!auth.startsWith('Bearer ')) return null;
-  const cfg = firebaseConfig();
-  if (!cfg || !cfg.projectId) throw new Error('FIREBASE_CONFIG belum diset di Vercel');
-  let email = '';
-  try {
-    const payload = JSON.parse(Buffer.from(auth.slice(7).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
-    if (payload.aud !== cfg.projectId || !payload.email_verified) return null;
-    email = String(payload.email || '').toLowerCase();
-  } catch (_) { return null; }
-  if (!email) return null;
-  const url = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(cfg.projectId) +
-    '/databases/(default)/documents/admins/' + encodeURIComponent(email);
-  const r = await fetch(url, { headers: { Authorization: auth } });
+  const cfg = supabaseConfig();
+  if (!cfg.ok) throw new Error(cfg.problems.join('; '));
+  const r = await fetch(cfg.url + '/rest/v1/rpc/my_role', {
+    method: 'POST',
+    headers: { apikey: cfg.key, Authorization: auth, 'Content-Type': 'application/json' },
+    body: '{}'
+  });
   if (!r.ok) return null;
-  const doc = await r.json();
-  const role = doc && doc.fields && doc.fields.role && doc.fields.role.stringValue;
+  const role = await r.json();
   return role === 'admin' || role === 'editor' ? role : null;
 }
 
-module.exports = { send, getRole, firebaseConfig };
+module.exports = { send, getRole, supabaseConfig, isServiceRoleJwt };

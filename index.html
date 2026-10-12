@@ -13,8 +13,9 @@
 <meta name="theme-color" content="#141412">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <div class="app">
@@ -50,12 +51,11 @@
 </div>
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
-<!-- Database config (served by /api/config from Vercel env vars). Missing locally → local mode. -->
+<!-- Supabase config (served by /api/config from Vercel env vars). Missing → local mode, data stays in this browser. -->
 <script src="/api/config"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="sync.js"></script>
-<script src="data/budget-seed.js"></script>
-<script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="/sync.js"></script>
+<script src="/data/budget-seed.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>
