@@ -1647,7 +1647,8 @@ function taskCell(key, t) {
     case 'deadline':
       if (!canEdit()) return '<td>' + dueLabel(t) + '</td>';
       var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
-      return '<td class="dl-cell"><input class="input dl-input" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" aria-label="Deadline ' + esc(t.name) + '">' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
+      return '<td class="dl-cell"><div class="dl-range"><input class="input dl-input dl-start" type="date" data-inline="start" data-id="' + t.id + '" value="' + esc(t.start || '') + '" title="Start date" aria-label="Start date ' + esc(t.name) + '"><span class="dl-sep" aria-hidden="true">–</span>' +
+        '<input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '"></div>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
       if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
       return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
@@ -1700,10 +1701,10 @@ function renderTimeline(list) {
   Object.keys(byMonth).sort().reverse().forEach(function (m) {
     var items = byMonth[m].sort(function (a, b) { return a.deadline < b.deadline ? 1 : a.deadline > b.deadline ? -1 : String(a.name).localeCompare(String(b.name)); });
     var byDay = {};
-    items.forEach(function (t) { var label = fmtDate(t.deadline, true); (byDay[label] = byDay[label] || { key: t.deadline, end: t.deadline, items: [] }).items.push(t); });
+    items.forEach(function (t) { var label = fmtRange(t); (byDay[label] = byDay[label] || { key: t.deadline, end: t.deadline, items: [] }).items.push(t); });
     var d = parseISO(m + '-01');
     h += '<div class="tl-month"><h3>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</h3>';
-    Object.keys(byDay).sort(function (a, b) { return byDay[a].key < byDay[b].key ? 1 : byDay[a].key > byDay[b].key ? -1 : 0; }).forEach(function (label) {
+    Object.keys(byDay).sort(function (a, b) { return byDay[a].key < byDay[b].key ? 1 : byDay[a].key > byDay[b].key ? -1 : (a < b ? -1 : 1); }).forEach(function (label) {
       var g = byDay[label], isEvent = g.end === EVENT_DATE && g.items.every(function (t) { return t.category === 'Event Day'; });
       var past = g.end < today;
       h += '<div class="tl-day' + (isEvent ? ' tl-event' : '') + '"><div class="tl-date' + (past ? ' past' : '') + '"><span class="dot"></span>' + label.toUpperCase() + '</div><div class="tl-items">' +
@@ -2343,9 +2344,14 @@ main.addEventListener('change', function (e) {
   } else if (t.dataset.inline === 'deadline') {
     var task2 = taskById(t.dataset.id); if (!task2) return;
     var nv = t.value, note = '';
-    if (nv && task2.start && nv < task2.start) { task2.start = ''; note = ' · start date dikosongkan'; }   // a deadline before the start date: drop the start date
+    if (nv && task2.start && nv < task2.start) { task2.start = nv; note = ' · start date ikut disesuaikan'; }   // keep start <= deadline
     task2.deadline = nv; task2.updatedAt = Date.now();
     commit(nv ? 'Deadline → ' + fmtDate(nv, true) + ' · urutan diperbarui' + note : 'Deadline dikosongkan · task pindah ke paling bawah');
+  } else if (t.dataset.inline === 'start') {
+    var task3 = taskById(t.dataset.id); if (!task3) return;
+    if (t.value && task3.deadline && t.value > task3.deadline) { toast('Start date setelah deadline (' + fmtDate(task3.deadline, true) + ')', true); t.value = task3.start || ''; return; }
+    task3.start = t.value; task3.updatedAt = Date.now();
+    commit('Start date → ' + (t.value ? fmtDate(t.value, true) : 'kosong'));
   }
 });
 window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
