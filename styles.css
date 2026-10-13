@@ -669,23 +669,26 @@ details.msel.on > summary{border-color:#111;font-weight:600}
 .msel-opt input{accent-color:#111;width:15px;height:15px}
 .msel-pop .btn{align-self:flex-start;margin-top:4px}
 details.msel > summary::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}
-
-/* GX27 Finance & Procurement: neutral column styling */
-body:not(.mode-admin) tr.row.parent td,
-body:not(.mode-admin) tr.row.child td {
-  background: var(--surface, #fff) !important;
+/* GX27 Finance & Procurement: neutral styling override */
+tr.row.parent td,
+tr.row.child td {
+background: #FFFFFF !important;
 }
 
-body:not(.mode-admin) tr.row.parent:hover td,
-body:not(.mode-admin) tr.row.child:hover td {
-  background: var(--surface, #fff) !important;
+tr.row.parent td,
+tr.row.child td {
+background: #F8F8F6 !important;
 }
 
-body:not(.mode-admin) tr.row.parent td.fin-item-cell,
-body:not(.mode-admin) tr.row.child td.fin-item-cell {
-  box-shadow: none !important;
+tr.row.parent td.fin-item-cell,
+tr.row.child td.fin-item-cell {
+box-shadow: none !important;
 }
 
-body:not(.mode-admin) td.merged {
-  background: var(--surface, #fff) !important;
+td.merged {
+background: #FFFFFF !important;
+}
+
+.sub-dot {
+background: #9A998F !important;
 }
