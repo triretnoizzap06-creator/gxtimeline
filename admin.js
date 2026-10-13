@@ -129,8 +129,8 @@
       return Promise.resolve(job).then(function () {
         S.phase = 'ready';
         startWatching();
-        // one-time data changes made by this version (e.g. resetting the automatic 1 Oct start dates) are saved for everyone
-        if (!draft.data.finTasksV1 || !draft.data.startReset1 || !draft.data.startOct1 || !Array.isArray((draft.data.settings || {}).pics) || !(draft.data.settings || {}).finMinimal || !draft.data.timelineV3 || !draft.data.taskFieldsV2 || !draft.data.todoV1) S.dirty = true;
+        // one-time data changes made by this version (e.g. start dates → 1 Oct) are saved for everyone
+        if (!draft.data.finTasksV1 || !draft.data.startOct1 || !Array.isArray((draft.data.settings || {}).pics) || !(draft.data.settings || {}).finMinimal || !draft.data.timelineV3 || !draft.data.taskFieldsV2 || !draft.data.todoV1) S.dirty = true;
         if (S.dirty) { Admin.markDirty(App.getDb()); }
       });
     });
