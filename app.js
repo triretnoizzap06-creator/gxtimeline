@@ -772,7 +772,7 @@ function loadUI() {
   ['fWs', 'fStatus'].forEach(function (k) { if (!Array.isArray(d[k])) d[k] = d[k] ? [d[k]] : []; });
   d.msOpen = '';
   if (!d.colF || typeof d.colF !== 'object' || Array.isArray(d.colF)) d.colF = {};
-  if (d.sortV !== 2) { d.sort = { key: 'deadline', dir: 1 }; d.sortV = 2; }   // everyone starts on timeline order once
+  if (d.sortV !== 3) { d.sort = { key: 'deadline', dir: -1 }; d.sortV = 3; }   // everyone starts on deadline order, newest first
   var h = (location.hash || '').replace('#', '');
   if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
   return d;
@@ -887,11 +887,15 @@ function render() {
     console.error(e);
     html = '<div class="banner" role="alert">Something went wrong drawing this page (' + esc(e.message) + '). Your data is still saved. Try another page or refresh.</div>';
   }
+  var winY = window.scrollY, winX = window.scrollX;
+  var boxes = [].map.call(main.querySelectorAll('.table-wrap'), function (el) { return [el.scrollTop, el.scrollLeft]; });
   main.innerHTML = (Admin ? Admin.barHtml() : '') + banner + html;
+  main.querySelectorAll('.table-wrap').forEach(function (el, i) { if (boxes[i]) { el.scrollTop = boxes[i][0]; el.scrollLeft = boxes[i][1]; } });
+  if (window.scrollY !== winY || window.scrollX !== winX) window.scrollTo(winX, winY);
   if (!canEdit()) main.querySelectorAll('[data-inline]').forEach(function (el) { el.disabled = true; });
   saveUI();
   if (Admin && Admin.afterRender) Admin.afterRender();
-  if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
+  if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
 }
 
 function pageHead(title, sub, actions) {
@@ -1400,6 +1404,14 @@ function listRow(t) {
 }
 
 /* ---------- Tasks ---------- */
+// deadline order across the WHOLE list. dir -1 = newest first, 1 = oldest first. Tasks without a deadline always come last.
+function dlCmp(a, b, dir) {
+  var x = a.deadline || '', y = b.deadline || '';
+  if (x === y) return 0;
+  if (!x) return 1;
+  if (!y) return -1;
+  return (x < y ? -1 : 1) * dir;
+}
 function filteredTasks(view) {
   var q = ui.q.trim().toLowerCase();
   var list = db.tasks.filter(function (t) {
@@ -1416,21 +1428,20 @@ function filteredTasks(view) {
   db.tasks.forEach(function (t, i) { pos[t.id] = i; });
   var sl = statusList();
   list.sort(function (a, b) {
+    if (key === 'deadline') return dlCmp(a, b, dir) || String(a.name).localeCompare(String(b.name)) || (pos[a.id] - pos[b.id]);
     var va, vb;
     if (key === 'status') { va = TYPE_ORDER[sType(a.status)] * 100 + sl.indexOf(a.status); vb = TYPE_ORDER[sType(b.status)] * 100 + sl.indexOf(b.status); }
-    else if (key === 'deadline') { va = tlKey(a); vb = tlKey(b); }   // timeline order: start date (or deadline), then deadline
     else if (key.indexOf('cf:') === 0) { var ck = key.slice(3), xa = cfVal(a, ck), xb = cfVal(b, ck); va = typeof xa === 'number' ? xa : String(xa == null ? '\uffff' : xa).toLowerCase(); vb = typeof xb === 'number' ? xb : String(xb == null ? '\uffff' : xb).toLowerCase(); }
     else { va = String(a[key] || '').toLowerCase(); vb = String(b[key] || '').toLowerCase(); }
     if (va < vb) return -dir; if (va > vb) return dir;
-    var ta = tlKey(a), tb = tlKey(b);
-    return ta < tb ? -1 : ta > tb ? 1 : (pos[a.id] - pos[b.id]);
+    return dlCmp(a, b, -1) || (pos[a.id] - pos[b.id]);
   });
   return list;
 }
 
 function renderTasks() {
   var views = [['all', 'All Tasks'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
-  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.', '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola kolom</button><button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
+  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.' + (ui.sort.key === 'deadline' && ui.sort.dir < 0 ? ' Urutan otomatis: deadline terbaru di atas.' : ''), '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola kolom</button><button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
   }).join('') + '</div>';
@@ -1444,14 +1455,7 @@ function renderTasks() {
   if (!db.tasks.length) return h + '<div class="table-wrap">' + emptyBox('No tasks yet', 'Create the first task to get started.') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No tasks match', ui.taskView === 'pending' ? 'Nothing pending approval, blocked or overdue with these filters.' : 'Try a different search or clear the filters.') + '</div>';
   if (ui.taskView === 'timeline') return h + renderTimeline(list);
-  if (ui.taskView === 'operational') {
-    var groups = {};
-    list.forEach(function (t) { (groups[t.workstream] = groups[t.workstream] || []).push(t); });
-    return h + allWorkstreams().filter(function (w) { return groups[w]; }).map(function (w) {
-      var g = groups[w], done = g.filter(isDone).length;
-      return '<div style="margin-bottom:18px"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">' + wsTag(w) + '<span class="muted num" style="font-size:12px">' + done + '/' + g.length + ' done</span></div>' + taskTable(g, true) + '</div>';
-    }).join('');
-  }
+  if (ui.taskView === 'operational') return h + taskTable(list, false);
   return h + taskTable(list, false, ui.taskView === 'pending');
 }
 // same order as the Master Timeline: by start date (or deadline when there is no start), then deadline; undated last
@@ -1640,7 +1644,10 @@ function taskCell(key, t) {
     case 'workstream': return '<td>' + wsTag(t.workstream) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
-    case 'deadline': return '<td>' + dueLabel(t) + '</td>';
+    case 'deadline':
+      if (!canEdit()) return '<td>' + dueLabel(t) + '</td>';
+      var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
+      return '<td class="dl-cell"><input class="input dl-input" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" aria-label="Deadline ' + esc(t.name) + '">' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
       if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
       return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
@@ -1688,15 +1695,15 @@ function taskDetail(t) {
 function renderTimeline(list) {
   var dated = list.filter(function (t) { return t.deadline; }), undated = list.filter(function (t) { return !t.deadline; });
   var byMonth = {};
-  dated.forEach(function (t) { var key = (t.start || t.deadline).slice(0, 7); var k2 = t.deadline.slice(0, 7); var m = t.start && t.start.slice(0, 7) === k2 ? k2 : (t.start ? t.start.slice(0, 7) : k2); (byMonth[m] = byMonth[m] || []).push(t); });
+  dated.forEach(function (t) { var m = t.deadline.slice(0, 7); (byMonth[m] = byMonth[m] || []).push(t); });
   var today = todayISO(), h = '';
-  Object.keys(byMonth).sort().forEach(function (m) {
-    var items = byMonth[m].sort(function (a, b) { var x = a.start || a.deadline, y = b.start || b.deadline; return x < y ? -1 : x > y ? 1 : 0; });
+  Object.keys(byMonth).sort().reverse().forEach(function (m) {
+    var items = byMonth[m].sort(function (a, b) { return a.deadline < b.deadline ? 1 : a.deadline > b.deadline ? -1 : String(a.name).localeCompare(String(b.name)); });
     var byDay = {};
-    items.forEach(function (t) { var label = fmtRange(t); (byDay[label] = byDay[label] || { key: t.start || t.deadline, end: t.deadline, items: [] }).items.push(t); });
+    items.forEach(function (t) { var label = fmtDate(t.deadline, true); (byDay[label] = byDay[label] || { key: t.deadline, end: t.deadline, items: [] }).items.push(t); });
     var d = parseISO(m + '-01');
     h += '<div class="tl-month"><h3>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</h3>';
-    Object.keys(byDay).sort(function (a, b) { return byDay[a].key < byDay[b].key ? -1 : byDay[a].key > byDay[b].key ? 1 : 0; }).forEach(function (label) {
+    Object.keys(byDay).sort(function (a, b) { return byDay[a].key < byDay[b].key ? 1 : byDay[a].key > byDay[b].key ? -1 : 0; }).forEach(function (label) {
       var g = byDay[label], isEvent = g.end === EVENT_DATE && g.items.every(function (t) { return t.category === 'Event Day'; });
       var past = g.end < today;
       h += '<div class="tl-day' + (isEvent ? ' tl-event' : '') + '"><div class="tl-date' + (past ? ' past' : '') + '"><span class="dot"></span>' + label.toUpperCase() + '</div><div class="tl-items">' +
@@ -2258,7 +2265,7 @@ function handleAct(el, e) {
       break;
     case 'go-tasks': ui.taskView = el.dataset.view; go('tasks'); break;
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;
-    case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : 1 }; render(); break;
+    case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : (k === 'deadline' ? -1 : 1) }; render(); break;
    case 'expand': {
   if (e.target.closest('select,a,button')) return;
   var taskScrollY = window.scrollY;
@@ -2335,9 +2342,10 @@ main.addEventListener('change', function (e) {
     task.status = t.value; task.updatedAt = Date.now(); commit('Status → ' + t.value);
   } else if (t.dataset.inline === 'deadline') {
     var task2 = taskById(t.dataset.id); if (!task2) return;
-    if (!t.value) { toast('Deadline cannot be empty here — open the task to clear it', true); t.value = task2.deadline; return; }
-    if (task2.start && t.value < task2.start) { toast('Deadline is before the start date (' + fmtDate(task2.start, true) + ')', true); t.value = task2.deadline; return; }
-    task2.deadline = t.value; task2.updatedAt = Date.now(); commit('Deadline moved to ' + fmtDate(t.value, true));
+    var nv = t.value, note = '';
+    if (nv && task2.start && nv < task2.start) { task2.start = ''; note = ' · start date dikosongkan'; }   // a deadline before the start date: drop the start date
+    task2.deadline = nv; task2.updatedAt = Date.now();
+    commit(nv ? 'Deadline → ' + fmtDate(nv, true) + ' · urutan diperbarui' + note : 'Deadline dikosongkan · task pindah ke paling bawah');
   }
 });
 window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
