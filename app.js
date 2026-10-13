@@ -283,9 +283,9 @@ function applyTimelineV3(d) {
   var now = Date.now();
   TL3.forEach(function (r) {
     var t = byId[r[0]];
-    if (!t) { t = { id: r[0], createdAt: now, start: '2026-10-01', pic: '', status: 'Not Started', notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }; d.tasks.push(t); byId[r[0]] = t; }
+    if (!t) { t = { id: r[0], createdAt: now, start: '', pic: '', status: 'Not Started', notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }; d.tasks.push(t); byId[r[0]] = t; }
     t.deadline = r[1]; t.workstream = r[2]; t.category = r[3]; t.name = r[4];
-    if (!t.start || t.start > r[1]) t.start = r[1] < '2026-10-01' ? r[1] : '2026-10-01';
+    if (t.start && t.start > r[1]) t.start = '';   // a start date after the deadline makes no sense: clear it
     if (r[5]) t.status = r[5];
     if (r[6]) t.notes = 'Menunggu: ' + r[6];
     if (r[7]) t.notes = r[7];
@@ -304,10 +304,46 @@ function applyTodoV1(d) {
   var now = Date.now();
   TODO_SEED.forEach(function (r) {
     if (have[r[0]]) return;
-    d.tasks.push({ id: r[0], name: r[3], workstream: r[1], category: r[2], start: '2026-10-01', deadline: '', pic: r[4], status: r[5] ? 'Done' : 'Not Started',
+    d.tasks.push({ id: r[0], name: r[3], workstream: r[1], category: r[2], start: '', deadline: '', pic: r[4], status: r[5] ? 'Done' : 'Not Started',
       notes: r[6] || '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', createdAt: now, updatedAt: now });
   });
   d.todoV1 = true;
+}
+// Every purchasable budget item gets its own task (category Procurement), so Finance and Tasks list the same items.
+// Not duplicated: line items inside a vendor invoice (the vendor row carries them) and fund allocations. Tasks made here have id TF-<finance id>.
+var FIN_PLACEHOLDER = 'Task dibuat untuk menampung baris budget';
+function syncFinanceTasks(d, s) {
+  var byId = {}, fById = {}, links0 = {}, used = {};
+  d.tasks.forEach(function (t) { byId[t.id] = t; used[t.id] = 1; });
+  d.finance.forEach(function (f) { fById[f.id] = f; if (f.taskId) links0[f.taskId] = (links0[f.taskId] || 0) + 1; });
+  var doneSt = (s.taskStatuses.filter(function (x) { return x.type === 'done'; })[0] || {}).name;
+  var todoSt = (s.taskStatuses.filter(function (x) { return x.type === 'todo'; })[0] || s.taskStatuses[0]).name;
+  var now = Date.now();
+  d.finance.forEach(function (f) {
+    if (f.taskSynced) return;
+    var parent = f.parentId ? fById[f.parentId] : null;
+    if (f.kind === 'allocation') return;
+    if (parent && parent.kind === 'vendor') return;
+    var cur = f.taskId ? byId[f.taskId] : null;
+    var placeholder = cur && String(cur.verifyNote || '').indexOf(FIN_PLACEHOLDER) === 0;
+    if (cur && !placeholder && links0[cur.id] === 1) { f.taskSynced = true; return; }   // already has its own task
+    var id = 'TF-' + f.id, t = byId[id];
+    if (!t) {
+      var pd = (s.payStatuses || []).filter(function (x) { return x.name === f.paymentStatus; })[0];
+      var pType = pd ? pd.type : (PAY_GUESS[String(f.paymentStatus || '').toLowerCase()] || 'unpaid');
+      t = { id: id, name: f.item || '(tanpa nama)', workstream: f.workstream || '', category: 'Procurement', start: '', deadline: f.paymentDeadline || '', pic: '',
+        status: pType === 'paid' && doneSt ? doneSt : todoSt, notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', autoFin: f.id, createdAt: now, updatedAt: now };
+      d.tasks.push(t); byId[id] = t;
+    }
+    f.taskId = id; f.taskSynced = true; f.updatedAt = now;
+  });
+  var linked = {}; d.finance.forEach(function (f) { if (f.taskId) linked[f.taskId] = 1; });
+  d.tasks = d.tasks.filter(function (t) {
+    if (String(t.verifyNote || '').indexOf(FIN_PLACEHOLDER) === 0 && !linked[t.id]) return false;      // generic holder task nobody uses any more
+    if (t.autoFin && !fById[t.autoFin]) { if (!t.pic && !t.notes) return false; delete t.autoFin; }   // its budget item was deleted
+    return true;
+  });
+  d.finTasksV1 = true;
 }
 function normalizeDb(d) {
   d = d && typeof d === 'object' ? d : {};
@@ -343,9 +379,11 @@ function normalizeDb(d) {
    ['pics', [].concat.apply([], d.tasks.concat(d.rundown || []).map(function (t) { return picsOf(t.pic); }))]].forEach(function (x) {
     x[1].forEach(function (v) { if (v && s[x[0]].indexOf(v) < 0) s[x[0]].push(v); });
   });
-  if (!d.startOct1) {
-    d.tasks.forEach(function (t) { if (!t.deadline || t.deadline >= '2026-10-01') t.start = '2026-10-01'; });
-    d.startOct1 = true;
+  // start dates are no longer forced to 1 Oct. Tasks still carrying the old automatic 1 Oct start (nobody set it) are reset to empty, once.
+  d.startOct1 = true;
+  if (!d.startReset1) {
+    d.tasks.forEach(function (t) { if (t.start === '2026-10-01') t.start = ''; });
+    d.startReset1 = true;
   }
   if (!hadStatuses) {
     // first time statuses are managed: use the 4 standard statuses and move old ones over
@@ -371,6 +409,7 @@ function normalizeDb(d) {
     });
     s.finMinimal = true;
   }
+  syncFinanceTasks(d, s);
   d.settings = s;
   // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
   if (!Array.isArray(d.rundown)) { d.rundown = rundownSeed(); d.flowMeta = FLOW_SEED.meta; }
@@ -704,6 +743,7 @@ function persist(d) {
 }
 function commit(msg) {
   if (!canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
+  db = normalizeDb(db);
   var ok = persist(db); render();
   var hint = MODE === 'admin' && !(window.GX27Admin && window.GX27Admin.autoSaveOn && window.GX27Admin.autoSaveOn()) ? ' · klik Save untuk menyimpan ke database' : '';
   if (msg) toast(ok ? msg + hint : 'Change kept for this session only — storage unavailable', !ok);
@@ -862,11 +902,16 @@ function render() {
     console.error(e);
     html = '<div class="banner" role="alert">Something went wrong drawing this page (' + esc(e.message) + '). Your data is still saved. Try another page or refresh.</div>';
   }
+  // keep the scroll position: tables scroll inside their own box, and redrawing would send them back to the top
+  var winY = window.scrollY, winX = window.scrollX;
+  var boxes = [].map.call(main.querySelectorAll('.table-wrap'), function (el) { return [el.scrollTop, el.scrollLeft]; });
   main.innerHTML = (Admin ? Admin.barHtml() : '') + banner + html;
+  main.querySelectorAll('.table-wrap').forEach(function (el, i) { if (boxes[i]) { el.scrollTop = boxes[i][0]; el.scrollLeft = boxes[i][1]; } });
+  if (window.scrollY !== winY || window.scrollX !== winX) window.scrollTo(winX, winY);
   if (!canEdit()) main.querySelectorAll('[data-inline]').forEach(function (el) { el.disabled = true; });
   saveUI();
   if (Admin && Admin.afterRender) Admin.afterRender();
-  if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
+  if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
 }
 
 function pageHead(title, sub, actions) {
@@ -1744,9 +1789,9 @@ function openModal(html, size, opts) {
     modalRoot.querySelectorAll('[data-act="modal-cancel"]').forEach(function (b) { if (b.textContent === 'Cancel') b.textContent = 'Close'; });
   }
   var f = modalRoot.querySelector('input:not([type=hidden]),select,textarea,button.primary');
-  if (f) f.focus();
+  if (f) f.focus({ preventScroll: true });
 }
-function closeModal() { modalRoot.innerHTML = ''; if (lastFocus && document.body.contains(lastFocus)) lastFocus.focus(); }
+function closeModal() { modalRoot.innerHTML = ''; if (lastFocus && document.body.contains(lastFocus)) lastFocus.focus({ preventScroll: true }); }
 function field(name, label, input, opt) {
   opt = opt || {};
   return '<div class="field' + (opt.full ? ' full' : '') + '" data-field="' + name + '"><label for="f-' + name + '">' + label + (opt.req ? ' <span class="req">*</span>' : '') + '</label>' + input + (opt.hint ? '<span class="hint">' + opt.hint + '</span>' : '') + '<span class="msg" hidden></span></div>';
@@ -1778,7 +1823,7 @@ function wsSync() {
   hidden.value = JSON.stringify([].map.call(box.querySelectorAll('.ws-cb:checked'), function (c) { return c.value; }));
 }
 function taskForm(t, preset) {
-  var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '2026-10-01', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
+  var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
@@ -1883,7 +1928,7 @@ function finForm(f, presetTask, preset) {
     // adding a sub item under a plain item turns that item into a group (vendor invoice) that holds the payment
     var par = v.parentId ? finById(v.parentId) : null;
     if (par && !par.kind) { par.kind = 'vendor'; par.updatedAt = Date.now(); }
-    if (isNew) { db.finance.push(Object.assign({ id: nextId('F'), createdAt: Date.now() }, v, { updatedAt: Date.now() })); closeModal(); commit('Budget item added'); }
+    if (isNew) { db.finance.push(Object.assign({ id: nextId('F'), createdAt: Date.now(), taskSynced: !!v.taskId }, v, { updatedAt: Date.now() })); closeModal(); commit('Budget item added'); }
     else { Object.assign(f, v, { updatedAt: Date.now() }); closeModal(); commit('Budget item saved'); }
   };
 }
@@ -2034,7 +2079,7 @@ function importCsvDialog() {
     if (document.getElementById('csvReplace').checked) db.finance = db.finance.filter(function (f) { return !(f.placeholder && cats[f.workstream] && calc(f).base == null); });
     parsed.forEach(function (r) {
       var task = db.tasks.filter(function (t) { return t.workstream === r.workstream && t.category === 'Procurement'; })[0];
-      db.finance.push(Object.assign({ id: nextId('F'), taskId: task ? task.id : null, createdAt: Date.now(), updatedAt: Date.now() }, r));
+      db.finance.push(Object.assign({ id: nextId('F'), taskId: null, createdAt: Date.now(), updatedAt: Date.now() }, r));
     });
     closeModal(); ui.page = 'finance'; commit(parsed.length + ' budget items imported');
   };
