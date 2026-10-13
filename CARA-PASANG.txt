@@ -1,12 +1,12 @@
-GX27 — Patch: To-do list dari GX27_Rundown_1.xlsx jadi task
+GX27 - Patch: deadline 1 tanggal + start date opsional, notes tidak keluar kolom
 
-Isi: index.html, app.js, admin.js. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
+Yang berubah: index.html (versi cache), app.js, styles.css. Tidak perlu SQL.
 
-- 78 baris dari sheet "To-do list" masuk ke Tasks, masing-masing di workstream sesuai kategori sheet
-  (Operasional, Stage, GX Access Point, GX Connect, GX Got Talent, HYROX, Tenants, Activation, Games, Entertainment, Doorprize).
-- Yang dicentang di sheet = Done (37 task), sisanya Not Started.
-- PIC, Output, dan Notes ikut masuk. Sub-grup (People of GX, DIY Totebag, Face Painting, Tarot, Bali Games, BUMI, Game Pass) jadi awalan nama task.
-- Deadline masih kosong (di sheet belum ada) - task-nya ada di bagian bawah daftar / "No deadline yet". Silakan atur sendiri.
-- Masuk otomatis sekali saat website dibuka, tersimpan untuk semua.
+1. Deadline tampil 1 tanggal (di tabel Tasks, Master Timeline, dan Timeline).
+2. Klik tanggal deadline di tabel Tasks -> muncul dialog: Deadline + Start date (opsional).
+   Start date dikosongkan = hanya deadline. Tombol "Hapus start" untuk mengosongkan.
+   Kalau start date diisi, tampilannya tetap 1 tanggal (start terlihat di tooltip saat kursor diarahkan).
+3. Teks Notes dibungkus di dalam kolomnya (tidak melebar ke luar), di tabel, timeline, dan dialog.
 
-Setelah deploy, tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
+Cara pasang: upload index.html, app.js, dan styles.css ke GitHub (timpa yang lama), commit, tunggu Vercel deploy.
+Lalu tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.

@@ -672,7 +672,8 @@ function toISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padS
 function todayISO() { return toISO(new Date()); }
 function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 864e5); }
 function fmtDate(s, short) { var d = parseISO(s); if (!d) return '—'; return String(d.getDate()).padStart(2, '0') + ' ' + MONTHS[d.getMonth()] + (short ? '' : ' ' + d.getFullYear()); }
-function fmtRange(t) { if (t.start && t.deadline && t.start !== t.deadline) return fmtDate(t.start, true) + ' – ' + fmtDate(t.deadline, true); return fmtDate(t.deadline, true); }
+// Tampil 1 tanggal saja (deadline). Start date (opsional) hanya diisi lewat klik tanggal.
+function fmtRange(t) { return fmtDate(t.deadline, true); }
 var rpFmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 function rp(n) { return n == null ? '—' : 'Rp ' + rpFmt.format(n); }
 function numOrNull(v) { return (v === null || v === undefined || v === '' || isNaN(v)) ? null : Number(v); }
@@ -918,12 +919,12 @@ function renderMaster() {
   h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> milestones done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Klik item untuk edit' : 'Klik item untuk detail') + '</span></div>';
   // group by month (of start date) then by date label
   var months = {};
-  pre.forEach(function (t) { var key = (t.start || t.deadline).slice(0, 7); (months[key] = months[key] || []).push(t); });
+  pre.forEach(function (t) { var key = t.deadline.slice(0, 7); (months[key] = months[key] || []).push(t); });
   var monthKeys = Object.keys(months).sort();
   if (!monthKeys.length && !eventItems.length) return h + '<div class="table-wrap">' + emptyBox('No milestones to show', 'Turn a program back on above, or add a milestone.') + '</div>';
   var cards = monthKeys.map(function (m) {
     var groups = {}, order = [];
-    months[m].sort(function (a, b) { var x = a.start || a.deadline, y = b.start || b.deadline; return x < y ? -1 : x > y ? 1 : (a.deadline < b.deadline ? -1 : 1); })
+    months[m].sort(function (a, b) { return a.deadline < b.deadline ? -1 : a.deadline > b.deadline ? 1 : String(a.name).localeCompare(String(b.name)); })
       .forEach(function (t) { var lab = fmtRange(t).toUpperCase(); if (!groups[lab]) { groups[lab] = []; order.push(lab); } groups[lab].push(t); });
     var d = parseISO(m + '-01');
     var rows = order.map(function (lab) {
@@ -1498,7 +1499,7 @@ function picDialog(id) {
     '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Batal</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'sm');
   document.getElementById('picForm').onsubmit = function (e) { e.preventDefault(); picSync(); t.pic = document.getElementById('f-pic').value; t.updatedAt = Date.now(); closeModal(); commit('PIC → ' + (t.pic || 'kosong')); };
 }
-function tlKey(t) { return (t.start || t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
+function tlKey(t) { return (t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
 /* ---------- Column filters: every header in the Task table can be filtered ---------- */
 var EMPTY_LABEL = '(kosong)';
 function customColByKey(k) { return colList('tasks').filter(function (c) { return c.custom && c.key === k; })[0] || null; }
@@ -1647,13 +1648,13 @@ function taskCell(key, t) {
     case 'deadline':
       if (!canEdit()) return '<td>' + dueLabel(t) + '</td>';
       var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
-      return '<td class="dl-cell"><div class="dl-range"><input class="input dl-input dl-start" type="date" data-inline="start" data-id="' + t.id + '" value="' + esc(t.start || '') + '" title="Start date" aria-label="Start date ' + esc(t.name) + '"><span class="dl-sep" aria-hidden="true">–</span>' +
-        '<input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '"></div>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
+      return '<td class="dl-cell"><button type="button" class="dl-btn" data-act="edit-deadline" data-id="' + t.id + '" title="' + (t.start ? 'Mulai ' + fmtDate(t.start) + ' · ' : '') + 'Klik untuk ubah deadline / isi start date" aria-label="Deadline ' + esc(t.name) + ': klik untuk ubah">' +
+        (t.deadline ? '<span class="dl-date">' + fmtDate(t.deadline, true) + '</span>' : '<span class="faint">+ tanggal</span>') + '</button>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
       if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
       return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
-    case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
+    case 'notes': return '<td class="muted notes-cell">' + (t.notes ? '<div class="notes-wrap">' + esc(t.notes) + '</div>' : '<span class="faint">—</span>') + '</td>';
     case 'source': return '<td>' + srcTag(t.source) + '</td>';
     case 'payment':
       // paid so far, what is still outstanding, and which items are due when
@@ -2046,10 +2047,12 @@ function deleteFin(id) {
 function deadlineDialog(id) {
   var t = taskById(id); if (!t) return;
   openModal('<form id="dlForm" novalidate><div class="modal-h"><h3>' + esc(t.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
-    '<div class="field full">' + wsTag(t.workstream) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
-    field('start', 'Start date', inp('start', t.start, 'date')) + field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
+    '<div class="field full">' + wsTag(t.workstream) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted notes-wrap" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
+    field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) + field('start', 'Start date (opsional)', inp('start', t.start, 'date')) +
+    '<div class="field full"><span class="muted dl-hint">Kosongkan start date kalau ini hanya deadline.</span></div>' +
     field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status)) +
-    '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
+    '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn ghost" id="dlClearStart">Hapus start</button><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
+  document.getElementById('dlClearStart').onclick = function () { document.getElementById('dlForm').start.value = ''; };
   document.getElementById('dlForm').onsubmit = function (e) {
     e.preventDefault();
     var s = e.target.start.value, d = e.target.deadline.value, st = e.target.status.value;
@@ -2204,7 +2207,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['edit-deadline','manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -2285,6 +2288,7 @@ function handleAct(el, e) {
     case 'cal-prev': case 'cal-next':
       var p = ui.calMonth.split('-'), d = new Date(+p[0], +p[1] - 1 + (act === 'cal-next' ? 1 : -1), 1); ui.calMonth = toISO(d).slice(0, 7); render(); break;
     case 'cal-today': ui.calMonth = todayISO().slice(0, 7); render(); break;
+    case 'edit-deadline': deadlineDialog(id); break;
     case 'cal-chip': if (canEdit()) deadlineDialog(id); else { closeModal(); taskForm(taskById(id)); } break;
     case 'cal-day': dayDialog(el.dataset.date); break;
     case 'modal-cancel': closeModal(); break;

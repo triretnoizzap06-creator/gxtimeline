@@ -716,3 +716,22 @@ background: #9A998F !important;
 .dl-range{display:flex;align-items:center;gap:4px}
 .dl-range .dl-input{width:128px}
 .dl-sep{color:var(--muted)}
+
+/* ===== Deadline: tampil 1 tanggal, klik untuk isi start date (opsional) ===== */
+.dl-cell{white-space:nowrap}
+.dl-btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:12.5px;font-variant-numeric:tabular-nums}
+.dl-btn:hover{background:var(--hover)}
+.dl-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dl-has-start{font-style:normal;font-size:11px;color:var(--muted)}
+.dl-hint{font-size:12px}
+
+/* ===== Notes tidak boleh keluar dari kolomnya ===== */
+.notes-cell{width:260px;max-width:260px;min-width:0}
+.notes-wrap{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+td .tsub,td .tname,.mt-item .txt,.tl-item>span,.modal-b .muted{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+td .tsub{max-width:100%}
+.modal-b textarea,.modal-b .input{max-width:100%;box-sizing:border-box}
+.modal-b textarea{overflow-wrap:anywhere;white-space:pre-wrap}
+.cf-input{max-width:100%;min-width:0;text-overflow:ellipsis}
+.detail>div{min-width:0}
+.detail p{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
