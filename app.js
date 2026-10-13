@@ -2093,7 +2093,16 @@ function handleAct(el, e) {
     case 'go-tasks': ui.taskView = el.dataset.view; go('tasks'); break;
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;
     case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : 1 }; render(); break;
-    case 'expand': if (e.target.closest('select,a,button')) return; ui.expanded = ui.expanded === id ? null : id; render(); break;
+   case 'expand': {
+  if (e.target.closest('select,a,button')) return;
+  var taskScrollY = window.scrollY;
+  ui.expanded = ui.expanded === id ? null : id;
+  render();
+  requestAnimationFrame(function () {
+    window.scrollTo({ top: taskScrollY, behavior: 'instant' });
+  });
+  break;
+}
     case 'clear-filters': ui.q = ui.fSrc = ''; ui.fWs = []; ui.fStatus = []; ui.msOpen = ''; render(); break;
     case 'ms-clear': ui[el.dataset.key] = []; render(); break;
     case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ''; render(); break;
