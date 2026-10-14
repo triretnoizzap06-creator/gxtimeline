@@ -1,12 +1,25 @@
-GX27 - Patch v12 (Master Timeline ikut nama Workstream)
+GX27 - Patch v13 (Need per Station + Emergency Fund)
 
-File yang berubah: app.js, styles.css, index.html. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 & v11.
+File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10, v11 & v12.
 
-1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
+1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-PERUBAHAN v12
+PERUBAHAN v13
+1. Need per Station dikelompokkan per Workstream (nama & urutan ikut Manage Categories).
+   - Tiap station punya dropdown Workstream untuk pindah kelompok.
+   - Tombol "+ Station di <workstream>" di tiap kelompok; form Station Baru juga ada pilihan Workstream.
+2. Need per Station > Manage Columns: judul kolom bisa diganti, disembunyikan, diurutkan (drag),
+   tambah kolom sendiri (Teks, Teks Panjang, Angka, Tanggal, Dropdown, Centang), dan pilihan dropdown
+   (mis. Design) bisa diubah. Kolom tambahan bisa dihapus (isinya ikut terhapus).
+   Lebar kolom juga bisa di-drag seperti di Tasks.
+3. Kolom "Perlengkapan" sekarang centang biasa (tanpa tulisan Siap/Belum).
+4. Emergency Fund: semua pemakaian dana di Finance otomatis tampil di bawah task "Alokasi Emergency Fund"
+   (seperti Doorprize). Item baru / diedit / dihapus di Finance langsung ikut. Task per item yang dulu dibuat
+   otomatis dan belum diisi PIC/notes dihapus; yang sudah ada isinya tetap disimpan.
+
+PERUBAHAN v12 (sudah termasuk)
 1. Master Timeline otomatis ikut nama Workstream di Manage Categories.
    Kalau nama workstream diganti (mis. "HYROX" -> "GX Race"), tombol filter, label item, warna,
    dan status "program" di Master Timeline langsung ikut nama baru. Item tidak hilang dari timeline.

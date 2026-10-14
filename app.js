@@ -216,9 +216,11 @@ function colDelete(table, idx) {
 }
 var DRAG_GRIP = '<span class="drag-h" title="Drag untuk ubah urutan" aria-hidden="true"><svg viewBox="0 0 10 16" width="10" height="16"><g fill="currentColor"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></g></svg></span>';
 /* v11: drag & drop urutan di Manage Columns / Manage Categories */
+var REORDER_HOOKS = {};   // add-ons (needs.js) register their own lists: data-reorder="hook:<name>"
 function listReorder(spec, from, to) {
   if (from === to || from < 0 || to < 0) return;
   var p = spec.split(':'), kind = p[0], name = p[1];
+  if (kind === 'hook') { if (REORDER_HOOKS[name]) REORDER_HOOKS[name](from, to); return; }
   if (kind === 'col') {
     if (!colApply(name)) return;
     var cl = colList(name); if (to >= cl.length) return;
@@ -412,7 +414,7 @@ function syncFinanceTasks(d, s) {
     if (f.workstream === 'Doorprize') { f.taskId = ensureDoor().id; f.taskSynced = true; f.updatedAt = now; return; }
     var parent = f.parentId ? fById[f.parentId] : null;
     if (f.kind === 'allocation') return;
-    if (parent && parent.kind === 'vendor') return;   // line item of a vendor invoice: merged into the invoice's task below
+    if (parent && (parent.kind === 'vendor' || parent.kind === 'allocation')) return;   // line item of a vendor invoice / usage of a fund: merged into the parent's task below
     var src = parent && parent.kind === 'vendor' ? parent : f;   // who carries the payment
     var cur = f.taskId ? byId[f.taskId] : null;
     var placeholder = cur && String(cur.verifyNote || '').indexOf(FIN_PLACEHOLDER) === 0;
@@ -428,7 +430,8 @@ function syncFinanceTasks(d, s) {
     f.taskId = id; f.taskSynced = true; f.updatedAt = now;
   });
   // Every vendor invoice with line items (Bali Games, BUMI, OJISAN, ...) works like Doorprize: its items are merged into ONE task,
-  // the task that carries the invoice. (Fund allocations such as Emergency Fund are not merged: each usage row is its own payment.)
+  // the task that carries the invoice. v13: fund allocations (Emergency Fund) work the same way — every usage row in Finance is listed
+  // live under the allocation's task ("Alokasi Emergency Fund"), so a row added / edited / deleted in Finance shows up there right away.
   function vendorTask(p) {
     var cur = p.taskId ? byId[p.taskId] : null;
     if (cur) return cur;
@@ -445,7 +448,7 @@ function syncFinanceTasks(d, s) {
   }
   d.finance.forEach(function (f) {
     var p = f.parentId ? fById[f.parentId] : null;
-    if (!p || p.kind !== 'vendor' || p.workstream === 'Doorprize') return;     // Doorprize is handled above
+    if (!p || (p.kind !== 'vendor' && p.kind !== 'allocation') || p.workstream === 'Doorprize') return;     // Doorprize is handled above
     var cur = f.taskId ? byId[f.taskId] : null;
     var own = cur && (cur.id === 'TF-' + f.id || cur.autoFin === f.id);        // a task that was auto-made just for this item
     if (cur && !own && f.taskSynced) return;                                   // linked somewhere on purpose: leave it
@@ -1920,6 +1923,8 @@ function rzEnd() {
   var m = colW[d.key] = colW[d.key] || {};
   d.ths.forEach(function (th, i) { m[rzKeyOf(th, i)] = d.widths[i]; });
   colwSave(); rzEatUntil = Date.now() + 350;
+  // other tables sharing this key (e.g. one table per station) follow right away
+  document.querySelectorAll('table[data-rz="' + d.key + '"]').forEach(function (tb) { if (tb !== d.tb) rzFix(tb, rzHeads(tb), colW[d.key]); });
   var wrap = d.tb.closest('.table-wrap');
   if (wrap && !(wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('rz-bar')))
     wrap.insertAdjacentHTML('beforebegin', '<div class="rz-bar"><button type="button" class="btn ghost sm" data-rzreset="' + esc(d.key) + '">↺ Reset Lebar Kolom</button></div>');
@@ -2824,6 +2829,8 @@ window.GX27App = {
   STORE_KEY: STORE_KEY, LEGACY_KEYS: [STORE_KEY, 'gx27.dashboard.v2', 'gx27.dashboard.v1'],
   SETTINGS_DEFAULT: SETTINGS_DEFAULT, DEFAULT_LOGO: DEFAULT_LOGO,
   getMode: function () { return MODE; }, canEdit: canEdit,
+  wsTag: wsTag, wsColor: wsColor, wsCurrent: wsCurrent, allWorkstreams: allWorkstreams, rzApply: rzApply,
+  DRAG_GRIP: DRAG_GRIP, onReorder: function (name, fn) { REORDER_HOOKS[name] = fn; },
   setPage: function (p) { ui.page = p; }, getPage: function () { return ui.page; },
   setLive: setLive
 };
