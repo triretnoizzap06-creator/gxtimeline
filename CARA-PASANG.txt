@@ -1,12 +1,20 @@
-GX27 — Patch: To-do list dari GX27_Rundown_1.xlsx jadi task
+GX27 - Patch: Need per Station + deadline 1 tanggal (start opsional) + notes tidak keluar kolom
 
-Isi: index.html, app.js, admin.js. Upload ke GitHub (timpa yang lama). Tidak perlu SQL.
+File yang berubah: index.html, app.js, styles.css. Tidak perlu SQL / perubahan database.
 
-- 78 baris dari sheet "To-do list" masuk ke Tasks, masing-masing di workstream sesuai kategori sheet
-  (Operasional, Stage, GX Access Point, GX Connect, GX Got Talent, HYROX, Tenants, Activation, Games, Entertainment, Doorprize).
-- Yang dicentang di sheet = Done (37 task), sisanya Not Started.
-- PIC, Output, dan Notes ikut masuk. Sub-grup (People of GX, DIY Totebag, Face Painting, Tarot, Bali Games, BUMI, Game Pass) jadi awalan nama task.
-- Deadline masih kosong (di sheet belum ada) - task-nya ada di bagian bawah daftar / "No deadline yet". Silakan atur sendiri.
-- Masuk otomatis sekali saat website dibuka, tersimpan untuk semua.
+NEED PER STATION
+- Menu baru "Need per Station" di sidebar (di bawah Tasks).
+- Satu station = satu task. Daftar need disimpan di dalam task itu sendiri (task.needs),
+  jadi ikut tersimpan & tersinkron seperti task biasa.
+- Kolom: Keperluan, Qty, Design (Doesn't Need / Not Started / In Progress / Done),
+  Perlengkapan (checklist ✅/❌), Notes. Progress per station (mis. 3/9 siap).
+- Pertama kali: klik "Isi dari sheet Need per Station" untuk memasukkan 9 station dari sheet-mu.
+  Station baru dibuat tanpa deadline; atur lewat Tasks.
+- Di Tasks, station punya label "Need x/y"; saat baris dibuka tampil checklist-nya.
+  Task biasa bisa dijadikan station lewat tombol "+ Checklist need".
 
-Setelah deploy, tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
+DEADLINE
+- Tampil 1 tanggal. Klik tanggal -> dialog Deadline + Start date (opsional). Kosong = hanya deadline.
+
+Cara pasang: upload index.html, app.js, styles.css ke GitHub (timpa yang lama), commit, tunggu Vercel deploy,
+lalu Ctrl+Shift+R sekali.

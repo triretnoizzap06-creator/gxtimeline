@@ -319,53 +319,8 @@ function syncFinanceTasks(d, s) {
   var doneSt = (s.taskStatuses.filter(function (x) { return x.type === 'done'; })[0] || {}).name;
   var todoSt = (s.taskStatuses.filter(function (x) { return x.type === 'todo'; })[0] || s.taskStatuses[0]).name;
   var now = Date.now();
-  // All Doorprize budget rows (the Shopee invoice and its ~20 prizes) share ONE task: "Doorprize procurement"
-  var doorRows = d.finance.filter(function (f) { return f.workstream === 'Doorprize'; }), door = null;
-  function ensureDoor() {
-    if (door) return door;
-    var cnt = function (t) { return doorRows.filter(function (f) { return f.taskId === t.id; }).length; };
-    door = d.tasks.filter(function (t) { return String(t.name || '').trim().toLowerCase() === 'doorprize procurement'; }).sort(function (x, y) { return cnt(y) - cnt(x); })[0];
-    if (!door) {
-      var v = doorRows.filter(function (f) { return f.kind === 'vendor'; })[0] || doorRows[0] || {};
-      var vd = (s.payStatuses || []).filter(function (x) { return x.name === v.paymentStatus; })[0];
-      var vType = vd ? vd.type : (PAY_GUESS[String(v.paymentStatus || '').toLowerCase()] || 'unpaid');
-      door = { id: 'TF-DOORPRIZE', name: 'Doorprize procurement', workstream: 'Doorprize', category: 'Procurement', start: '', deadline: v.paymentDeadline || '', pic: '',
-        status: vType === 'paid' && doneSt ? doneSt : todoSt, notes: 'Semua item doorprize (belanja Shopee), terhubung ke budget di Finance.', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', createdAt: now, updatedAt: now };
-      d.tasks.push(door); byId[door.id] = door;
-    }
-    if (String(door.verifyNote || '').indexOf(FIN_PLACEHOLDER) === 0) { door.verifyNote = ''; door.source = 'confirmed'; }
-    return door;
-  }
-  // Runs on every load, so data that already has one task per prize heals itself (rows move to the single task, untouched per-prize tasks are removed)
-  if (doorRows.length) {
-    var dt = ensureDoor();
-    var doors = d.tasks.filter(function (t) { return String(t.name || '').trim().toLowerCase() === 'doorprize procurement'; });
-    var isDoorName = function (t) { return String(t.name || '').trim().toLowerCase() === 'doorprize procurement'; };
-    var itemNames = {}; doorRows.forEach(function (f) { var n = String(f.item || '').trim().toLowerCase(); if (n && n !== 'doorprize procurement') itemNames[n] = 1; });
-    var isDup = function (t) { return isDoorName(t) && t.id !== dt.id; };                 // a second task with the same name
-    var perItem = function (t) { return t.workstream === 'Doorprize' && t.id !== dt.id && (t.autoFin || String(t.id).indexOf('TF-') === 0 || itemNames[String(t.name || '').trim().toLowerCase()]); };   // one task per prize
-    var tById = {}; d.tasks.forEach(function (t) { tById[t.id] = t; });
-    doors.forEach(function (x) { if (x.id !== dt.id && !dt.pic && x.pic) dt.pic = x.pic; });   // two tasks with this name: keep one, keep the PIC
-    doorRows.forEach(function (f) {
-      var cur = f.taskId ? tById[f.taskId] : null;
-      if (!cur || perItem(cur) || isDup(cur) || !f.taskSynced) { f.taskId = dt.id; f.taskSynced = true; f.updatedAt = now; }
-    });
-    d.tasks = d.tasks.filter(function (t) {
-      if (isDup(t)) return false;
-      if (!perItem(t)) return true;
-      if (!t.pic && (!t.notes || String(t.notes).indexOf('Bagian dari') === 0)) return false;   // untouched: remove
-      delete t.autoFin; return true;                                                           // someone worked on it: keep as a normal task
-    });
-    var fById = {}; d.finance.forEach(function (f) { fById[f.id] = f; });
-    doorRows.forEach(function (f) {   // prizes inside the invoice take the invoice status of the top row (e.g. Submitted)
-      var p = f.parentId ? fById[f.parentId] : null;
-      if (p && p.workstream === 'Doorprize' && p.invoiceStatus && f.invoiceStatus !== p.invoiceStatus) { f.invoiceStatus = p.invoiceStatus; f.updatedAt = Date.now(); }
-    });
-  }
-  d.doorprizeOne2 = true;
   d.finance.forEach(function (f) {
     if (f.taskSynced) return;
-    if (f.workstream === 'Doorprize') { f.taskId = ensureDoor().id; f.taskSynced = true; f.updatedAt = now; return; }
     var parent = f.parentId ? fById[f.parentId] : null;
     if (f.kind === 'allocation') return;
     var src = parent && parent.kind === 'vendor' ? parent : f;   // who carries the payment
@@ -420,7 +375,7 @@ function normalizeDb(d) {
     d.taskFieldsV2 = true;
   }
   [['taskCategories', d.tasks.map(function (t) { return t.category; })],
-   ['workstreams', [].concat.apply([], d.tasks.concat(d.finance).map(function (r) { return (Array.isArray(r.workstreams) ? r.workstreams : []).concat([r.workstream]); }))],
+   ['workstreams', d.tasks.concat(d.finance).map(function (r) { return r.workstream; })],
    ['pics', [].concat.apply([], d.tasks.concat(d.rundown || []).map(function (t) { return picsOf(t.pic); }))]].forEach(function (x) {
     x[1].forEach(function (v) { if (v && s[x[0]].indexOf(v) < 0) s[x[0]].push(v); });
   });
@@ -717,7 +672,8 @@ function toISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padS
 function todayISO() { return toISO(new Date()); }
 function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 864e5); }
 function fmtDate(s, short) { var d = parseISO(s); if (!d) return '—'; return String(d.getDate()).padStart(2, '0') + ' ' + MONTHS[d.getMonth()] + (short ? '' : ' ' + d.getFullYear()); }
-function fmtRange(t) { if (t.start && t.deadline && t.start !== t.deadline) return fmtDate(t.start, true) + ' – ' + fmtDate(t.deadline, true); return fmtDate(t.deadline, true); }
+// Tampil 1 tanggal saja (deadline). Start date (opsional) hanya diisi lewat klik tanggal.
+function fmtRange(t) { return fmtDate(t.deadline, true); }
 var rpFmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 function rp(n) { return n == null ? '—' : 'Rp ' + rpFmt.format(n); }
 function numOrNull(v) { return (v === null || v === undefined || v === '' || isNaN(v)) ? null : Number(v); }
@@ -803,23 +759,9 @@ function nextId(prefix) {
 function taskById(id) { for (var i = 0; i < db.tasks.length; i++) if (db.tasks[i].id === id) return db.tasks[i]; return null; }
 function finById(id) { for (var i = 0; i < db.finance.length; i++) if (db.finance[i].id === id) return db.finance[i]; return null; }
 function finForTask(id) { return db.finance.filter(function (f) { return f.taskId === id; }); }
-// a task can belong to several workstreams (t.workstreams); t.workstream (the first one) is kept for older data and other pages
-function taskWorkstreams(t) {
-  var list = Array.isArray(t.workstreams) ? t.workstreams.slice() : [];
-  if (t.workstream && list.indexOf(t.workstream) < 0) list.unshift(t.workstream);
-  return list.filter(function (w, i, a) { return w && a.indexOf(w) === i; });
-}
-function wsTags(t) {
-  var list = taskWorkstreams(t);
-  return list.length ? list.map(function (w) { return wsTag(w); }).join(' ') : wsTag('');
-}
 function allWorkstreams() {
   var set = (db.settings.workstreams || []).slice();
-  db.tasks.concat(db.finance).forEach(function (r) {
-    var list = Array.isArray(r.workstreams) ? r.workstreams.slice() : [];
-    if (r.workstream && list.indexOf(r.workstream) < 0) list.push(r.workstream);
-    list.forEach(function (w) { if (w && set.indexOf(w) < 0) set.push(w); });
-  });
+  db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream && set.indexOf(r.workstream) < 0) set.push(r.workstream); });
   return set;
 }
 
@@ -833,7 +775,7 @@ function loadUI() {
   if (!d.colF || typeof d.colF !== 'object' || Array.isArray(d.colF)) d.colF = {};
   if (d.sortV !== 3) { d.sort = { key: 'deadline', dir: -1 }; d.sortV = 3; }   // everyone starts on deadline order, newest first
   var h = (location.hash || '').replace('#', '');
-  if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
+  if (['timeline','rundown','overview','tasks','needs','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
   return d;
 }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
@@ -940,6 +882,7 @@ function render() {
     else if (ui.page === 'rundown') html = renderRundown();
     else if (ui.page === 'overview') html = renderOverview();
     else if (ui.page === 'tasks') html = renderTasks();
+    else if (ui.page === 'needs') html = renderNeeds();
     else if (ui.page === 'finance') html = renderFinance();
     else html = renderCalendar();
   } catch (e) {
@@ -977,12 +920,12 @@ function renderMaster() {
   h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> milestones done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Klik item untuk edit' : 'Klik item untuk detail') + '</span></div>';
   // group by month (of start date) then by date label
   var months = {};
-  pre.forEach(function (t) { var key = (t.start || t.deadline).slice(0, 7); (months[key] = months[key] || []).push(t); });
+  pre.forEach(function (t) { var key = t.deadline.slice(0, 7); (months[key] = months[key] || []).push(t); });
   var monthKeys = Object.keys(months).sort();
   if (!monthKeys.length && !eventItems.length) return h + '<div class="table-wrap">' + emptyBox('No milestones to show', 'Turn a program back on above, or add a milestone.') + '</div>';
   var cards = monthKeys.map(function (m) {
     var groups = {}, order = [];
-    months[m].sort(function (a, b) { var x = a.start || a.deadline, y = b.start || b.deadline; return x < y ? -1 : x > y ? 1 : (a.deadline < b.deadline ? -1 : 1); })
+    months[m].sort(function (a, b) { return a.deadline < b.deadline ? -1 : a.deadline > b.deadline ? 1 : String(a.name).localeCompare(String(b.name)); })
       .forEach(function (t) { var lab = fmtRange(t).toUpperCase(); if (!groups[lab]) { groups[lab] = []; order.push(lab); } groups[lab].push(t); });
     var d = parseISO(m + '-01');
     var rows = order.map(function (lab) {
@@ -1265,7 +1208,7 @@ function payManager() {
 function catUsage(kind, name) {
   if (kind === 'pic') return { tasks: db.tasks.concat(db.rundown || []).filter(function (t) { return picsOf(t.pic).indexOf(name) > -1; }).length, finance: 0 };
   if (kind === 'category') return { tasks: db.tasks.filter(function (t) { return t.category === name; }).length, finance: 0 };
-  return { tasks: db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(name) > -1; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
+  return { tasks: db.tasks.filter(function (t) { return t.workstream === name; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
 }
 function categoryManager(kind) {
   kind = kind || 'category';
@@ -1301,15 +1244,7 @@ function catRename(kind, from, to) {
   var n = 0;
   if (kind === 'pic') db.tasks.concat(db.rundown || []).forEach(function (t) { var a = picsOf(t.pic), k = a.indexOf(from); if (k > -1) { a[k] = to; t.pic = picJoin(a); t.updatedAt = Date.now(); n++; } });
   else if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
-  else db.tasks.concat(db.finance).forEach(function (r) {
-    var hit = r.workstream === from;
-    if (hit) r.workstream = to;
-    if (Array.isArray(r.workstreams) && r.workstreams.indexOf(from) > -1) {
-      r.workstreams = r.workstreams.map(function (w) { return w === from ? to : w; }).filter(function (w, i, a) { return a.indexOf(w) === i; });
-      hit = true;
-    }
-    if (hit) { r.updatedAt = Date.now(); n++; }
-  });
+  else db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream === from) { r.workstream = to; r.updatedAt = Date.now(); n++; } });
   if (kind === 'workstream') ui.fWs = ui.fWs.map(function (x) { return x === from ? to : x; });
   if (kind === 'workstream' && ui.finWs === from) ui.finWs = to;
   return n;
@@ -1446,7 +1381,7 @@ function renderOverview() {
 
   // Workstream summary + verification
   var wsRows = allWorkstreams().map(function (ws) {
-    var ts = db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(ws) > -1; });
+    var ts = db.tasks.filter(function (t) { return t.workstream === ws; });
     var fs = db.finance.filter(function (f) { return f.workstream === ws; });
     if (!ts.length && !fs.length) return '';
     var done = ts.filter(isDone).length, ft2 = totals(fs);
@@ -1467,7 +1402,7 @@ function panel(title, count, body) { return '<div class="panel"><div class="pane
 function emptyBox(t, s) { return '<div class="empty"><b>' + esc(t) + '</b>' + esc(s) + '</div>'; }
 function more(n, lim, view) { return n > lim ? '<div style="padding:6px 14px"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">View all ' + n + ' →</button></div>' : ''; }
 function listRow(t) {
-  return '<div class="list-row" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0"><span>' + wsTags(t) + '</span><span class="t">' + esc(t.name) + '<br><span style="font-size:12px">' + dueLabel(t) + '</span></span><span>' + statusBadge(t.status) + '</span></div>';
+  return '<div class="list-row" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0"><span>' + wsTag(t.workstream) + '</span><span class="t">' + esc(t.name) + '<br><span style="font-size:12px">' + dueLabel(t) + '</span></span><span>' + statusBadge(t.status) + '</span></div>';
 }
 
 /* ---------- Tasks ---------- */
@@ -1482,12 +1417,11 @@ function dlCmp(a, b, dir) {
 function filteredTasks(view) {
   var q = ui.q.trim().toLowerCase();
   var list = db.tasks.filter(function (t) {
-    var taskWs = taskWorkstreams(t);
-    if (ui.fWs.length && !ui.fWs.some(function (w) { return taskWs.indexOf(w) > -1; })) return false;
+    if (ui.fWs.length && ui.fWs.indexOf(t.workstream) < 0) return false;
     if (ui.fStatus.length && ui.fStatus.indexOf(t.status) < 0) return false;
     if (ui.fSrc && t.source !== ui.fSrc) return false;
     if (!colFilterOk(t)) return false;
-    if (q && [t.name, taskWs.join(' '), t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
+    if (q && [t.name, t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
     if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || k === 'overdue')) return false; }
     return true;
@@ -1566,7 +1500,7 @@ function picDialog(id) {
     '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Batal</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'sm');
   document.getElementById('picForm').onsubmit = function (e) { e.preventDefault(); picSync(); t.pic = document.getElementById('f-pic').value; t.updatedAt = Date.now(); closeModal(); commit('PIC → ' + (t.pic || 'kosong')); };
 }
-function tlKey(t) { return (t.start || t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
+function tlKey(t) { return (t.deadline || '9999-99-99') + '|' + (t.deadline || '9999-99-99'); }
 /* ---------- Column filters: every header in the Task table can be filtered ---------- */
 var EMPTY_LABEL = '(kosong)';
 function customColByKey(k) { return colList('tasks').filter(function (c) { return c.custom && c.key === k; })[0] || null; }
@@ -1590,7 +1524,7 @@ function colVals(key, t) {
     case 'name': add(t.name); break;
     case 'notes': add(t.notes); break;
     case 'category': add(t.category); break;
-    case 'workstream': taskWorkstreams(t).forEach(function (w) { add(w); }); break;
+    case 'workstream': add(t.workstream); break;
     case 'pic': picsOf(t.pic).forEach(function (n) { add(n); }); break;
     case 'status': add(t.status, String(1000 + statusList().indexOf(t.status))); break;
     case 'start': case 'deadline': if (t[key]) add(fmtDate(t[key]), t[key]); break;
@@ -1694,7 +1628,7 @@ function sortTh(key, label, cls, extra) {
 function taskTable(list, compact, showBlockers) {
   var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
   var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
-  var h = '<div class="table-wrap"><table class="task-table"><thead><tr>' + cols.map(function (c) {
+  var h = '<div class="table-wrap"><table><thead><tr>' + cols.map(function (c) {
     var fk = c.custom ? 'cf:' + c.key : c.key, fb = filterBtn(fk, c.label);
     if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '', fb);
     return SORTABLE[c.key] ? sortTh(c.key, esc(c.label), '', fb) : '<th>' + esc(c.label) + ' ' + fb + '</th>';
@@ -1708,20 +1642,20 @@ function taskTable(list, compact, showBlockers) {
 }
 function taskCell(key, t) {
   switch (key) {
-    case 'name': return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
-    case 'workstream': return '<td>' + wsTags(t) + '</td>';
+    case 'name': return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + (isStation(t) ? ' <span class="need-chip">Need ' + needStats(t).ready + '/' + needStats(t).total + '</span>' : '') + '</span></td>';
+    case 'workstream': return '<td>' + wsTag(t.workstream) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
     case 'deadline':
       if (!canEdit()) return '<td>' + dueLabel(t) + '</td>';
       var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
-      return '<td class="dl-cell"><div class="dl-range"><input class="input dl-input dl-start" type="date" data-inline="start" data-id="' + t.id + '" value="' + esc(t.start || '') + '" title="Start date" aria-label="Start date ' + esc(t.name) + '"><span class="dl-sep" aria-hidden="true">–</span>' +
-        '<input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '"></div>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
+      return '<td class="dl-cell"><button type="button" class="dl-btn" data-act="edit-deadline" data-id="' + t.id + '" title="' + (t.start ? 'Mulai ' + fmtDate(t.start) + ' · ' : '') + 'Klik untuk ubah deadline / isi start date" aria-label="Deadline ' + esc(t.name) + ': klik untuk ubah">' +
+        (t.deadline ? '<span class="dl-date">' + fmtDate(t.deadline, true) + '</span>' : '<span class="faint">+ tanggal</span>') + '</button>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
       if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
       return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
-    case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
+    case 'notes': return '<td class="muted notes-cell">' + (t.notes ? '<div class="notes-wrap">' + esc(t.notes) + '</div>' : '<span class="faint">—</span>') + '</td>';
     case 'source': return '<td>' + srcTag(t.source) + '</td>';
     case 'payment':
       // paid so far, what is still outstanding, and which items are due when
@@ -1732,7 +1666,6 @@ function taskCell(key, t) {
         var vp = calc(viaVendor[0]).parent;
         return '<td class="pay-cell">' + payBadge(vp.paymentStatus) + '<div class="pc-sum"><span class="faint">dibayar lewat ' + esc(vp.item) + '</span></div></td>';
       }
-      fins = fins.filter(function (f) { return !calc(f).inherited; });
       var tt = totals(fins), allPaid = fins.every(function (f) { return payType(f.paymentStatus) === 'paid'; }), anyPaid = fins.some(function (f) { return payType(f.paymentStatus) !== 'unpaid'; });
       var due = fins.map(function (f) { return { f: f, c: calc(f) }; })
         .filter(function (x) { return !x.c.inherited && !x.c.allocation && x.c.outstanding > 0; })
@@ -1749,22 +1682,137 @@ function taskCell(key, t) {
   }
   return '<td></td>';
 }
+/* ===== Need per Station — checklist keperluan yang menempel di task (t.needs) =====
+   Satu station = satu task. Daftar need disimpan di dalam task itu sendiri, jadi ikut tersimpan,
+   ikut tersinkron, dan tidak butuh perubahan database. */
+var NEED_DESIGN = ["Doesn't Need", 'Not Started', 'In Progress', 'Done'];
+var NEED_SEED = [
+  { name: 'GX Access Point (Registrasi)', area: 'Basement', items: [
+    ['Meja', 1, "Doesn't Need", 1, ''], ['Kursi', 2, "Doesn't Need", 1, ''], ['Acrylic Stand', 1, 'Not Started', 1, 'Acrylic ke perlengkapan'],
+    ['Gelang', 800, 'In Progress', 0, ''], ['Kartu GX Game Pass', 800, 'In Progress', 0, 'Collect stamp kemenangan games untuk dapat extra merch'],
+    ['Stamp', 12, 'Not Started', 0, ''], ['Stock merch', 20, 'In Progress', 0, 'HANYA UNTUK YANG COMPLETE 6 STAMP GX GAME PASS!!!'],
+    ['PIC', '', "Doesn't Need", 0, ''], ['Tempat Sampah', '', 'In Progress', 0, ''] ] },
+  { name: 'DJ Bestman', area: 'Basement', items: [
+    ['Meja', 1, "Doesn't Need", 1, ''], ['Kursi', 1, "Doesn't Need", 1, ''], ['DJ Mixer', '', "Doesn't Need", 0, 'Dibawa dari DJ nya'] ] },
+  { name: 'GX Face Art (Face Painting)', area: 'Basement', items: [
+    ['Meja', 2, "Doesn't Need", 1, ''], ['Kursi', 6, "Doesn't Need", 1, ''], ['Acrylic Stand', 1, 'Not Started', 1, 'Acrylic ke perlengkapan'] ] },
+  { name: 'GX Create (DIY Tote Bag Printing)', area: 'Basement', items: [
+    ['Meja', 1, "Doesn't Need", 1, ''], ['Kursi', 1, "Doesn't Need", 1, ''], ['Acrylic Stand', 1, 'Not Started', 1, 'Acrylic ke perlengkapan'],
+    ['Kotak2 kecil', 15, "Doesn't Need", 1, 'Storage untuk film DTF'], ['Stop kontak', 2, "Doesn't Need", 1, 'Untuk 2 mini press heat'] ] },
+  { name: 'Tin Can Ball Toss & Ring Toss', area: 'Basement', items: [
+    ['T Banner', 2, 'Not Started', 1, 'How to win'], ['PIC', '', "Doesn't Need", 0, ''],
+    ['Stock merch per game', 40, 'In Progress', 0, '20 per game'], ['Stamp per game', 2, 'Not Started', 0, 'Masing-masing game 1 stamp'] ] },
+  { name: 'GX Wall of Wishes', area: 'Basement', note: 'Nanti nulis judul gede di boardnya.', items: [
+    ['Board', 1, "Doesn't Need", 1, ''], ['Spidol warna-warni', 5, "Doesn't Need", 0, ''] ] },
+  { name: 'People of GX', area: 'Parkiran Pak X', items: [ ['T Banner', 1, 'Not Started', 1, 'How to vote'] ] },
+  { name: 'GX Play Zone', area: 'Lt. 3', items: [
+    ['T Banner', 10, 'Not Started', 1, 'How to win'], ['Stock merch per game', 200, 'In Progress', 0, '20 per game'],
+    ['Stamp per game', 10, 'Not Started', 0, ''], ['T Banner GX Fortune', 1, 'Not Started', 1, 'Untuk di station tarot'] ] },
+  { name: 'GX HYROX Challenge', area: 'Lt. 4', items: [
+    ['T Banner', 10, 'Not Started', 1, 'How to win'], ['Stock merch per game', 200, 'In Progress', 0, '20 per game'],
+    ['Stamp per game', 10, 'Not Started', 0, ''], ['T Banner GX Fortune', 1, 'Not Started', 1, 'Untuk di station tarot'],
+    ['TV', 1, "Doesn't Need", 1, ''], ['Meja DJ', '', "Doesn't Need", 1, ''], ['Kursi DJ', '', "Doesn't Need", 1, ''] ] }
+];
+function isStation(t) { return Array.isArray(t.needs); }
+function needId() { return 'N' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+function needStats(t) {
+  var n = t.needs || [], ready = n.filter(function (x) { return x.ready; }).length;
+  var design = n.filter(function (x) { return x.design === 'Not Started' || x.design === 'In Progress'; }).length;
+  return { total: n.length, ready: ready, design: design, pct: n.length ? Math.round(ready / n.length * 100) : 0 };
+}
+function needDesignCls(d) { return d === 'Done' ? 'done' : d === 'In Progress' ? 'doing' : d === 'Not Started' ? 'todo' : 'none'; }
+function needsMini(t) {
+  var s = needStats(t);
+  return '<div><h4>Need per station · ' + s.ready + '/' + s.total + ' siap</h4>' + (t.needs.length ? '<ul class="need-mini">' + t.needs.map(function (x) {
+    return '<li class="' + (x.ready ? 'ok' : '') + '"><span aria-hidden="true">' + (x.ready ? '✅' : '❌') + '</span> ' + esc(x.item || '—') + (x.qty !== '' && x.qty != null ? ' <b>×' + esc(x.qty) + '</b>' : '') + '</li>';
+  }).join('') + '</ul>' : '<p class="faint">Belum ada need.</p>') + '<p style="margin-top:6px"><a href="#needs" data-act="go-needs">Buka di Need per Station →</a></p></div>';
+}
+function renderNeeds() {
+  var list = db.tasks.filter(isStation).sort(function (a, b) { return String(a.area || '~').localeCompare(String(b.area || '~')) || String(a.name).localeCompare(String(b.name)); });
+  var tot = 0, rdy = 0, dsg = 0;
+  list.forEach(function (t) { var s = needStats(t); tot += s.total; rdy += s.ready; dsg += s.design; });
+  var acts = '<button class="btn primary" data-act="new-station">+ Station baru</button>';
+  var h = pageHead('Need per Station', 'Checklist keperluan tiap station. Setiap station adalah sebuah task — buka task-nya untuk deadline, PIC, dan status.', acts);
+  if (!list.length) {
+    return h + '<div class="need-empty"><p>Belum ada station.</p><button class="btn primary" data-act="needs-seed">Isi dari sheet Need per Station</button> ' +
+      '<span class="muted">atau buat sendiri dengan “+ Station baru”, atau aktifkan checklist di task yang sudah ada (Tasks → buka baris → “+ Checklist need”).</span></div>';
+  }
+  h += '<div class="need-stats"><div><b>' + list.length + '</b><span>Station</span></div><div><b>' + rdy + '/' + tot + '</b><span>Perlengkapan siap</span></div><div><b>' + dsg + '</b><span>Design belum selesai</span></div></div>';
+  var lastArea = null;
+  list.forEach(function (t) {
+    var area = t.area || 'Tanpa lokasi', s = needStats(t);
+    if (area !== lastArea) { h += '<h2 class="need-area">' + esc(area) + '</h2>'; lastArea = area; }
+    var iid = esc(t.id);
+    h += '<section class="need-card"><div class="need-head"><div class="need-title"><h3>' + esc(t.name) + '</h3>' +
+      '<span class="muted">' + (t.deadline ? 'Deadline ' + fmtDate(t.deadline, true) + ' · ' : '') + statusBadge(t.status) + '</span>' +
+      (t.notes ? '<span class="muted need-note">' + esc(t.notes) + '</span>' : '') + '</div>' +
+      '<div class="need-prog" aria-label="' + s.ready + ' dari ' + s.total + ' siap"><b>' + s.ready + '/' + s.total + '</b><div class="need-bar"><i style="width:' + s.pct + '%"></i></div></div>' +
+      '<div class="need-actions"><input class="input need-area-in" id="area-' + iid + '" data-inline="need-area" data-id="' + iid + '" value="' + esc(t.area || '') + '" placeholder="Lokasi" aria-label="Lokasi ' + esc(t.name) + '" list="areaList">' +
+      '<button class="btn sm" data-act="edit-task" data-id="' + iid + '">Buka task</button></div></div>' +
+      '<div class="table-wrap"><table class="need-tbl"><colgroup><col style="width:40px"><col style="width:30%"><col style="width:76px"><col style="width:140px"><col style="width:104px"><col><col style="width:44px"></colgroup>' +
+      '<thead><tr><th>No</th><th>Keperluan</th><th>Qty</th><th>Design</th><th>Perlengkapan</th><th>Notes</th><th></th></tr></thead><tbody>' +
+      (t.needs.length ? t.needs.map(function (x, i) {
+        var b = 'data-inline="need" data-id="' + iid + '" data-nid="' + esc(x.id) + '"', k = 'n-' + esc(x.id) + '-';
+        return '<tr class="' + (x.ready ? 'need-ok' : '') + '"><td class="faint">' + (i + 1) + '</td>' +
+          '<td><input class="input" id="' + k + 'item" ' + b + ' data-f="item" value="' + esc(x.item) + '" aria-label="Keperluan"></td>' +
+          '<td><input class="input" id="' + k + 'qty" ' + b + ' data-f="qty" value="' + esc(x.qty == null ? '' : x.qty) + '" inputmode="numeric" aria-label="Qty"></td>' +
+          '<td><select class="input need-d-' + needDesignCls(x.design) + '" id="' + k + 'design" ' + b + ' data-f="design" aria-label="Design">' + NEED_DESIGN.map(function (d) { return '<option' + (d === x.design ? ' selected' : '') + '>' + esc(d) + '</option>'; }).join('') + '</select></td>' +
+          '<td class="need-chk"><label><input type="checkbox" id="' + k + 'ready" ' + b + ' data-f="ready"' + (x.ready ? ' checked' : '') + '> <span>' + (x.ready ? '✅ Siap' : '❌ Belum') + '</span></label></td>' +
+          '<td><textarea class="input need-notes" id="' + k + 'notes" ' + b + ' data-f="notes" rows="1" aria-label="Notes">' + esc(x.notes) + '</textarea></td>' +
+          '<td><button class="btn sm ghost" data-act="need-del" data-id="' + iid + '" data-nid="' + esc(x.id) + '" aria-label="Hapus ' + esc(x.item) + '">✕</button></td></tr>';
+      }).join('') : '<tr><td colspan="7" class="faint" style="padding:12px">Belum ada need.</td></tr>') +
+      '</tbody></table></div><div class="need-foot"><button class="btn sm" data-act="need-add" data-id="' + iid + '">+ Tambah need</button></div></section>';
+  });
+  var areas = {}; db.tasks.forEach(function (t) { if (t.area) areas[t.area] = 1; });
+  return h + '<datalist id="areaList">' + Object.keys(areas).map(function (a) { return '<option value="' + esc(a) + '">'; }).join('') + '</datalist>';
+}
+function stationForm() {
+  openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Station baru</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b form-grid">' +
+    field('name', 'Nama station', inp('name', '', 'text', 'maxlength="160" required'), { req: true, full: true, hint: 'Station ini otomatis juga menjadi sebuah task.' }) +
+    field('area', 'Lokasi', inp('area', '', 'text', 'list="areaList" placeholder="Basement, Lt. 3, …"')) +
+    field('deadline', 'Deadline (opsional)', inp('deadline', '', 'date')) +
+    '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Buat station</button></div></div></form>', 'sm');
+  document.getElementById('stForm').onsubmit = function (e) {
+    e.preventDefault();
+    var fd = new FormData(e.target), v = {}; fd.forEach(function (val, k) { v[k] = String(val).trim(); });
+    if (!v.name) { showErrors(e.target, { name: 'Nama station wajib diisi.' }); return; }
+    var o = newStationTask(v.name, v.area, v.deadline, '', []); db.tasks.push(o); closeModal(); commit('Station dibuat');
+  };
+}
+function newStationTask(name, area, deadline, note, needs) {
+  return { id: nextId('T'), createdAt: Date.now(), updatedAt: Date.now(), name: name, workstream: 'Event Day', category: 'Procurement', start: '', deadline: deadline || '',
+    pic: '', status: defaultStatus(), notes: note || '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', area: area || '', needs: needs };
+}
+function seedNeeds() {
+  var have = {}; db.tasks.forEach(function (t) { have[String(t.name).toLowerCase()] = 1; });
+  var n = 0;
+  NEED_SEED.forEach(function (s) {
+    if (have[s.name.toLowerCase()]) return;
+    db.tasks.push(newStationTask(s.name, s.area, '', s.note, s.items.map(function (r) { return { id: needId(), item: r[0], qty: r[1], design: r[2], ready: !!r[3], notes: r[4] }; }))); n++;
+  });
+  commit(n ? n + ' station ditambahkan' : 'Semua station sudah ada');
+}
+function needChange(t) {
+  var tk = taskById(t.dataset.id); if (!tk) return;
+  if (t.dataset.inline === 'need-area') { tk.area = t.value.trim(); tk.updatedAt = Date.now(); commit(); return; }
+  var nd = (tk.needs || []).filter(function (x) { return x.id === t.dataset.nid; })[0]; if (!nd) return;
+  var f = t.dataset.f;
+  nd[f] = f === 'ready' ? t.checked : t.value.trim();
+  tk.updatedAt = Date.now(); commit();
+}
 function taskDetail(t) {
   var fins = finForTask(t.id);
-  var finInh = fins.filter(function (f) { return calc(f).inherited; }), finOwn = fins.filter(function (f) { return !calc(f).inherited; });
-  if (!finOwn.length) { finOwn = fins; finInh = []; }
-  var finHtml = finOwn.length ? finOwn.map(function (f) {
+  var finHtml = fins.length ? fins.map(function (f) {
     var c = calc(f);
     return '<div class="fin-item"><span><a href="#finance" data-act="edit-fin" data-id="' + f.id + '">' + esc(f.item) + '</a><br>' + payBadge(f.paymentStatus) + ' ' + invBadge(f.invoiceStatus) + '</span><span class="num r" style="text-align:right">' + rp(c.base) + '<br><span class="muted" style="font-size:12px">sisa ' + rp(c.outstanding) + '</span></span></div>';
-  }).join('') + (finInh.length ? '<details class="fin-incl"><summary>' + finInh.length + ' item termasuk di invoice di atas</summary>' + finInh.map(function (f) {
-    return '<div class="fin-item"><span><a href="#finance" data-act="edit-fin" data-id="' + f.id + '">' + esc(f.item) + '</a> ' + invBadge(f.invoiceStatus) + '</span><span class="num r" style="text-align:right">' + rp(calc(f).est) + '</span></div>';
-  }).join('') + '</details>' : '') : '<p class="faint">No finance record linked.</p>';
+  }).join('') : '<p class="faint">No finance record linked.</p>';
   return '<div class="detail">' +
     '<div><h4>Notes</h4><p>' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</p></div>' +
+    (isStation(t) ? needsMini(t) : '') +
 
     '<div><h4>Finance (payment tracked separately)</h4>' + finHtml + '</div>' +
-    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit task' : 'View details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
-    '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(taskWorkstreams(t).join(', ')) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
+    '<div class="actions">' + (!isStation(t) && canEdit() ? '<button class="btn sm" data-act="need-enable" data-id="' + t.id + '">+ Checklist need</button>' : '') + '<button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit task' : 'View details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
+    '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(t.workstream) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
 }
 function renderTimeline(list) {
   var dated = list.filter(function (t) { return t.deadline; }), undated = list.filter(function (t) { return !t.deadline; });
@@ -1782,12 +1830,12 @@ function renderTimeline(list) {
       var past = g.end < today;
       h += '<div class="tl-day' + (isEvent ? ' tl-event' : '') + '"><div class="tl-date' + (past ? ' past' : '') + '"><span class="dot"></span>' + label.toUpperCase() + '</div><div class="tl-items">' +
         g.items.map(function (t) {
-          return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTags(t) + '<span>' + esc(t.name) + (t.notes ? ' <span class="' + (isEvent ? '' : 'muted') + '" style="opacity:.75">· ' + esc(t.notes.split('\n')[0]) + '</span>' : '') + '</span>' + statusBadge(t.status) + '</div>';
+          return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTag(t.workstream) + '<span>' + esc(t.name) + (t.notes ? ' <span class="' + (isEvent ? '' : 'muted') + '" style="opacity:.75">· ' + esc(t.notes.split('\n')[0]) + '</span>' : '') + '</span>' + statusBadge(t.status) + '</div>';
         }).join('') + '</div></div>';
     });
     h += '</div>';
   });
-  if (undated.length) h += '<div class="tl-month"><h3>No deadline yet</h3><div class="tl-items">' + undated.map(function (t) { return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTags(t) + '<span>' + esc(t.name) + ' ' + srcTag(t.source) + '</span>' + statusBadge(t.status) + '</div>'; }).join('') + '</div></div>';
+  if (undated.length) h += '<div class="tl-month"><h3>No deadline yet</h3><div class="tl-items">' + undated.map(function (t) { return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTag(t.workstream) + '<span>' + esc(t.name) + ' ' + srcTag(t.source) + '</span>' + statusBadge(t.status) + '</div>'; }).join('') + '</div></div>';
   return h;
 }
 
@@ -1813,12 +1861,6 @@ function finCategories() {
   return Object.keys(order).sort(function (a, b) { return order[a] - order[b]; });
 }
 function rowOrder(a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); }
-// a vendor invoice with line items: the Doorprize group starts folded (the prizes are included in the invoice row), other groups start open
-function finCollapsed(f) {
-  if (ui.finQ || ui.finWs || ui.finPay || ui.finInv) return false;      // while searching/filtering, show everything
-  var o = (ui.finOpen || {})[f.id];
-  return o === undefined ? f.workstream === 'Doorprize' : !o;
-}
 function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
@@ -1889,7 +1931,6 @@ function renderFinance() {
     }
     var cell = {
       item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') +
-        (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
         (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub item</button>' : '') + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
@@ -1913,9 +1954,8 @@ function renderFinance() {
     g.forEach(function (f) {
       if (f.parentId && inList[f.parentId]) return;
       var kids = g.filter(function (k) { return k.parentId === f.id; });
-      var folded = f.kind === 'vendor' && kids.length > 0 && finCollapsed(f);
-      body += row(f, !!f.parentId, f.kind === 'vendor' && !folded ? 1 + kids.length : 1, false);
-      if (!folded) kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
+      body += row(f, !!f.parentId, f.kind === 'vendor' ? 1 + kids.length : 1, false);
+      kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
     });
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(auto)</span>', st);
   });
@@ -1952,7 +1992,7 @@ function renderCalendar() {
     '<div class="legend"><span><i style="background:var(--crit-bg);border:1px solid var(--crit)"></i>Overdue</span><span><i style="background:var(--warn-bg);border:1px solid var(--warn)"></i>Due ≤3 days</span><span><i style="background:var(--accent)"></i>Preparation deadline</span><span><i style="background:var(--accent-soft)"></i>Event Day</span><span style="text-decoration:line-through">Done</span></div></div>';
   var overdue = db.tasks.filter(function (t) { return dueState(t).kind === 'overdue'; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   var next7 = db.tasks.filter(function (t) { var s = dueState(t); return s.kind !== 'done' && s.kind !== 'none' && s.days >= 0 && s.days <= 7; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
-  function sideRow(t) { return '<div class="item"><span class="t" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0" title="' + esc(t.name) + '">' + esc(t.name) + '<br><span style="font-size:11.5px">' + wsTags(t) + ' ' + dueLabel(t) + '</span></span><input class="input" type="date" id="dl-' + t.id + '" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline) + '" aria-label="Deadline for ' + esc(t.name) + '"></div>'; }
+  function sideRow(t) { return '<div class="item"><span class="t" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0" title="' + esc(t.name) + '">' + esc(t.name) + '<br><span style="font-size:11.5px">' + wsTag(t.workstream) + ' ' + dueLabel(t) + '</span></span><input class="input" type="date" id="dl-' + t.id + '" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline) + '" aria-label="Deadline for ' + esc(t.name) + '"></div>'; }
   h += '<div style="display:flex;flex-direction:column;gap:16px">' +
     panel('Overdue', overdue.length, overdue.length ? '<div class="side-list">' + overdue.map(sideRow).join('') + '</div>' : emptyBox('Nothing overdue', 'All past deadlines are done.')) +
     panel('Next 7 days', next7.length, next7.length ? '<div class="side-list">' + next7.map(sideRow).join('') + '</div>' : emptyBox('Clear week', 'No deadlines in the next 7 days.')) + '</div></div>';
@@ -1998,35 +2038,12 @@ function confirmDialog(title, message, yesLabel, onYes) {
 }
 
 function withCurrent(list, v) { return v && list.indexOf(v) < 0 ? list.concat([v]) : list; }
-function wsField(t) {
-  var selected = taskWorkstreams(t), names = allWorkstreams();
-  selected.forEach(function (w) { if (names.indexOf(w) < 0) names.push(w); });
-  return '<div class="pic-pick" id="wsPick">' + names.map(function (w) {
-    return '<label class="pic-opt"><input type="checkbox" class="ws-cb" value="' + esc(w) + '"' + (selected.indexOf(w) > -1 ? ' checked' : '') + '> ' + esc(w) + '</label>';
-  }).join('') + '</div>' +
-    (canEdit() ? '<div class="pic-new"><input class="input" id="wsNewName" placeholder="Tambah workstream baru" maxlength="60"><button type="button" class="btn sm" data-act="ws-add-inline">+ Tambah</button> <a href="#" data-act="manage-ws" class="hint">Kelola workstream</a></div>' : '') +
-    '<input type="hidden" id="f-workstreams" name="workstreams" value="' + esc(JSON.stringify(selected)) + '">';
-}
-function wsSync() {
-  var hidden = document.getElementById('f-workstreams'), box = document.getElementById('wsPick');
-  if (!hidden || !box) return;
-  hidden.value = JSON.stringify([].map.call(box.querySelectorAll('.ws-cb:checked'), function (c) { return c.value; }));
-}
-function wsAddInline() {
-  var el = document.getElementById('wsNewName'), n = (el && el.value || '').trim();
-  if (!n) { if (el) el.focus(); return; }
-  if (!db.settings.workstreams.some(function (x) { return x.toLowerCase() === n.toLowerCase(); })) { db.settings.workstreams.push(n); persist(db); }
-  var box = document.getElementById('wsPick'), ex = [].filter.call(box.querySelectorAll('.ws-cb'), function (c) { return c.value.toLowerCase() === n.toLowerCase(); })[0];
-  if (ex) ex.checked = true;
-  else { var l = document.createElement('label'); l.className = 'pic-opt'; l.innerHTML = '<input type="checkbox" class="ws-cb" value="' + esc(n) + '" checked> ' + esc(n); box.appendChild(l); }
-  el.value = ''; wsSync(); toast('"' + n + '" ditambahkan ke daftar workstream');
-}
 function taskForm(t, preset) {
   var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '2026-10-01', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
-    field('workstream', 'Workstream', wsField(t), { req: true, hint: 'Boleh pilih lebih dari satu' }) +
+    field('workstream', 'Workstream', inp('workstream', t.workstream, 'text', 'list="wsList" required') + wsList, { req: true, hint: 'Pilih dari list atau ketik baru' }) +
     field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola kategori</a>' : '' }) +
     field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
@@ -2039,16 +2056,12 @@ function taskForm(t, preset) {
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
   document.getElementById('taskForm').onsubmit = function (e) {
     e.preventDefault();
-    wsSync();
     var fd = new FormData(e.target), v = {};
     fd.forEach(function (val, k) { v[k] = String(val).trim(); });
-    try { v.workstreams = JSON.parse(v.workstreams || '[]'); } catch (err) { v.workstreams = []; }
-    if (!Array.isArray(v.workstreams)) v.workstreams = [];
-    v.workstream = v.workstreams[0] || '';   // first one kept for older data and other pages
     var cfr = takeCf('tasks', v, t.cf), errs = cfr.errs;
     if (Object.keys(cfr.cf).length || t.cf) v.cf = cfr.cf;
     if (!v.name) errs.name = 'Task name is required.';
-    if (!v.workstreams.length) errs.workstream = 'Pick at least one workstream.';
+    if (!v.workstream) errs.workstream = 'Pick or type a workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
     if (Object.keys(errs).length) return showErrors(e.target, errs);
     if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
@@ -2154,10 +2167,12 @@ function deleteFin(id) {
 function deadlineDialog(id) {
   var t = taskById(id); if (!t) return;
   openModal('<form id="dlForm" novalidate><div class="modal-h"><h3>' + esc(t.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
-    '<div class="field full">' + wsTags(t) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
-    field('start', 'Start date', inp('start', t.start, 'date')) + field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
+    '<div class="field full">' + wsTag(t.workstream) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted notes-wrap" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
+    field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) + field('start', 'Start date (opsional)', inp('start', t.start, 'date')) +
+    '<div class="field full"><span class="muted dl-hint">Kosongkan start date kalau ini hanya deadline.</span></div>' +
     field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status)) +
-    '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
+    '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn ghost" id="dlClearStart">Hapus start</button><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
+  document.getElementById('dlClearStart').onclick = function () { document.getElementById('dlForm').start.value = ''; };
   document.getElementById('dlForm').onsubmit = function (e) {
     e.preventDefault();
     var s = e.target.start.value, d = e.target.deadline.value, st = e.target.status.value;
@@ -2312,13 +2327,18 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['ws-add-inline','manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['new-station','needs-seed','need-add','need-del','need-enable','edit-deadline','manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
   switch (act) {
-    case 'fin-toggle': { var ft = finById(id); if (ft) { ui.finOpen = ui.finOpen || {}; ui.finOpen[id] = finCollapsed(ft); render(); } break; }
     case 'new-task': taskForm(null); break;
+    case 'new-station': stationForm(); break;
+    case 'needs-seed': seedNeeds(); break;
+    case 'go-needs': e.preventDefault(); go('needs'); break;
+    case 'need-add': { var tn = taskById(id); if (tn && Array.isArray(tn.needs)) { var nn = { id: needId(), item: '', qty: '', design: "Doesn't Need", ready: false, notes: '' }; tn.needs.push(nn); tn.updatedAt = Date.now(); commit(); setTimeout(function () { var el = document.getElementById('n-' + nn.id + '-item'); if (el) el.focus(); }, 0); } break; }
+    case 'need-del': { var td = taskById(id); if (td && td.needs) { td.needs = td.needs.filter(function (x) { return x.id !== el.dataset.nid; }); td.updatedAt = Date.now(); commit(); } break; }
+    case 'need-enable': { var te = taskById(id); if (te && !Array.isArray(te.needs)) { te.needs = []; te.updatedAt = Date.now(); commit('Checklist need aktif'); go('needs'); } break; }
     case 'rd-toggle': ui.rdOpen = ui.rdOpen === id ? null : id; render(); break;
     case 'rd-open': rdOpenDialog(id); break;
     case 'new-zone': zoneForm(null); break;
@@ -2335,7 +2355,6 @@ function handleAct(el, e) {
     case 'manage-pay': e.preventDefault(); closeModal(); payManager(); break;
     case 'pick-pic': picDialog(id); break;
     case 'pic-add-inline': picAddInline(); break;
-    case 'ws-add-inline': wsAddInline(); break;
     case 'manage-columns': e.preventDefault(); closeModal(); columnManager(el.dataset.table); break;
     case 'col-tab': if (colApply(document.querySelector('#colForm [aria-selected="true"]').dataset.table)) { persist(db); render(); } closeModal(); columnManager(el.dataset.table); break;
     case 'col-add': colAdd(el.dataset.table); break;
@@ -2395,6 +2414,7 @@ function handleAct(el, e) {
     case 'cal-prev': case 'cal-next':
       var p = ui.calMonth.split('-'), d = new Date(+p[0], +p[1] - 1 + (act === 'cal-next' ? 1 : -1), 1); ui.calMonth = toISO(d).slice(0, 7); render(); break;
     case 'cal-today': ui.calMonth = todayISO().slice(0, 7); render(); break;
+    case 'edit-deadline': deadlineDialog(id); break;
     case 'cal-chip': if (canEdit()) deadlineDialog(id); else { closeModal(); taskForm(taskById(id)); } break;
     case 'cal-day': dayDialog(el.dataset.date); break;
     case 'modal-cancel': closeModal(); break;
@@ -2415,21 +2435,15 @@ main.addEventListener('input', function (e) {
   else if (t.id === 'rdSearch') { ui.rdQ = t.value; render(); }
   else if (t.id === 'finSearch') { ui.finQ = t.value; render(); }
 });
-document.addEventListener('change', function (e) {
-  var c = e.target.classList; if (!c) return;
-  if (c.contains('pic-cb')) picSync();
-  if (c.contains('ws-cb')) wsSync();
-});
+document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('pic-cb')) picSync(); });
 // multi-select dropdowns: remember which one is open across re-renders, close when clicking elsewhere
 document.addEventListener('toggle', function (e) { var b = e.target; if (b.dataset && b.dataset.msBox) { if (b.open) ui.msOpen = b.dataset.msBox; else if (ui.msOpen === b.dataset.msBox) ui.msOpen = ''; } }, true);
 document.addEventListener('click', function (e) { document.querySelectorAll('details.msel[open]').forEach(function (d) { if (!d.contains(e.target)) { d.open = false; ui.msOpen = ''; } }); });
-document.addEventListener('keydown', function (e) {
-  if (e.key === 'Enter' && e.target.id === 'picNewName') { e.preventDefault(); picAddInline(); }
-  if (e.key === 'Enter' && e.target.id === 'wsNewName') { e.preventDefault(); wsAddInline(); }
-});
+document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'picNewName') { e.preventDefault(); picAddInline(); } });
 main.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.inline && !canEdit()) return;
+  if (t.dataset.inline === 'need' || t.dataset.inline === 'need-area') { needChange(t); return; }
   if (t.dataset.ms) {
     var key = t.dataset.ms, arr = (ui[key] || []).filter(function (x) { return x !== t.value; });
     if (t.checked) arr.push(t.value);
@@ -2471,7 +2485,7 @@ main.addEventListener('change', function (e) {
     commit('Start date → ' + (t.value ? fmtDate(t.value, true) : 'kosong'));
   }
 });
-window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
+window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','rundown','overview','tasks','needs','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
 window.addEventListener('storage', function (e) { if (MODE === 'local' && e.key === STORE_KEY && e.newValue) { try { db = JSON.parse(e.newValue); render(); toast('Updated from another tab'); } catch (x) {} } });
 
 /* ================= Public API (used by admin.js) ================= */
