@@ -1,20 +1,23 @@
-GX27 - Patch: Need per Station + kolom Task dilebarkan
+GX27 - Patch: 3 permintaan + Need per Station
 
-Dasar: file terbaru dari doorprize-merged-FILES-ONLY.zip.
-File di zip ini: needs.js (BARU), index.html, styles.css. app.js TIDAK diubah.
+Dasar: gxtimeline-all-features-multiworkstream.zip (sudah ada filter kolom & multi-workstream),
+ditambah fitur dari doorprize-merged-FILES-ONLY.zip yang dipindahkan ke dalamnya.
 
-1. Upload 3 file ini ke repo GitHub (needs.js baru, index.html & styles.css menimpa yang lama).
+File di zip ini: app.js, styles.css, index.html, needs.js (BARU). File lain tidak berubah. Tidak perlu SQL.
+
+1. Upload 4 file ke repo GitHub (timpa yang lama, needs.js file baru).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-Perubahan:
-- index.html : ditambah 1 baris <script src="/needs.js..."> setelah app.js; versi cache dinaikkan.
-- styles.css : kolom Task di halaman Tasks dilebarkan (nama task min 380px, baris keterangan maks 560px).
-- needs.js   : menu "Need per Station" di sidebar (di bawah Tasks).
-    * Satu station = satu task. Daftar need disimpan di dalam task itu (task.needs), jadi ikut
-      tersimpan/tersinkron seperti task biasa. Tidak perlu SQL.
-    * Kolom: Keperluan, Qty, Design, Perlengkapan (checklist), Notes (teks tetap di dalam kolom).
-    * Pertama kali: klik "Isi dari sheet Need per Station" untuk memasukkan 9 station dari sheet.
-    * Di Tasks: station punya label "Need x/y"; checklist tampil saat baris dibuka.
-      Task biasa bisa dijadikan station lewat "+ Checklist need".
+PERUBAHAN
+1. Kolom tabel Tasks pas di layar (tanpa scroll ke samping). Lebar kolom dibagi otomatis; teks panjang turun ke baris
+   berikutnya. Di layar HP (<760px) tabel boleh digeser supaya tetap terbaca.
+2. Edit task: workstream bisa dipilih lebih dari satu (centang). Workstream pertama tetap jadi workstream utama.
+3. Finance <-> Task:
+   - Semua item Doorprize ada di SATU task "Doorprize procurement".
+   - Item di dalam invoice vendor tampil terlipat ("Tampilkan 21 item") di Finance, dan di detail task muncul
+     "21 item termasuk di invoice di atas" (bisa dibuka).
+   - Invoice status item yang termasuk di invoice otomatis mengikuti baris paling atas (mis. Submitted).
+     Berlaku untuk semua invoice vendor, bukan hanya Doorprize.
+4. Need per Station (needs.js): menu di bawah Tasks. Klik "Isi dari sheet Need per Station" untuk 9 station awal.
 
-Kalau mau menghapus fitur: hapus baris <script src="/needs.js..."> di index.html.
+Menghapus Need per Station: hapus baris <script src="/needs.js..."> di index.html.
