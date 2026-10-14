@@ -309,9 +309,6 @@ function applyTodoV1(d) {
   });
   d.todoV1 = true;
 }
-function linkDoorprizeRows(d, task) {
-  d.finance.forEach(function (f) { if (f.workstream === 'Doorprize' && f.taskId !== task.id) { f.taskId = task.id; f.updatedAt = Date.now(); } });
-}
 function normalizeDb(d) {
   d = d && typeof d === 'object' ? d : {};
   if (!Array.isArray(d.tasks)) d.tasks = [];
@@ -342,7 +339,7 @@ function normalizeDb(d) {
     d.taskFieldsV2 = true;
   }
   [['taskCategories', d.tasks.map(function (t) { return t.category; })],
-   ['workstreams', d.tasks.concat(d.finance).map(function (r) { return r.workstream; })],
+   ['workstreams', [].concat.apply([], d.tasks.concat(d.finance).map(function (r) { return (Array.isArray(r.workstreams) ? r.workstreams : []).concat([r.workstream]); }))],
    ['pics', [].concat.apply([], d.tasks.concat(d.rundown || []).map(function (t) { return picsOf(t.pic); }))]].forEach(function (x) {
     x[1].forEach(function (v) { if (v && s[x[0]].indexOf(v) < 0) s[x[0]].push(v); });
   });
@@ -373,20 +370,6 @@ function normalizeDb(d) {
       if (OLD[c.key] && c.label === OLD[c.key]) c.label = builtinCol('finance', c.key).label;
     });
     s.finMinimal = true;
-  }
-  if (!d.doorprizeOne) {   // one time: link all Doorprize budget rows to the single task
-    if (d.finance.some(function (f) { return f.workstream === 'Doorprize'; })) {
-      var door = d.tasks.filter(function (t) { return t.name === 'Doorprize procurement'; })[0];
-      if (!door) {
-        var todo = (s.taskStatuses.filter(function (x) { return x.type === 'todo'; })[0] || s.taskStatuses[0]).name, nowT = Date.now();
-        door = { id: 'TF-DOORPRIZE', name: 'Doorprize procurement', workstream: 'Doorprize', category: 'Procurement', start: '', deadline: '', pic: '', status: todo,
-          notes: 'Semua item doorprize (belanja Shopee), terhubung ke budget di Finance.', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', createdAt: nowT, updatedAt: nowT };
-        d.tasks.push(door);
-      }
-      if (String(door.verifyNote || '').indexOf('Task dibuat untuk menampung baris budget') === 0) { door.verifyNote = ''; door.source = 'confirmed'; }
-      linkDoorprizeRows(d, door);
-    }
-    d.doorprizeOne = true;
   }
   d.settings = s;
   // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
@@ -638,8 +621,6 @@ function applyBudgetSeed(d) {
     f.createdAt = f.updatedAt = now;
     out.push(f);
   });
-  var doorT = d.tasks.filter(function (t) { return t.name === 'Doorprize procurement'; })[0];
-  if (doorT) out.forEach(function (f) { if (f.workstream === 'Doorprize') f.taskId = doorT.id; });
   d.finance = out; d.meta = SHEET_SEED.meta; d.budgetSeedHash = budgetSeedHash(); d.financeHashAtSeed = financeHash(out);
   delete d.financeCleared;
   return d;
@@ -739,9 +720,23 @@ function nextId(prefix) {
 function taskById(id) { for (var i = 0; i < db.tasks.length; i++) if (db.tasks[i].id === id) return db.tasks[i]; return null; }
 function finById(id) { for (var i = 0; i < db.finance.length; i++) if (db.finance[i].id === id) return db.finance[i]; return null; }
 function finForTask(id) { return db.finance.filter(function (f) { return f.taskId === id; }); }
+// a task can belong to several workstreams (t.workstreams); t.workstream (the first one) is kept for older data and other pages
+function taskWorkstreams(t) {
+  var list = Array.isArray(t.workstreams) ? t.workstreams.slice() : [];
+  if (t.workstream && list.indexOf(t.workstream) < 0) list.unshift(t.workstream);
+  return list.filter(function (w, i, a) { return w && a.indexOf(w) === i; });
+}
+function wsTags(t) {
+  var list = taskWorkstreams(t);
+  return list.length ? list.map(function (w) { return wsTag(w); }).join(' ') : wsTag('');
+}
 function allWorkstreams() {
   var set = (db.settings.workstreams || []).slice();
-  db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream && set.indexOf(r.workstream) < 0) set.push(r.workstream); });
+  db.tasks.concat(db.finance).forEach(function (r) {
+    var list = Array.isArray(r.workstreams) ? r.workstreams.slice() : [];
+    if (r.workstream && list.indexOf(r.workstream) < 0) list.push(r.workstream);
+    list.forEach(function (w) { if (w && set.indexOf(w) < 0) set.push(w); });
+  });
   return set;
 }
 
@@ -1182,7 +1177,7 @@ function payManager() {
 function catUsage(kind, name) {
   if (kind === 'pic') return { tasks: db.tasks.concat(db.rundown || []).filter(function (t) { return picsOf(t.pic).indexOf(name) > -1; }).length, finance: 0 };
   if (kind === 'category') return { tasks: db.tasks.filter(function (t) { return t.category === name; }).length, finance: 0 };
-  return { tasks: db.tasks.filter(function (t) { return t.workstream === name; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
+  return { tasks: db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(name) > -1; }).length, finance: db.finance.filter(function (f) { return f.workstream === name; }).length };
 }
 function categoryManager(kind) {
   kind = kind || 'category';
@@ -1218,7 +1213,15 @@ function catRename(kind, from, to) {
   var n = 0;
   if (kind === 'pic') db.tasks.concat(db.rundown || []).forEach(function (t) { var a = picsOf(t.pic), k = a.indexOf(from); if (k > -1) { a[k] = to; t.pic = picJoin(a); t.updatedAt = Date.now(); n++; } });
   else if (kind === 'category') db.tasks.forEach(function (t) { if (t.category === from) { t.category = to; t.updatedAt = Date.now(); n++; } });
-  else db.tasks.concat(db.finance).forEach(function (r) { if (r.workstream === from) { r.workstream = to; r.updatedAt = Date.now(); n++; } });
+  else db.tasks.concat(db.finance).forEach(function (r) {
+    var hit = r.workstream === from;
+    if (hit) r.workstream = to;
+    if (Array.isArray(r.workstreams) && r.workstreams.indexOf(from) > -1) {
+      r.workstreams = r.workstreams.map(function (w) { return w === from ? to : w; }).filter(function (w, i, a) { return a.indexOf(w) === i; });
+      hit = true;
+    }
+    if (hit) { r.updatedAt = Date.now(); n++; }
+  });
   if (kind === 'workstream') ui.fWs = ui.fWs.map(function (x) { return x === from ? to : x; });
   if (kind === 'workstream' && ui.finWs === from) ui.finWs = to;
   return n;
@@ -1355,7 +1358,7 @@ function renderOverview() {
 
   // Workstream summary + verification
   var wsRows = allWorkstreams().map(function (ws) {
-    var ts = db.tasks.filter(function (t) { return t.workstream === ws; });
+    var ts = db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(ws) > -1; });
     var fs = db.finance.filter(function (f) { return f.workstream === ws; });
     if (!ts.length && !fs.length) return '';
     var done = ts.filter(isDone).length, ft2 = totals(fs);
@@ -1376,17 +1379,18 @@ function panel(title, count, body) { return '<div class="panel"><div class="pane
 function emptyBox(t, s) { return '<div class="empty"><b>' + esc(t) + '</b>' + esc(s) + '</div>'; }
 function more(n, lim, view) { return n > lim ? '<div style="padding:6px 14px"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">View all ' + n + ' →</button></div>' : ''; }
 function listRow(t) {
-  return '<div class="list-row" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0"><span>' + wsTag(t.workstream) + '</span><span class="t">' + esc(t.name) + '<br><span style="font-size:12px">' + dueLabel(t) + '</span></span><span>' + statusBadge(t.status) + '</span></div>';
+  return '<div class="list-row" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0"><span>' + wsTags(t) + '</span><span class="t">' + esc(t.name) + '<br><span style="font-size:12px">' + dueLabel(t) + '</span></span><span>' + statusBadge(t.status) + '</span></div>';
 }
 
 /* ---------- Tasks ---------- */
 function filteredTasks(view) {
   var q = ui.q.trim().toLowerCase();
   var list = db.tasks.filter(function (t) {
-    if (ui.fWs.length && ui.fWs.indexOf(t.workstream) < 0) return false;
+    var taskWs = taskWorkstreams(t);
+    if (ui.fWs.length && !ui.fWs.some(function (w) { return taskWs.indexOf(w) > -1; })) return false;
     if (ui.fStatus.length && ui.fStatus.indexOf(t.status) < 0) return false;
     if (ui.fSrc && t.source !== ui.fSrc) return false;
-    if (q && [t.name, t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
+    if (q && [t.name, taskWs.join(' '), t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
     if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || k === 'overdue')) return false; }
     return true;
@@ -1425,7 +1429,7 @@ function renderTasks() {
   if (ui.taskView === 'timeline') return h + renderTimeline(list);
   if (ui.taskView === 'operational') {
     var groups = {};
-    list.forEach(function (t) { (groups[t.workstream] = groups[t.workstream] || []).push(t); });
+    list.forEach(function (t) { taskWorkstreams(t).forEach(function (w) { (groups[w] = groups[w] || []).push(t); }); });
     return h + allWorkstreams().filter(function (w) { return groups[w]; }).map(function (w) {
       var g = groups[w], done = g.filter(isDone).length;
       return '<div style="margin-bottom:18px"><div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">' + wsTag(w) + '<span class="muted num" style="font-size:12px">' + done + '/' + g.length + ' done</span></div>' + taskTable(g, true) + '</div>';
@@ -1481,7 +1485,7 @@ function sortTh(key, label, cls) {
 function taskTable(list, compact, showBlockers) {
   var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
   var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
-  var h = '<div class="table-wrap"><table class="task-table"><thead><tr>' + cols.map(function (c) {
+  var h = '<div class="table-wrap"><table><thead><tr>' + cols.map(function (c) {
     if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '');
     return SORTABLE[c.key] ? sortTh(c.key, esc(c.label)) : '<th>' + esc(c.label) + '</th>';
   }).join('') + '</tr></thead><tbody>';
@@ -1495,7 +1499,7 @@ function taskTable(list, compact, showBlockers) {
 function taskCell(key, t) {
   switch (key) {
     case 'name': return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
-    case 'workstream': return '<td>' + wsTag(t.workstream) + '</td>';
+    case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
     case 'deadline': return '<td>' + dueLabel(t) + '</td>';
@@ -1509,8 +1513,6 @@ function taskCell(key, t) {
       // paid so far, what is still outstanding, and which items are due when
       var fins = finForTask(t.id);
       if (!fins.length) return '<td><span class="faint">—</span></td>';
-      var ownFins = fins.filter(function (f) { return !calc(f).inherited; });
-      if (ownFins.length) fins = ownFins;
       var tt = totals(fins), allPaid = fins.every(function (f) { return payType(f.paymentStatus) === 'paid'; }), anyPaid = fins.some(function (f) { return payType(f.paymentStatus) !== 'unpaid'; });
       var due = fins.map(function (f) { return { f: f, c: calc(f) }; })
         .filter(function (x) { return !x.c.inherited && !x.c.allocation && x.c.outstanding > 0; })
@@ -1538,7 +1540,7 @@ function taskDetail(t) {
 
     '<div><h4>Finance (payment tracked separately)</h4>' + finHtml + '</div>' +
     '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit task' : 'View details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
-    '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(t.workstream) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
+    '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(taskWorkstreams(t).join(', ')) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
 }
 function renderTimeline(list) {
   var dated = list.filter(function (t) { return t.deadline; }), undated = list.filter(function (t) { return !t.deadline; });
@@ -1556,12 +1558,12 @@ function renderTimeline(list) {
       var past = g.end < today;
       h += '<div class="tl-day' + (isEvent ? ' tl-event' : '') + '"><div class="tl-date' + (past ? ' past' : '') + '"><span class="dot"></span>' + label.toUpperCase() + '</div><div class="tl-items">' +
         g.items.map(function (t) {
-          return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTag(t.workstream) + '<span>' + esc(t.name) + (t.notes ? ' <span class="' + (isEvent ? '' : 'muted') + '" style="opacity:.75">· ' + esc(t.notes.split('\n')[0]) + '</span>' : '') + '</span>' + statusBadge(t.status) + '</div>';
+          return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTags(t) + '<span>' + esc(t.name) + (t.notes ? ' <span class="' + (isEvent ? '' : 'muted') + '" style="opacity:.75">· ' + esc(t.notes.split('\n')[0]) + '</span>' : '') + '</span>' + statusBadge(t.status) + '</div>';
         }).join('') + '</div></div>';
     });
     h += '</div>';
   });
-  if (undated.length) h += '<div class="tl-month"><h3>No deadline yet</h3><div class="tl-items">' + undated.map(function (t) { return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTag(t.workstream) + '<span>' + esc(t.name) + ' ' + srcTag(t.source) + '</span>' + statusBadge(t.status) + '</div>'; }).join('') + '</div></div>';
+  if (undated.length) h += '<div class="tl-month"><h3>No deadline yet</h3><div class="tl-items">' + undated.map(function (t) { return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTags(t) + '<span>' + esc(t.name) + ' ' + srcTag(t.source) + '</span>' + statusBadge(t.status) + '</div>'; }).join('') + '</div></div>';
   return h;
 }
 
@@ -1718,7 +1720,7 @@ function renderCalendar() {
     '<div class="legend"><span><i style="background:var(--crit-bg);border:1px solid var(--crit)"></i>Overdue</span><span><i style="background:var(--warn-bg);border:1px solid var(--warn)"></i>Due ≤3 days</span><span><i style="background:var(--accent)"></i>Preparation deadline</span><span><i style="background:var(--accent-soft)"></i>Event Day</span><span style="text-decoration:line-through">Done</span></div></div>';
   var overdue = db.tasks.filter(function (t) { return dueState(t).kind === 'overdue'; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   var next7 = db.tasks.filter(function (t) { var s = dueState(t); return s.kind !== 'done' && s.kind !== 'none' && s.days >= 0 && s.days <= 7; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
-  function sideRow(t) { return '<div class="item"><span class="t" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0" title="' + esc(t.name) + '">' + esc(t.name) + '<br><span style="font-size:11.5px">' + wsTag(t.workstream) + ' ' + dueLabel(t) + '</span></span><input class="input" type="date" id="dl-' + t.id + '" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline) + '" aria-label="Deadline for ' + esc(t.name) + '"></div>'; }
+  function sideRow(t) { return '<div class="item"><span class="t" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0" title="' + esc(t.name) + '">' + esc(t.name) + '<br><span style="font-size:11.5px">' + wsTags(t) + ' ' + dueLabel(t) + '</span></span><input class="input" type="date" id="dl-' + t.id + '" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline) + '" aria-label="Deadline for ' + esc(t.name) + '"></div>'; }
   h += '<div style="display:flex;flex-direction:column;gap:16px">' +
     panel('Overdue', overdue.length, overdue.length ? '<div class="side-list">' + overdue.map(sideRow).join('') + '</div>' : emptyBox('Nothing overdue', 'All past deadlines are done.')) +
     panel('Next 7 days', next7.length, next7.length ? '<div class="side-list">' + next7.map(sideRow).join('') + '</div>' : emptyBox('Clear week', 'No deadlines in the next 7 days.')) + '</div></div>';
@@ -1764,12 +1766,35 @@ function confirmDialog(title, message, yesLabel, onYes) {
 }
 
 function withCurrent(list, v) { return v && list.indexOf(v) < 0 ? list.concat([v]) : list; }
+function wsField(t) {
+  var selected = taskWorkstreams(t), names = allWorkstreams();
+  selected.forEach(function (w) { if (names.indexOf(w) < 0) names.push(w); });
+  return '<div class="pic-pick" id="wsPick">' + names.map(function (w) {
+    return '<label class="pic-opt"><input type="checkbox" class="ws-cb" value="' + esc(w) + '"' + (selected.indexOf(w) > -1 ? ' checked' : '') + '> ' + esc(w) + '</label>';
+  }).join('') + '</div>' +
+    (canEdit() ? '<div class="pic-new"><input class="input" id="wsNewName" placeholder="Tambah workstream baru" maxlength="60"><button type="button" class="btn sm" data-act="ws-add-inline">+ Tambah</button> <a href="#" data-act="manage-ws" class="hint">Kelola workstream</a></div>' : '') +
+    '<input type="hidden" id="f-workstreams" name="workstreams" value="' + esc(JSON.stringify(selected)) + '">';
+}
+function wsSync() {
+  var hidden = document.getElementById('f-workstreams'), box = document.getElementById('wsPick');
+  if (!hidden || !box) return;
+  hidden.value = JSON.stringify([].map.call(box.querySelectorAll('.ws-cb:checked'), function (c) { return c.value; }));
+}
+function wsAddInline() {
+  var el = document.getElementById('wsNewName'), n = (el && el.value || '').trim();
+  if (!n) { if (el) el.focus(); return; }
+  if (!db.settings.workstreams.some(function (x) { return x.toLowerCase() === n.toLowerCase(); })) { db.settings.workstreams.push(n); persist(db); }
+  var box = document.getElementById('wsPick'), ex = [].filter.call(box.querySelectorAll('.ws-cb'), function (c) { return c.value.toLowerCase() === n.toLowerCase(); })[0];
+  if (ex) ex.checked = true;
+  else { var l = document.createElement('label'); l.className = 'pic-opt'; l.innerHTML = '<input type="checkbox" class="ws-cb" value="' + esc(n) + '" checked> ' + esc(n); box.appendChild(l); }
+  el.value = ''; wsSync(); toast('"' + n + '" ditambahkan ke daftar workstream');
+}
 function taskForm(t, preset) {
   var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '2026-10-01', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
-    field('workstream', 'Workstream', inp('workstream', t.workstream, 'text', 'list="wsList" required') + wsList, { req: true, hint: 'Pilih dari list atau ketik baru' }) +
+    field('workstream', 'Workstream', wsField(t), { req: true, hint: 'Boleh pilih lebih dari satu' }) +
     field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola kategori</a>' : '' }) +
     field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
@@ -1782,12 +1807,16 @@ function taskForm(t, preset) {
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
   document.getElementById('taskForm').onsubmit = function (e) {
     e.preventDefault();
+    wsSync();
     var fd = new FormData(e.target), v = {};
     fd.forEach(function (val, k) { v[k] = String(val).trim(); });
+    try { v.workstreams = JSON.parse(v.workstreams || '[]'); } catch (err) { v.workstreams = []; }
+    if (!Array.isArray(v.workstreams)) v.workstreams = [];
+    v.workstream = v.workstreams[0] || '';   // first one kept for older data and other pages
     var cfr = takeCf('tasks', v, t.cf), errs = cfr.errs;
     if (Object.keys(cfr.cf).length || t.cf) v.cf = cfr.cf;
     if (!v.name) errs.name = 'Task name is required.';
-    if (!v.workstream) errs.workstream = 'Pick or type a workstream.';
+    if (!v.workstreams.length) errs.workstream = 'Pick at least one workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
     if (Object.keys(errs).length) return showErrors(e.target, errs);
     if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
@@ -1893,7 +1922,7 @@ function deleteFin(id) {
 function deadlineDialog(id) {
   var t = taskById(id); if (!t) return;
   openModal('<form id="dlForm" novalidate><div class="modal-h"><h3>' + esc(t.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
-    '<div class="field full">' + wsTag(t.workstream) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
+    '<div class="field full">' + wsTags(t) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
     field('start', 'Start date', inp('start', t.start, 'date')) + field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
     field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status)) +
     '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
@@ -2051,7 +2080,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['ws-add-inline','manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -2073,6 +2102,7 @@ function handleAct(el, e) {
     case 'manage-pay': e.preventDefault(); closeModal(); payManager(); break;
     case 'pick-pic': picDialog(id); break;
     case 'pic-add-inline': picAddInline(); break;
+    case 'ws-add-inline': wsAddInline(); break;
     case 'manage-columns': e.preventDefault(); closeModal(); columnManager(el.dataset.table); break;
     case 'col-tab': if (colApply(document.querySelector('#colForm [aria-selected="true"]').dataset.table)) { persist(db); render(); } closeModal(); columnManager(el.dataset.table); break;
     case 'col-add': colAdd(el.dataset.table); break;
@@ -2151,11 +2181,18 @@ main.addEventListener('input', function (e) {
   else if (t.id === 'rdSearch') { ui.rdQ = t.value; render(); }
   else if (t.id === 'finSearch') { ui.finQ = t.value; render(); }
 });
-document.addEventListener('change', function (e) { if (e.target.classList && e.target.classList.contains('pic-cb')) picSync(); });
+document.addEventListener('change', function (e) {
+  var c = e.target.classList; if (!c) return;
+  if (c.contains('pic-cb')) picSync();
+  if (c.contains('ws-cb')) wsSync();
+});
 // multi-select dropdowns: remember which one is open across re-renders, close when clicking elsewhere
 document.addEventListener('toggle', function (e) { var b = e.target; if (b.dataset && b.dataset.msBox) { if (b.open) ui.msOpen = b.dataset.msBox; else if (ui.msOpen === b.dataset.msBox) ui.msOpen = ''; } }, true);
 document.addEventListener('click', function (e) { document.querySelectorAll('details.msel[open]').forEach(function (d) { if (!d.contains(e.target)) { d.open = false; ui.msOpen = ''; } }); });
-document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'picNewName') { e.preventDefault(); picAddInline(); } });
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && e.target.id === 'picNewName') { e.preventDefault(); picAddInline(); }
+  if (e.key === 'Enter' && e.target.id === 'wsNewName') { e.preventDefault(); wsAddInline(); }
+});
 main.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.inline && !canEdit()) return;
