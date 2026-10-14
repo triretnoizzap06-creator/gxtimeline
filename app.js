@@ -1723,7 +1723,7 @@ function sortTh(key, label, cls, extra) {
 function taskTable(list, compact, showBlockers) {
   var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
   var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
-  var W = { name: 27, workstream: 14, category: 11, start: 10, deadline: 12, pic: 12, status: 12, notes: 20, source: 9, payment: 16 };
+  var W = { name: 24, workstream: 13, category: 13, start: 11, deadline: 14, pic: 14, status: 12, notes: 20, source: 10, payment: 15 };
     var wt = cols.reduce(function (a, c) { return a + (W[c.key] || 11); }, 0) || 1;
     var colg = '<colgroup>' + cols.map(function (c) { return '<col style="width:' + ((W[c.key] || 11) / wt * 100).toFixed(2) + '%">'; }).join('') + '</colgroup>';
     var h = '<div class="table-wrap"><table class="task-table">' + colg + '<thead><tr>' + cols.map(function (c) {
