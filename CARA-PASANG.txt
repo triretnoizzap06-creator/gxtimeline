@@ -1,20 +1,20 @@
-GX27 - Patch: Need per Station + deadline 1 tanggal (start opsional) + notes tidak keluar kolom
+GX27 - Patch: Need per Station + kolom Task dilebarkan
 
-File yang berubah: index.html, app.js, styles.css. Tidak perlu SQL / perubahan database.
+Dasar: file terbaru dari doorprize-merged-FILES-ONLY.zip.
+File di zip ini: needs.js (BARU), index.html, styles.css. app.js TIDAK diubah.
 
-NEED PER STATION
-- Menu baru "Need per Station" di sidebar (di bawah Tasks).
-- Satu station = satu task. Daftar need disimpan di dalam task itu sendiri (task.needs),
-  jadi ikut tersimpan & tersinkron seperti task biasa.
-- Kolom: Keperluan, Qty, Design (Doesn't Need / Not Started / In Progress / Done),
-  Perlengkapan (checklist ✅/❌), Notes. Progress per station (mis. 3/9 siap).
-- Pertama kali: klik "Isi dari sheet Need per Station" untuk memasukkan 9 station dari sheet-mu.
-  Station baru dibuat tanpa deadline; atur lewat Tasks.
-- Di Tasks, station punya label "Need x/y"; saat baris dibuka tampil checklist-nya.
-  Task biasa bisa dijadikan station lewat tombol "+ Checklist need".
+1. Upload 3 file ini ke repo GitHub (needs.js baru, index.html & styles.css menimpa yang lama).
+2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-DEADLINE
-- Tampil 1 tanggal. Klik tanggal -> dialog Deadline + Start date (opsional). Kosong = hanya deadline.
+Perubahan:
+- index.html : ditambah 1 baris <script src="/needs.js..."> setelah app.js; versi cache dinaikkan.
+- styles.css : kolom Task di halaman Tasks dilebarkan (nama task min 380px, baris keterangan maks 560px).
+- needs.js   : menu "Need per Station" di sidebar (di bawah Tasks).
+    * Satu station = satu task. Daftar need disimpan di dalam task itu (task.needs), jadi ikut
+      tersimpan/tersinkron seperti task biasa. Tidak perlu SQL.
+    * Kolom: Keperluan, Qty, Design, Perlengkapan (checklist), Notes (teks tetap di dalam kolom).
+    * Pertama kali: klik "Isi dari sheet Need per Station" untuk memasukkan 9 station dari sheet.
+    * Di Tasks: station punya label "Need x/y"; checklist tampil saat baris dibuka.
+      Task biasa bisa dijadikan station lewat "+ Checklist need".
 
-Cara pasang: upload index.html, app.js, styles.css ke GitHub (timpa yang lama), commit, tunggu Vercel deploy,
-lalu Ctrl+Shift+R sekali.
+Kalau mau menghapus fitur: hapus baris <script src="/needs.js..."> di index.html.

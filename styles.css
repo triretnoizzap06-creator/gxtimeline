@@ -693,78 +693,12 @@ background: #FFFFFF !important;
 background: #9A998F !important;
 }
 
-
-/* column filters in task table headers */
-.hf-btn{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:4px;padding:0 5px;font:inherit;font-size:10px;line-height:16px;cursor:pointer;vertical-align:middle}
-.hf-btn:hover{background:var(--surface);border-color:var(--line);color:var(--fg)}
-.hf-btn.on{background:var(--accent);border-color:var(--accent);color:#1A1A17}
-.hf-pop{position:fixed;z-index:60;width:260px;max-width:calc(100vw - 16px);background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);padding:10px}
-.hf-t{font-weight:600;font-size:13px;margin-bottom:8px}
-.hf-list{max-height:240px;overflow:auto;margin:8px 0;display:flex;flex-direction:column;gap:2px}
-.hf-opt{display:flex;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;font-size:13px;cursor:pointer}
-.hf-opt:hover{background:var(--surface-2)}
-.hf-opt .hf-v{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hf-opt .hf-n{margin-left:auto;color:var(--muted);font-size:12px}
-.hf-foot{display:flex;justify-content:flex-end;margin-top:6px}
+/* prizes folded into the invoice row */
+.fin-toggle{margin-top:4px}
+.fin-incl{margin-top:6px}
+.fin-incl summary{cursor:pointer;font-size:12.5px;color:var(--muted);margin-bottom:4px}
 
 
-/* editable deadline cell in the task table */
-.dl-cell{white-space:nowrap}
-.dl-input{width:138px;padding:4px 6px;font-size:12.5px}
-.dl-sub{display:block;font-size:11.5px;margin-top:2px}
-
-.dl-range{display:flex;align-items:center;gap:4px}
-.dl-range .dl-input{width:128px}
-.dl-sep{color:var(--muted)}
-
-/* ===== Deadline: tampil 1 tanggal, klik untuk isi start date (opsional) ===== */
-.dl-cell{white-space:nowrap}
-.dl-btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:12.5px;font-variant-numeric:tabular-nums}
-.dl-btn:hover{background:var(--hover)}
-.dl-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.dl-has-start{font-style:normal;font-size:11px;color:var(--muted)}
-.dl-hint{font-size:12px}
-
-/* ===== Notes tidak boleh keluar dari kolomnya ===== */
-.notes-cell{width:260px;max-width:260px;min-width:0}
-.notes-wrap{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-td .tsub,td .tname,.mt-item .txt,.tl-item>span,.modal-b .muted{overflow-wrap:anywhere;word-break:break-word;min-width:0}
-td .tsub{max-width:100%}
-.modal-b textarea,.modal-b .input{max-width:100%;box-sizing:border-box}
-.modal-b textarea{overflow-wrap:anywhere;white-space:pre-wrap}
-.cf-input{max-width:100%;min-width:0;text-overflow:ellipsis}
-.detail>div{min-width:0}
-.detail p{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
-
-/* ===== Need per Station ===== */
-.need-stats{display:flex;gap:12px;flex-wrap:wrap;margin:0 20px 8px}
-.need-stats>div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-width:140px}
-.need-stats b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
-.need-stats span{font-size:12px;color:var(--muted)}
-.need-area{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:22px 20px 8px;font-weight:600}
-.need-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin:0 20px 14px;overflow:hidden;min-width:0}
-.need-head{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)}
-.need-title{min-width:0;flex:1 1 220px}
-.need-title h3{margin:0;font-size:15px;overflow-wrap:anywhere}
-.need-title .muted{display:block;font-size:12.5px}
-.need-note{overflow-wrap:anywhere;white-space:pre-wrap}
-.need-prog{display:flex;align-items:center;gap:8px;min-width:130px}
-.need-prog b{font-variant-numeric:tabular-nums;font-size:13px}
-.need-bar{flex:1;height:7px;background:var(--surface-2,rgba(128,128,128,.2));border-radius:99px;overflow:hidden;min-width:70px}
-.need-bar i{display:block;height:100%;background:var(--accent)}
-.need-actions{display:flex;gap:8px;align-items:center}
-.need-area-in{width:130px}
-.need-tbl{width:100%;border-collapse:collapse;table-layout:fixed;min-width:640px}
-.need-tbl th,.need-tbl td{padding:6px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
-.need-tbl th{font-size:11.5px;color:var(--muted);font-weight:500}
-.need-tbl .input{width:100%;min-width:0;box-sizing:border-box}
-.need-notes{resize:vertical;min-height:34px;max-width:100%;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;field-sizing:content}
-.need-chk label{display:flex;align-items:center;gap:6px;cursor:pointer;padding-top:6px;white-space:nowrap}
-.need-ok td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
-.need-d-done{color:var(--ok,#8fbf7a)}.need-d-doing{color:var(--accent)}.need-d-todo{color:var(--warn,#e0a458)}.need-d-none{color:var(--muted)}
-.need-foot{padding:8px 14px}
-.need-empty{margin:20px;padding:28px;border:1px dashed var(--line);border-radius:12px;text-align:center}
-.need-chip{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
-.need-mini{list-style:none;margin:0;padding:0}
-.need-mini li{padding:2px 0;overflow-wrap:anywhere}
-.need-mini li.ok{color:var(--muted)}
+/* ===== Kolom Task (halaman Tasks) dilebarkan ===== */
+tr.row[data-act="expand"] td .tname{min-width:380px}
+tr.row[data-act="expand"] td .tsub{max-width:560px}
