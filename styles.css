@@ -809,3 +809,8 @@ th.r .th-in .hf-btn{margin-left:0}
 /* baris yang dibuka (detail) */
 .task-table tr.expanded>td{padding:14px 16px}
 @media (max-width:760px){.task-table td{padding:10px 8px}.task-table td .tname{font-size:13.5px}}
+
+/* ===== Lebar kolom Tasks: ikuti <colgroup>, bukan aturan lama 34% / 360px ===== */
+.task-table th:first-child,.task-table td:first-child{width:auto !important;min-width:0 !important}
+.table-wrap table.task-table{min-width:1100px !important}
+@media (max-width:760px){.table-wrap table.task-table{min-width:760px !important}}
