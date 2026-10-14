@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="/styles.css?v=20261014-2000">
+<link rel="stylesheet" href="/styles.css?v=20261014-2300">
 </head>
 <body>
 <div class="app">
@@ -42,10 +42,10 @@
     <div class="save-ind" id="saveInd" hidden></div>
     <div class="side-tools" id="sideTools" hidden>
       <span class="label">Data</span>
-      <button data-tool="export">Export backup (JSON)</button>
-      <button data-tool="import-json">Restore backup</button>
-      <button data-tool="import-csv">Import budget sheet</button>
-      <button data-tool="reset">Reset to initial data</button>
+      <button data-tool="export">Export Backup (JSON)</button>
+      <button data-tool="import-json">Restore Backup</button>
+      <button data-tool="import-csv">Import Budget Sheet</button>
+      <button data-tool="reset">Reset to Initial Data</button>
       <p class="side-note" id="storeNote">Saved in this browser.</p>
     </div>
   </aside>
@@ -56,9 +56,9 @@
 <!-- Supabase config (served by /api/config from Vercel env vars). Missing → local mode, data stays in this browser. -->
 <script src="/api/config"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script src="/sync.js?v=20261014-2000"></script>
-<script src="/admin.js?v=20261014-2000"></script>
-<script src="/app.js?v=20261014-2000"></script>
-<script src="/needs.js?v=20261014-2000"></script>
+<script src="/sync.js?v=20261014-2300"></script>
+<script src="/admin.js?v=20261014-2300"></script>
+<script src="/app.js?v=20261014-2300"></script>
+<script src="/needs.js?v=20261014-2300"></script>
 </body>
 </html>

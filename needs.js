@@ -61,12 +61,12 @@
     var tot = 0, rdy = 0, dsg = 0;
     list.forEach(function (t) { var s = stats(t); tot += s.total; rdy += s.ready; dsg += s.design; });
     var h = '<div class="page-head"><div><h1>Need per Station</h1><p>Checklist keperluan tiap station. Setiap station adalah sebuah task — buka task-nya untuk deadline, PIC, dan status.</p></div>' +
-      '<div class="toolbar" style="margin:0"><button class="btn primary" data-nact="new-station">+ Station baru</button></div></div>';
+      '<div class="toolbar" style="margin:0"><button class="btn primary" data-nact="new-station">+ Station Baru</button></div></div>';
     if (!list.length) {
-      return h + '<div class="need-empty"><p>Belum ada station.</p><button class="btn primary" data-nact="seed">Isi dari sheet Need per Station</button> ' +
+      return h + '<div class="need-empty"><p>Belum ada station.</p><button class="btn primary" data-nact="seed">Isi dari Sheet Need per Station</button> ' +
         '<span class="muted">atau buat sendiri dengan “+ Station baru”, atau aktifkan checklist di task yang sudah ada (Tasks → buka baris → “+ Checklist need”).</span></div>';
     }
-    h += '<div class="need-stats"><div><b>' + list.length + '</b><span>Station</span></div><div><b>' + rdy + '/' + tot + '</b><span>Perlengkapan siap</span></div><div><b>' + dsg + '</b><span>Design belum selesai</span></div></div>';
+    h += '<div class="need-stats"><div><b>' + list.length + '</b><span>Station</span></div><div><b>' + rdy + '/' + tot + '</b><span>Perlengkapan Siap</span></div><div><b>' + dsg + '</b><span>Design Belum Selesai</span></div></div>';
     var last = null;
     list.forEach(function (t) {
       var area = t.area || 'Tanpa lokasi', s = stats(t), iid = esc(t.id);
@@ -76,7 +76,7 @@
         (t.notes ? '<span class="muted need-note">' + esc(t.notes) + '</span>' : '') + '</div>' +
         '<div class="need-prog" aria-label="' + s.ready + ' dari ' + s.total + ' siap"><b>' + s.ready + '/' + s.total + '</b><div class="need-bar"><i style="width:' + s.pct + '%"></i></div></div>' +
         '<div class="need-actions"><input class="input need-area-in" id="area-' + iid + '" data-nf="area" data-id="' + iid + '" value="' + esc(t.area || '') + '" placeholder="Lokasi" aria-label="Lokasi ' + esc(t.name) + '" list="needAreaList">' +
-        '<button class="btn sm" data-act="edit-task" data-id="' + iid + '">Buka task</button></div></div>' +
+        '<button class="btn sm" data-act="edit-task" data-id="' + iid + '">Buka Task</button></div></div>' +
         '<div class="table-wrap"><table class="need-tbl"><colgroup><col style="width:40px"><col style="width:30%"><col style="width:76px"><col style="width:140px"><col style="width:104px"><col><col style="width:44px"></colgroup>' +
         '<thead><tr><th>No</th><th>Keperluan</th><th>Qty</th><th>Design</th><th>Perlengkapan</th><th>Notes</th><th></th></tr></thead><tbody>' +
         (t.needs.length ? t.needs.map(function (x, i) {
@@ -89,7 +89,7 @@
             '<td><textarea class="input need-notes" id="' + k + 'notes" ' + b + ' data-nf="notes" rows="1" aria-label="Notes">' + esc(x.notes) + '</textarea></td>' +
             '<td><button class="btn sm ghost" data-nact="del" ' + b + ' aria-label="Hapus ' + esc(x.item) + '">✕</button></td></tr>';
         }).join('') : '<tr><td colspan="7" class="faint" style="padding:12px">Belum ada need.</td></tr>') +
-        '</tbody></table></div><div class="need-foot"><button class="btn sm" data-nact="add" data-id="' + iid + '">+ Tambah need</button></div></section>';
+        '</tbody></table></div><div class="need-foot"><button class="btn sm" data-nact="add" data-id="' + iid + '">+ Tambah Need</button></div></section>';
     });
     var areas = {}; db().tasks.forEach(function (t) { if (t.area) areas[t.area] = 1; });
     return h + '<datalist id="needAreaList">' + Object.keys(areas).map(function (a) { return '<option value="' + esc(a) + '">'; }).join('') + '</datalist>';
@@ -142,7 +142,7 @@
           }).join('') + '</ul>' : '<p class="faint">Belum ada need.</p>') + '<p style="margin-top:6px"><a href="#needs" data-nact="open">Buka di Need per Station →</a></p>';
           if (actions) det.insertBefore(box, actions); else det.appendChild(box);
         } else if (actions && canEdit()) {
-          actions.insertAdjacentHTML('afterbegin', '<button class="btn sm" data-nact="enable" data-id="' + esc(t.id) + '">+ Checklist need</button>');
+          actions.insertAdjacentHTML('afterbegin', '<button class="btn sm" data-nact="enable" data-id="' + esc(t.id) + '">+ Checklist Need</button>');
         }
       }
     });
@@ -189,11 +189,11 @@
       pic: '', status: defaultStatus(), notes: note || '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', area: area || '', needs: needs };
   }
   function stationForm() {
-    App.openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Station baru</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b form-grid">' +
+    App.openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Station Baru</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b form-grid">' +
       App.field('name', 'Nama station', App.inp('name', '', 'text', 'maxlength="160" required'), { req: true, full: true, hint: 'Station ini otomatis juga menjadi sebuah task.' }) +
       App.field('area', 'Lokasi', App.inp('area', '', 'text', 'list="needAreaList" placeholder="Basement, Lt. 3, …"')) +
       App.field('deadline', 'Deadline (opsional)', App.inp('deadline', '', 'date')) +
-      '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Buat station</button></div></div></form>', 'sm');
+      '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Buat Station</button></div></div></form>', 'sm');
     document.getElementById('stForm').onsubmit = function (e) {
       e.preventDefault();
       var fd = new FormData(e.target), v = {}; fd.forEach(function (val, k) { v[k] = String(val).trim(); });

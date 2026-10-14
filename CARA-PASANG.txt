@@ -1,18 +1,21 @@
-GX27 - Patch v2b: perbaikan teks nabrak kolom di tabel Tasks (hanya styles.css + index.html yang berubah dari v2)
+GX27 - Update v9
 
-File yang berubah: app.js, styles.css, index.html (needs.js tidak berubah). Tidak perlu SQL.
+File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
 
-1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
+1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
 PERUBAHAN
-1. Kolom Deadline di tabel Tasks sekarang HANYA 1 tanggal (deadline). Start date tetap ada & bisa diisi lewat Edit task
-   (atau tampilkan kolom "Start" lewat Kelola kolom). Teks "x hari lewat / dalam x hari" tetap muncul di bawah tanggal.
-2. Header tabel Tasks dirapikan: [Nama kolom ↑] [▾] satu baris, tombol filter jadi kotak dropdown kecil yang sejajar
-   di kanan tiap header (aktif = kotak kuning). Nama kolom tidak lagi turun ke baris kedua.
-3. Finance -> Tasks: semua invoice vendor yang punya item di bawahnya sekarang digabung jadi 1 task, sama seperti Doorprize:
-   Doorprize (21 item), Bali Games (9 item), BUMI Creative (4 item), OJISAN (2 item).
-   - Data lama otomatis dirapikan saat dibuka (task per-item yang belum pernah diisi dihapus, item pindah ke task invoice-nya).
-   - Item baru yang ditambah lewat "+ Sub item" di bawah invoice vendor otomatis masuk ke task invoice itu.
-   - Emergency Fund (alokasi dana) sengaja TIDAK digabung karena tiap pemakaiannya invoice/pembayaran sendiri.
-   - Kalau kamu sengaja menautkan item ke task lain secara manual, tautan itu tidak ditimpa.
+1. Tasks: semua item Finance & Procurement sekarang muncul di All Tasks sebagai baris "↳" di bawah task-nya,
+   masing-masing dengan workstream-nya sendiri (Doorprize, Games, Emergency Fund, dst). Task vendor tetap 1 task per invoice.
+   - Filter Workstream di header ikut membaca workstream item finance (filter "Games" -> task + item game-nya saja).
+   - Klik baris item = buka item budget-nya. Tombol "▾ Finance · N Item" untuk lipat per task,
+     tombol "Sembunyikan Item Finance" di toolbar untuk lipat semua.
+2. Kolom PIC lebih ramping, kolom Status lebih lebar. Ikon pensil sekarang di pojok kanan atas tiap sel PIC
+   (termasuk yang belum ada PIC-nya).
+3. Master Timeline: bisa diisi milestone dari SEMUA workstream. "+ Add Milestone" -> pilih workstream apa saja.
+   Pill filter muncul otomatis untuk tiap workstream yang punya milestone (+ tombol Hide All / Show All).
+   Di form Edit task ada centang "Tampilkan di Master Timeline" untuk memasukkan/mengeluarkan task apa pun.
+4. Kapitalisasi dirapikan di seluruh website: tombol, tab, judul, kolom, label form pakai Title Case.
+   Nama task, item finance, segmen rundown & zona dirapikan sekali otomatis (kata sambung seperti dan/di/untuk,
+   satuan seperti pcs/pack, dan singkatan seperti QR/DTF/GX tetap). Nama baru yang diketik juga otomatis dirapikan.

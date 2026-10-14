@@ -47,19 +47,20 @@ var COL_BUILTIN = {
   tasks: [
     { key: 'name', label: 'Task', locked: true }, { key: 'workstream', label: 'Workstream' }, { key: 'category', label: 'Category' },
     { key: 'start', label: 'Start', hidden: true }, { key: 'deadline', label: 'Deadline' }, { key: 'pic', label: 'PIC' }, { key: 'status', label: 'Status' },
-    { key: 'notes', label: 'Notes', hidden: true }, { key: 'source', label: 'Data source', hidden: true },
+    { key: 'notes', label: 'Notes', hidden: true }, { key: 'source', label: 'Data Source', hidden: true },
     { key: 'payment', label: 'Payment' }
   ],
   finance: [
     { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Harga', num: true, hidden: true }, { key: 'est', label: 'Budget', num: true, total: 'est' },
     { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'DP', num: true, hidden: true }, { key: 'paid', label: 'Dibayar', num: true, total: 'paid' }, { key: 'remaining', label: 'Sisa', num: true, total: 'outstanding' },
-    { key: 'paymentDeadline', label: 'Due date' }, { key: 'invoiceStatus', label: 'Status invoice', hidden: true }, { key: 'paymentStatus', label: 'Status payment' }, { key: 'receipt', label: 'Bukti TF', hidden: true },
+    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Status Invoice', hidden: true }, { key: 'paymentStatus', label: 'Status Payment' }, { key: 'receipt', label: 'Bukti TF', hidden: true },
     { key: 'task', label: 'Task' }, { key: 'check', label: 'Cek', hidden: true }
   ]
 };
-var COL_TYPES = [{ value: 'text', label: 'Teks' }, { value: 'number', label: 'Angka' }, { value: 'money', label: 'Rupiah' }, { value: 'date', label: 'Tanggal' }, { value: 'select', label: 'Pilihan (dropdown)' }, { value: 'checkbox', label: 'Centang' }, { value: 'link', label: 'Link' }];
+var COL_TYPES = [{ value: 'text', label: 'Teks' }, { value: 'number', label: 'Angka' }, { value: 'money', label: 'Rupiah' }, { value: 'date', label: 'Tanggal' }, { value: 'select', label: 'Pilihan (Dropdown)' }, { value: 'checkbox', label: 'Centang' }, { value: 'link', label: 'Link' }];
 var COL_TABLES = { tasks: 'Tasks', finance: 'Finance' };
 function builtinCol(table, key) { return COL_BUILTIN[table].filter(function (c) { return c.key === key; })[0] || null; }
+var COL_LABEL_V9 = { 'Data source': 'Data Source', 'Due date': 'Due Date', 'Status invoice': 'Status Invoice', 'Status payment': 'Status Payment', 'Linked task': 'Task', 'Pay deadline': 'Due Date' };
 function normalizeColumns(s) {
   var c = s.columns && typeof s.columns === 'object' ? s.columns : {};
   var out = {};
@@ -70,7 +71,9 @@ function normalizeColumns(s) {
       var b = builtinCol(table, col.key);
       if (!b && !col.custom) return;
       seen[col.key] = 1;
-      var x = { key: String(col.key), label: String(col.label || (b && b.label) || col.key).slice(0, 60), visible: col.visible !== false };
+      var lbl = String(col.label || (b && b.label) || col.key);
+      if (b && COL_LABEL_V9[lbl]) lbl = COL_LABEL_V9[lbl];   // old default labels → consistent capitalization
+      var x = { key: String(col.key), label: lbl.slice(0, 60), visible: col.visible !== false };
       if (b && b.locked) x.visible = true;
       if (!b) { x.custom = true; x.type = COL_TYPES.some(function (t) { return t.value === col.type; }) ? col.type : 'text'; x.options = Array.isArray(col.options) ? col.options.map(String).filter(Boolean) : []; }
       list.push(x);
@@ -123,7 +126,7 @@ function parseCf(col, raw) {
 function cfFields(table, r) {
   var list = customCols(table);
   if (!list.length) return '';
-  return '<div class="field full cf-sep"><span class="hint">Kolom tambahan</span></div>' + list.map(function (col) {
+  return '<div class="field full cf-sep"><span class="hint">Kolom Tambahan</span></div>' + list.map(function (col) {
     var v = cfVal(r, col.key), name = 'cf__' + col.key, inputHtml;
     if (col.type === 'checkbox') inputHtml = '<label class="cf-cb"><input type="checkbox" id="f-' + name + '" name="' + name + '" value="1"' + (v ? ' checked' : '') + '> Ya</label>';
     else if (col.type === 'select') inputHtml = sel(name, withCurrent(col.options, v || ''), v || '', '—');
@@ -156,13 +159,13 @@ function columnManager(table) {
       (locked ? '<span class="col-lock">wajib</span>' : '<button class="btn sm danger" type="button" data-act="col-delete" data-table="' + table + '" data-idx="' + i + '">Hapus</button>') + '</span></div>';
   }).join('');
   var hidden = list.filter(function (c) { return !c.custom && !c.visible; });
-  openModal('<form id="colForm" novalidate><div class="modal-h"><h3>Kelola kolom</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+  openModal('<form id="colForm" novalidate><div class="modal-h"><h3>Kelola Kolom</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
     '<div class="tabs" role="tablist" style="margin:0 20px">' + Object.keys(COL_TABLES).map(function (k) { return '<button type="button" role="tab" data-act="col-tab" data-table="' + k + '" aria-selected="' + (k === table) + '">' + COL_TABLES[k] + '</button>'; }).join('') + '</div>' +
     '<div class="modal-b one"><p class="muted" style="margin:0">Urutan dari atas ke bawah = urutan kolom dari kiri ke kanan. Centang = tampil di tabel. Ganti nama langsung di kotaknya. Kolom bawaan yang dihapus hanya disembunyikan (datanya tetap ada, bisa dikembalikan). Kolom tambahan yang dihapus ikut menghapus isinya.</p>' +
     '<div class="cat-list">' + rows + '</div>' +
     (hidden.length ? '<div class="col-restore"><span class="muted">Kolom bawaan tersembunyi:</span> ' + hidden.map(function (c) { return '<button type="button" class="btn sm" data-act="col-show" data-table="' + table + '" data-key="' + esc(c.key) + '">+ ' + esc(c.label) + '</button>'; }).join(' ') + '</div>' : '') +
     '<div class="col-add"><input class="input" id="colNew" placeholder="Nama kolom baru, mis. Vendor, Lokasi, Link file" maxlength="60"><select class="select" id="colNewType" aria-label="Tipe kolom">' + opts(COL_TYPES, 'text') + '</select>' +
-    '<input class="input" id="colNewOpts" placeholder="Pilihan dropdown, pisahkan koma" hidden><button type="button" class="btn" data-act="col-add" data-table="' + table + '">+ Tambah kolom</button></div>' +
+    '<input class="input" id="colNewOpts" placeholder="Pilihan dropdown, pisahkan koma" hidden><button type="button" class="btn" data-act="col-add" data-table="' + table + '">+ Tambah Kolom</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
     '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'wide');
   var form = document.getElementById('colForm');
@@ -323,12 +326,12 @@ function syncFinanceTasks(d, s) {
   var doorRows = d.finance.filter(function (f) { return f.workstream === 'Doorprize'; }), door = null;
   function ensureDoor() {
     if (door) return door;
-    door = byId['TF-DOORPRIZE'] || d.tasks.filter(function (t) { return t.name === 'Doorprize procurement'; })[0];
+    door = byId['TF-DOORPRIZE'] || d.tasks.filter(function (t) { return sameName(t.name, 'Doorprize procurement'); })[0];
     if (!door) {
       var v = doorRows.filter(function (f) { return f.kind === 'vendor'; })[0] || doorRows[0] || {};
       var vd = (s.payStatuses || []).filter(function (x) { return x.name === v.paymentStatus; })[0];
       var vType = vd ? vd.type : (PAY_GUESS[String(v.paymentStatus || '').toLowerCase()] || 'unpaid');
-      door = { id: 'TF-DOORPRIZE', name: 'Doorprize procurement', workstream: 'Doorprize', category: 'Procurement', start: '', deadline: v.paymentDeadline || '', pic: '',
+      door = { id: 'TF-DOORPRIZE', name: 'Doorprize Procurement', workstream: 'Doorprize', category: 'Procurement', start: '', deadline: v.paymentDeadline || '', pic: '',
         status: vType === 'paid' && doneSt ? doneSt : todoSt, notes: 'Semua item doorprize (belanja Shopee), terhubung ke budget di Finance.', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', createdAt: now, updatedAt: now };
       d.tasks.push(door); byId[door.id] = door;
     }
@@ -509,6 +512,7 @@ function normalizeDb(d) {
     else if (d.budgetSeedHash !== sh && d.budgetSeedHash && d.financeHashAtSeed === financeHash(d.finance) && MODE !== 'public') applyBudgetSeed(d); // untouched → follow the newest sheet
     d.budgetUpdateAvailable = d.budgetSeedHash !== sh && d.budgetIgnored !== sh;
   }
+  if (!d.capsV9) applyCapsV9(d);
   return d;
 }
 function logoSrc() { return (db && db.settings && db.settings.logoUrl) || DEFAULT_LOGO; }
@@ -526,8 +530,8 @@ function applySettings() {
 // Task statuses are managed from the site (Kelola kategori → Status task). Each status has a TYPE that drives behaviour:
 //   todo = belum mulai · progress = berjalan · pending = menunggu (approval/vendor) · blocked = terhambat (wajib isi blocker) · done = selesai
 var STATUS_TYPES = [
-  { value: 'todo', label: 'Belum mulai' }, { value: 'progress', label: 'Berjalan' }, { value: 'pending', label: 'Menunggu' },
-  { value: 'blocked', label: 'Terhambat (wajib isi blocker)' }, { value: 'done', label: 'Selesai' }
+  { value: 'todo', label: 'Belum Mulai' }, { value: 'progress', label: 'Berjalan' }, { value: 'pending', label: 'Menunggu' },
+  { value: 'blocked', label: 'Terhambat (Wajib Isi Blocker)' }, { value: 'done', label: 'Selesai' }
 ];
 var STATUS_COLORS = [
   { value: 'neutral', label: 'Abu-abu' }, { value: 'info', label: 'Biru' }, { value: 'warn', label: 'Kuning' },
@@ -550,7 +554,7 @@ var PAY_DEFAULT = [
   { name: 'DP Paid', type: 'partial', color: 'info' },
   { name: 'Full Paid', type: 'paid', color: 'ok' }
 ];
-var PAY_TYPES = [{ value: 'unpaid', label: 'Belum bayar' }, { value: 'partial', label: 'Bayar sebagian (DP)' }, { value: 'paid', label: 'Lunas' }];
+var PAY_TYPES = [{ value: 'unpaid', label: 'Belum Bayar' }, { value: 'partial', label: 'Bayar Sebagian (DP)' }, { value: 'paid', label: 'Lunas' }];
 var PAY_GUESS = { 'full paid': 'paid', 'lunas': 'paid', 'dp paid': 'partial' };
 function payDefs() { return (db && db.settings && db.settings.payStatuses) || PAY_DEFAULT; }
 function payList() { return payDefs().map(function (x) { return x.name; }); }
@@ -688,7 +692,7 @@ function seed() {
   p('Procurement','Paper wristbands','2026-10-16','Procurement','Done','Existing record confirms purchas…','',TRUNC);
   // Preparation deadlines (dates confirmed, scope not yet provided)
   PREP_DEADLINES.forEach(function (d) {
-    var o = t('Preparation', 'Preparation deadline · ' + fmtDate(d, true), '', d, '', 'Preparation');
+    var o = t('Preparation', 'Preparation Deadline · ' + fmtDate(d, true), '', d, '', 'Preparation');
     o.source = 'verify'; o.verifyNote = 'Tanggal confirmed. Lihat task lain dengan deadline yang sama; scope checkpoint ini belum dirinci.';
   });
   var base = { seq: n, tasks: tasks, finance: [] };
@@ -705,6 +709,34 @@ var BUDGET_TASKS = [
   ['HYROX', 'Vendor · HYROX full service (Ultrafit)'], ['Entertainment', 'Vendor · Entertainment (band, MC, DJ)'],
   ["Winners' Prizes", 'Hadiah pemenang lomba & team building'], ['Doorprize', 'Doorprize procurement'], ['Emergency Fund', 'Alokasi Emergency Fund']
 ];
+/* Capitalization: names in the site use Title Case (small connecting words and units stay lowercase, acronyms like QR/DTF/GX stay as they are) */
+var TC_SMALL = { dan: 1, di: 1, ke: 1, dari: 1, untuk: 1, per: 1, yang: 1, atau: 1, dengan: 1, pada: 1, the: 1, of: 1, for: 1, and: 1, to: 1, a: 1, an: 1, in: 1, on: 1, at: 1, vs: 1, by: 1 };
+var TC_UNIT = { pcs: 1, pc: 1, pack: 1, pax: 1, kg: 1, gr: 1, cm: 1, mm: 1, m: 1, ml: 1, l: 1, x: 1, rp: 0 };
+function titleCase(str) {
+  if (!str || typeof str !== 'string') return str;
+  var first = true, prevNum = false;
+  return str.replace(/[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ']*|\d[\w.,]*/g, function (w, at) {
+    if (/^\d/.test(w)) { prevNum = true; first = false; return w; }
+    var lower = w === w.toLowerCase(), wasNum = prevNum, isFirst = first;
+    prevNum = false; first = false;
+    if (!lower) return w;                                        // already has capitals (GX, QR, iPhone, DTF…)
+    var prevCh = str.charAt(at - 1);
+    if (prevCh === "'" || prevCh === '’') return w;                // People's, Winners'
+    if (!isFirst && TC_SMALL[w] && !/[—–:·(\/]\s*$/.test(str.slice(0, at))) return w;
+    if (wasNum && TC_UNIT[w]) return w;                          // 750 pcs, 1 pack
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  });
+}
+function sameName(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
+function applyCapsV9(d) {
+  var untouched = d.financeHashAtSeed && d.financeHashAtSeed === financeHash(d.finance);
+  d.tasks.forEach(function (t) { var n = titleCase(t.name); if (n !== t.name) { t.name = n; } });
+  d.finance.forEach(function (f) { var n = titleCase(f.item); if (n !== f.item) { f.item = n; } });
+  (d.rundown || []).forEach(function (r) { if (r.segment) r.segment = titleCase(r.segment); });
+  (d.zones || []).forEach(function (z) { if (z.name) z.name = titleCase(z.name); });
+  if (untouched) d.financeHashAtSeed = financeHash(d.finance);
+  d.capsV9 = true;
+}
 function strHash(str) { var h = 5381; for (var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
 function financeHash(list) {
   return strHash(JSON.stringify((list || []).map(function (f) { var o = {}; Object.keys(f).sort().forEach(function (k) { if (k !== 'updatedAt' && k !== 'createdAt') o[k] = f[k]; }); return o; })));
@@ -717,8 +749,8 @@ function applyBudgetSeed(d) {
   function nid(prefix) { var id; do { d.seq = (d.seq || 0) + 1; id = prefix + String(d.seq).padStart(3, '0'); } while (used[id]); used[id] = 1; return id; }
   var now = Date.now();
   BUDGET_TASKS.forEach(function (x) {
-    if (d.tasks.some(function (t) { return t.name === x[1]; })) return;
-    d.tasks.push({ id: nid('T'), name: x[1], workstream: x[0], category: 'Procurement', start: '', deadline: '', pic: '', status: defaultStatus(),
+    if (d.tasks.some(function (t) { return sameName(t.name, x[1]); })) return;
+    d.tasks.push({ id: nid('T'), name: titleCase(x[1]), workstream: x[0], category: 'Procurement', start: '', deadline: '', pic: '', status: defaultStatus(),
       notes: '', blockers: '', dependencies: '', source: 'verify', verifyNote: 'Task dibuat untuk menampung baris budget di sheet. Deadline, PIC & status operasional belum diberikan.', createdAt: now, updatedAt: now });
   });
   var keyToId = {}, out = [];
@@ -727,7 +759,8 @@ function applyBudgetSeed(d) {
     for (var k in r) if (k !== 'key' && k !== 'parent' && k !== 'task') f[k] = r[k];
     if (r.key) keyToId[r.key] = f.id;
     f.parentId = r.parent ? keyToId[r.parent] : null;
-    var tk = r.task ? d.tasks.filter(function (x) { return x.name === r.task; })[0] : null;
+    f.item = titleCase(f.item);
+    var tk = r.task ? d.tasks.filter(function (x) { return sameName(x.name, r.task); })[0] : null;
     f.taskId = tk ? tk.id : null;
     f.createdAt = f.updatedAt = now;
     out.push(f);
@@ -786,7 +819,7 @@ function statusBadge(s) {
 }
 function payBadge(s) { return '<span class="badge b-' + esc(payDef(s).color || 'neutral') + '">' + esc(s) + '</span>'; }
 function invBadge(s) { return '<span class="badge ' + (s === 'Submitted' ? 'b-ok' : 'b-neutral') + '">' + esc(s) + '</span>'; }
-function srcTag(s) { return s === 'verify' ? '<span class="src verify" title="Needs verification">Verify</span>' : '<span class="src confirmed" title="Confirmed source data">Confirmed</span>'; }
+function srcTag(s) { return s === 'verify' ? '<span class="src verify" title="Needs Verification">Verify</span>' : '<span class="src confirmed" title="Confirmed source data">Confirmed</span>'; }
 function opts(list, sel, emptyLabel) {
   var h = emptyLabel != null ? '<option value="">' + esc(emptyLabel) + '</option>' : '';
   return h + list.map(function (v) { var val = typeof v === 'object' ? v.value : v, lab = typeof v === 'object' ? v.label : v; return '<option value="' + esc(val) + '"' + (val === sel ? ' selected' : '') + '>' + esc(lab) + '</option>'; }).join('');
@@ -879,7 +912,7 @@ function dueState(t) {
 }
 function dueLabel(t) {
   var s = dueState(t);
-  if (s.kind === 'none') return '<span class="faint">No deadline</span>';
+  if (s.kind === 'none') return '<span class="faint">No Deadline</span>';
   var txt = fmtDate(t.deadline, true), sub = '';   // satu tanggal saja (start date hanya ada di form Edit task)
   if (s.kind === 'overdue') sub = ' · ' + (-s.days) + 'd overdue';
   else if (s.kind === 'soon') sub = s.days === 0 ? ' · today' : ' · in ' + s.days + 'd';
@@ -994,22 +1027,40 @@ function pageHead(title, sub, actions) {
 
 /* ---------- Master Timeline ---------- */
 var PROGRAMS = ['GX Connect','GX Got Talent','Mobile Legends','HYROX'];
+// which tasks are on the Master Timeline: Event Day segments, every "Program Milestone" (any workstream), program tasks that are not procurement,
+// plus any task switched on/off by hand with "Tampilkan di Master Timeline" (t.mt)
+function mtDefault(t) { return t.category === 'Event Day' || t.category === 'Program Milestone' || (PROGRAMS.indexOf(t.workstream) > -1 && t.category !== 'Procurement'); }
+function onMaster(t) { return typeof t.mt === 'boolean' ? t.mt : mtDefault(t); }
+function mtWorkstreams(list) {
+  var have = {}; list.forEach(function (t) { if (t.workstream) have[t.workstream] = 1; });
+  var order = PROGRAMS.concat(allWorkstreams().filter(function (w) { return PROGRAMS.indexOf(w) < 0 && w !== 'Event Day'; }));
+  return order.filter(function (w) { return PROGRAMS.indexOf(w) > -1 || have[w]; });
+}
+function mtStyle(ws, kind) {
+  if (wsClass(ws)) return '';
+  var c = wsColor(ws);
+  if (kind === 'pill') return ' style="background:' + c[1] + ';color:' + c[0] + ';border-color:' + c[0] + '55"';
+  if (kind === 'dot') return ' style="background:' + c[0] + '"';
+  return ' style="color:' + c[0] + '"';
+}
 function renderMaster() {
   var hide = ui.mtHide || [];
-  var all = db.tasks.filter(function (t) { return t.deadline && (t.category === 'Event Day' || (PROGRAMS.indexOf(t.workstream) > -1 && t.category !== 'Procurement')); });
+  var all = db.tasks.filter(function (t) { return t.deadline && onMaster(t); });
   var eventItems = all.filter(function (t) { return t.category === 'Event Day'; });
+  var wsShown = mtWorkstreams(all.filter(function (t) { return t.category !== 'Event Day'; }));
   var pre = all.filter(function (t) { return t.category !== 'Event Day' && hide.indexOf(t.workstream) < 0; });
   var doneN = all.filter(isDone).length;
   var nextT = all.filter(function (t) { return !isDone(t) && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
-    '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px"><button class="btn primary" data-act="new-milestone">+ Add milestone</button><div class="mt-legend" role="group" aria-label="Show programs">' +
-    PROGRAMS.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '" data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') + '</div></div></div>';
-  h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> milestones done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Klik item untuk edit' : 'Klik item untuk detail') + '</span></div>';
+    '<div class="mt-actions"><button class="btn primary" data-act="new-milestone">+ Add Milestone</button><div class="mt-legend" role="group" aria-label="Show workstreams">' +
+    wsShown.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '"' + mtStyle(p, 'pill') + ' data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') +
+    (wsShown.length > 4 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Tampilkan semua workstream">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
+  h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> Milestones Done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Klik item untuk edit' : 'Klik item untuk detail') + '</span></div>';
   // group by month (of start date) then by date label
   var months = {};
   pre.forEach(function (t) { var key = (t.start || t.deadline).slice(0, 7); (months[key] = months[key] || []).push(t); });
   var monthKeys = Object.keys(months).sort();
-  if (!monthKeys.length && !eventItems.length) return h + '<div class="table-wrap">' + emptyBox('No milestones to show', 'Turn a program back on above, or add a milestone.') + '</div>';
+  if (!monthKeys.length && !eventItems.length) return h + '<div class="table-wrap">' + emptyBox('No Milestones to Show', 'Turn a program back on above, or add a milestone.') + '</div>';
   var cards = monthKeys.map(function (m) {
     var groups = {}, order = [];
     months[m].sort(function (a, b) { var x = a.start || a.deadline, y = b.start || b.deadline; return x < y ? -1 : x > y ? 1 : (a.deadline < b.deadline ? -1 : 1); })
@@ -1017,9 +1068,9 @@ function renderMaster() {
     var d = parseISO(m + '-01');
     var rows = order.map(function (lab) {
       var g = groups[lab], dotCls = 'dot-' + wsClass(g[0].workstream);
-      return '<div class="mt-row"><div class="mt-date"><i class="' + dotCls + '"></i>' + lab + '</div><div class="mt-items">' + g.map(function (t) {
+      return '<div class="mt-row"><div class="mt-date"><i class="' + dotCls + '"' + mtStyle(g[0].workstream, 'dot') + '></i>' + lab + '</div><div class="mt-items">' + g.map(function (t) {
         var st = dueState(t), stColor = st.kind === 'overdue' ? 'var(--crit)' : (statusDef(t.status).color === 'neutral' ? 'transparent' : COLOR_VAR[statusDef(t.status).color] || 'transparent');
-        return '<button class="mt-item' + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(t.workstream) + '">' + esc(t.workstream) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '<span class="mt-st">' + statusBadge(t.status) + '</span></span></button>';
+        return '<button class="mt-item' + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(t.workstream) + '"' + mtStyle(t.workstream, 'prog') + '>' + esc(t.workstream) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '<span class="mt-st">' + statusBadge(t.status) + '</span></span></button>';
       }).join('') + '</div></div>';
     }).join('');
     return '<div class="mt-card"><div class="mt-card-h"><b>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</b><span>' + order.length + ' MILESTONES</span></div><div class="mt-rows">' + rows + '</div></div>';
@@ -1060,9 +1111,9 @@ function renderRundown() {
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Festival run of show</div><h1 class="mt-title">GX 27 <span class="rd-accent">FESTIVAL FLOW</span></h1><p>' + esc(fm.subtitle || 'Main program dan aktivitas paralel dalam satu alur festival.') + ' · ' + fmtDate(EVENT_DATE) + '</p></div>' +
     '<div class="rd-gate"><span><i></i>Open gate ' + esc(fm.openGate || '09:00') + '</span><span class="rd-gate-line"></span><span>Close ' + esc(fm.close || '20:00') + '</span></div></div>';
   h += '<div class="toolbar"><input class="input search" id="rdSearch" type="search" placeholder="Cari segmen, lokasi, catatan…" value="' + esc(ui.rdQ || '') + '" aria-label="Cari rundown">' +
-    '<select class="select" id="rdLoc" aria-label="Lokasi">' + opts(rdLocations('flow'), ui.rdLoc || '', 'Semua lokasi') + '</select>' +
-    ((ui.rdQ || ui.rdLoc) ? '<button class="btn ghost sm" data-act="rd-clear">Clear filters</button>' : '') +
-    '<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="new-zone">+ Zona / area</button><button class="btn primary" data-act="new-rundown">+ Segmen</button></span></div>';
+    '<select class="select" id="rdLoc" aria-label="Lokasi">' + opts(rdLocations('flow'), ui.rdLoc || '', 'Semua Lokasi') + '</select>' +
+    ((ui.rdQ || ui.rdLoc) ? '<button class="btn ghost sm" data-act="rd-clear">Clear Filters</button>' : '') +
+    '<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="new-zone">+ Zona / Area</button><button class="btn primary" data-act="new-rundown">+ Segmen</button></span></div>';
   return h + renderFlow();
 }
 function zoneCard(z, i) {
@@ -1078,10 +1129,10 @@ function renderFlow() {
   var acts = zones.filter(function (z) { return z.kind !== 'area'; }), areas = zones.filter(function (z) { return z.kind === 'area'; });
   var h = '';
   if (acts.length) h += '<div class="zone-grid">' + acts.map(zoneCard).join('') + '</div>';
-  if (areas.length) h += '<div class="area-intro"><div class="area-head"><div><span class="mt-eyebrow" style="color:var(--accent)">Explore the festival</span><h2>Area introduction</h2></div><div class="area-path">' + areas.map(function (z) { return '<span>' + esc(z.location) + '</span>'; }).join('<i>→</i>') + '</div></div><div class="area-grid">' + areas.map(zoneCard).join('') + '</div></div>';
+  if (areas.length) h += '<div class="area-intro"><div class="area-head"><div><span class="mt-eyebrow" style="color:var(--accent)">Explore the Festival</span><h2>Area Introduction</h2></div><div class="area-path">' + areas.map(function (z) { return '<span>' + esc(z.location) + '</span>'; }).join('<i>→</i>') + '</div></div><div class="area-grid">' + areas.map(zoneCard).join('') + '</div></div>';
   var list = rdFilter(rdItems('flow')), now = rdNow();
-  if (!rdItems('flow').length) return h + '<div class="table-wrap">' + emptyBox('Festival Flow masih kosong', 'Tambah segmen pertama dengan tombol + Segmen.') + '</div>';
-  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('Tidak ada segmen yang cocok', 'Coba kata kunci lain atau hapus filter.') + '</div>';
+  if (!rdItems('flow').length) return h + '<div class="table-wrap">' + emptyBox('Festival Flow Masih Kosong', 'Tambah segmen pertama dengan tombol + Segmen.') + '</div>';
+  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('Tidak Ada Segmen yang Cocok', 'Coba kata kunci lain atau hapus filter.') + '</div>';
   // group items that share the same start + end into one "parallel" block
   var blocks = [], key = {};
   list.forEach(function (r) { var k = r.start + '|' + r.end; if (key[k]) key[k].items.push(r); else { key[k] = { start: r.start, end: r.end, items: [r] }; blocks.push(key[k]); } });
@@ -1100,7 +1151,7 @@ function renderFlow() {
     var r = b.items[0], live = rdLive(r, now), others = list.filter(function (x) { return x !== r && x.start === r.start; }).length;
     h += '<button class="flow-item' + (live ? ' live' : '') + (isDone(r) ? ' done' : '') + '" data-act="rd-open" data-id="' + r.id + '">' +
       '<span class="flow-time"><b>' + esc(r.start) + '</b><span>→ ' + esc(r.end) + '</span></span>' +
-      '<span class="flow-card"><span class="flow-title"><b>' + esc(r.segment) + '</b>' + (r.location ? '<span class="flow-loc">' + esc(r.location) + '</span>' : '') + (others ? '<span class="badge b-info nodot">Paralel</span>' : '') + (live ? '<span class="badge b-accent nodot">Sedang berjalan</span>' : '') + rdBadges(r) + '</span>' +
+      '<span class="flow-card"><span class="flow-title"><b>' + esc(r.segment) + '</b>' + (r.location ? '<span class="flow-loc">' + esc(r.location) + '</span>' : '') + (others ? '<span class="badge b-info nodot">Paralel</span>' : '') + (live ? '<span class="badge b-accent nodot">Sedang Berjalan</span>' : '') + rdBadges(r) + '</span>' +
       (r.flow ? '<span class="flow-desc">' + esc(r.flow) + '</span>' : '') +
       ((r.concurrent || []).length ? '<span class="flow-conc"><span class="fc-label">Concurrent</span>' + r.concurrent.map(function (c) { return '<span class="fc-chip">' + esc(c) + '</span>'; }).join('') + '</span>' : '') +
       '</span></button>';
@@ -1123,7 +1174,7 @@ function rdDetail(r) {
   if ((r.concurrent || []).length) cols.splice(1, 0, ['Concurrent', r.concurrent.join('\n')]);
   return (r.verifyNote ? '<p class="flag" style="white-space:normal;margin:0 0 10px">⚠ ' + esc(r.verifyNote) + '</p>' : '') +
     '<div class="rd-grid">' + cols.filter(function (c) { return c[1]; }).map(function (c) { return '<div><h4>' + c[0] + '</h4><p>' + (c[1] ? esc(c[1]) : '<span class="faint">—</span>') + '</p></div>'; }).join('') + '</div>' +
-    (canEdit() ? '<div class="rd-actions"><button class="btn sm primary" data-act="edit-rundown" data-id="' + r.id + '">Edit segmen</button><button class="btn sm danger" data-act="delete-rundown" data-id="' + r.id + '">Hapus</button>' + '</div>' : '');
+    (canEdit() ? '<div class="rd-actions"><button class="btn sm primary" data-act="edit-rundown" data-id="' + r.id + '">Edit Segmen</button><button class="btn sm danger" data-act="delete-rundown" data-id="' + r.id + '">Hapus</button>' + '</div>' : '');
 }
 function rdOpenDialog(id) {
   var r = rdById(id); if (!r) return;
@@ -1136,19 +1187,19 @@ function rundownForm(r, preset) {
   r = r || Object.assign({ group: 'flow', start: '', end: '', duration: '', segment: '', location: '', flow: '', concurrent: [], mcCue: '', av: '', ops: '', docs: '', pic: '', status: defaultStatus(), source: 'confirmed', verifyNote: '' }, preset || {});
   var locs = rdLocations('flow');
   var locList = '<datalist id="rdLocList">' + locs.map(function (l) { return '<option value="' + esc(l) + '">'; }).join('') + '</datalist>';
-  openModal('<form id="rdForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Segmen baru' : 'Edit segmen') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+  openModal('<form id="rdForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Segmen Baru' : 'Edit Segmen') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('segment', 'Segmen', inp('segment', r.segment, 'text', 'maxlength="160"'), { req: true, full: true }) +
     field('location', 'Lokasi', inp('location', r.location, 'text', 'list="rdLocList" maxlength="80"') + locList) +
     field('start', 'Mulai', inp('start', r.start, 'time'), { req: true }) +
     field('end', 'Selesai', inp('end', r.end, 'time'), { hint: 'Segmen dengan jam mulai & selesai yang sama tampil sebagai program paralel.' }) +
     picField(r.pic) +
-    field('status', 'Status', sel('status', withCurrent(statusList(), r.status), r.status || defaultStatus()), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
-    field('flow', 'Deskripsi / alur', ta('flow', r.flow), { full: true }) +
-    field('concurrent', 'Concurrent (aktivitas bersamaan)', ta('concurrent', (r.concurrent || []).join('\n')), { full: true, hint: 'Satu per baris. Tampil sebagai chip di Festival Flow.' }) +
+    field('status', 'Status', sel('status', withCurrent(statusList(), r.status), r.status || defaultStatus()), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola Status</a>' : '' }) +
+    field('flow', 'Deskripsi / Alur', ta('flow', r.flow), { full: true }) +
+    field('concurrent', 'Concurrent (Aktivitas Bersamaan)', ta('concurrent', (r.concurrent || []).join('\n')), { full: true, hint: 'Satu per baris. Tampil sebagai chip di Festival Flow.' }) +
     field('ops', 'Catatan', ta('ops', r.ops), { full: true, hint: 'Opsional: crew, props, cue MC, dll.' }) +
-    field('duration', 'Durasi (label)', inp('duration', r.duration, 'text', 'maxlength="30"'), { hint: 'Kosongkan untuk dihitung otomatis' }) +
-    field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], r.source)) +
-    field('verifyNote', 'Verification note', inp('verifyNote', r.verifyNote, 'text', 'maxlength="300"')) +
+    field('duration', 'Durasi (Label)', inp('duration', r.duration, 'text', 'maxlength="30"'), { hint: 'Kosongkan untuk dihitung otomatis' }) +
+    field('source', 'Data Source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], r.source)) +
+    field('verifyNote', 'Verification Note', inp('verifyNote', r.verifyNote, 'text', 'maxlength="300"')) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-rundown" data-id="' + r.id + '">Hapus</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Tambah segmen' : 'Simpan') + '</button></div></div></form>', 'wide');
   document.getElementById('rdForm').onsubmit = function (e) {
@@ -1174,10 +1225,10 @@ function zoneForm(z) {
     return;
   }
   var isNew = !z; z = z || { kind: 'activity', name: '', time: '', location: '', detail: '', order: (db.zones || []).length + 1 };
-  openModal('<form id="zoneForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Zona / area baru' : 'Edit ' + esc(z.name)) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+  openModal('<form id="zoneForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'Zona / Area Baru' : 'Edit ' + esc(z.name)) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Nama', inp('name', z.name, 'text', 'maxlength="80"'), { req: true }) +
-    field('kind', 'Jenis', sel('kind', [{ value: 'activity', label: 'Aktivitas paralel (kartu atas)' }, { value: 'area', label: 'Area introduction' }], z.kind)) +
-    field('time', 'Jam (label)', inp('time', z.time, 'text', 'maxlength="40" placeholder="10:00–16:00 atau Start 09:00"')) +
+    field('kind', 'Jenis', sel('kind', [{ value: 'activity', label: 'Aktivitas Paralel (Kartu Atas)' }, { value: 'area', label: 'Area Introduction' }], z.kind)) +
+    field('time', 'Jam (Label)', inp('time', z.time, 'text', 'maxlength="40" placeholder="10:00–16:00 atau Start 09:00"')) +
     field('location', 'Lokasi', inp('location', z.location, 'text', 'maxlength="60"')) +
     field('detail', 'Detail', ta('detail', z.detail), { full: true, hint: 'Boleh beberapa baris.' }) +
     field('order', 'Urutan', inp('order', z.order, 'number', 'min="1" max="99"')) +
@@ -1206,11 +1257,11 @@ function deleteRundown(id) {
 
 /* ---------- Category manager (task categories + workstreams) ---------- */
 var CAT_KINDS = {
-  category: { label: 'Kategori task', key: 'taskCategories', hint: 'Dipakai di kolom Category pada task.' },
-  workstream: { label: 'Workstream / program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' },
-  status: { label: 'Status task', key: 'taskStatuses', hint: '' },
+  category: { label: 'Kategori Task', key: 'taskCategories', hint: 'Dipakai di kolom Category pada task.' },
+  workstream: { label: 'Workstream / Program', key: 'workstreams', hint: 'Dipakai di task (Workstream) dan di Finance (Budget category).' },
+  status: { label: 'Status Task', key: 'taskStatuses', hint: '' },
   pic: { label: 'PIC', key: 'pics', hint: 'Nama yang muncul di dropdown PIC (task & rundown).' },
-  pay: { label: 'Status payment', key: 'payStatuses', hint: '' }
+  pay: { label: 'Status Payment', key: 'payStatuses', hint: '' }
 };
 function catTabs(kind) {
   return '<div class="tabs" role="tablist" style="padding:0 18px;margin:0">' + Object.keys(CAT_KINDS).map(function (k) { return '<button type="button" role="tab" data-act="cat-tab" data-kind="' + k + '" aria-selected="' + (k === kind) + '">' + CAT_KINDS[k].label + '</button>'; }).join('') + '</div>';
@@ -1229,13 +1280,13 @@ function statusManager() {
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="status" data-idx="' + i + '">Hapus</button></span></div>';
   }).join('');
   var noDone = !list.some(function (x) { return x.type === 'done'; });
-  openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('status') +
+  openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Kelola Kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('status') +
     '<div class="modal-b one"><p class="muted" style="margin:0">Status yang dipilih di task. <b>Jenis</b> menentukan perilakunya: <i>Selesai</i> dihitung sebagai task selesai (dicoret, masuk KPI Completed), <i>Terhambat</i> wajib isi blocker dan masuk daftar urgent, <i>Menunggu</i> masuk KPI Pending & tab Pending, <i>Berjalan</i> masuk KPI In progress. Ganti nama otomatis memperbarui semua task.</p>' +
     (noDone ? '<div class="banner warn" style="margin:0">Belum ada status berjenis <b>Selesai</b>, jadi tidak ada task yang dihitung selesai.</div>' : '') +
     '<div class="cat-list">' + rows + '</div>' +
     '<div class="cat-add"><input class="input" id="stNew" placeholder="Nama status baru, mis. Waiting Vendor" maxlength="40"><select class="select" id="stNewType" aria-label="Jenis">' + opts(STATUS_TYPES, 'progress') + '</select><button type="button" class="btn" data-act="cat-add" data-kind="status">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
-    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan perubahan</button></div></div></form>', 'wide');
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan Perubahan</button></div></div></form>', 'wide');
   document.getElementById('stForm').onsubmit = function (e) {
     e.preventDefault();
     var next = [], renames = [], names = [];
@@ -1267,12 +1318,12 @@ function payManager() {
       '<button class="btn sm" type="button" data-act="cat-move" data-kind="pay" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="pay" data-idx="' + i + '">Hapus</button></span></div>';
   }).join('');
-  openModal('<form id="payForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('pay') +
-    '<div class="modal-b one"><p class="muted" style="margin:0">Pilihan di dropdown Payment status (Finance). <b>Jenis</b> menentukan hitungan: <i>Belum bayar</i> = dibayar Rp 0, <i>Bayar sebagian (DP)</i> = dibayar sebesar DP, <i>Lunas</i> = dibayar penuh. Kalau kolom "Total transferred" diisi, angka itu yang dipakai. Ganti nama otomatis memperbarui semua item budget.</p>' +
+  openModal('<form id="payForm" novalidate><div class="modal-h"><h3>Kelola Kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('pay') +
+    '<div class="modal-b one"><p class="muted" style="margin:0">Pilihan di dropdown Payment status (Finance). <b>Jenis</b> menentukan hitungan: <i>Belum Bayar</i> = dibayar Rp 0, <i>Bayar Sebagian (DP)</i> = dibayar sebesar DP, <i>Lunas</i> = dibayar penuh. Kalau kolom "Total transferred" diisi, angka itu yang dipakai. Ganti nama otomatis memperbarui semua item budget.</p>' +
     '<div class="cat-list">' + rows + '</div>' +
     '<div class="cat-add"><input class="input" id="payNew" placeholder="Nama status baru, mis. Waiting Invoice" maxlength="40"><select class="select" id="payNewType" aria-label="Jenis">' + opts(PAY_TYPES, 'unpaid') + '</select><button type="button" class="btn" data-act="cat-add" data-kind="pay">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
-    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan perubahan</button></div></div></form>', 'wide');
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan Perubahan</button></div></div></form>', 'wide');
   document.getElementById('payForm').onsubmit = function (e) {
     e.preventDefault();
     var next = [], names = [], moved = 0;
@@ -1313,14 +1364,14 @@ function categoryManager(kind) {
       '<button class="btn sm" type="button" data-act="cat-move" data-kind="' + kind + '" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="' + kind + '" data-idx="' + i + '">Hapus</button></div>';
   }).join('');
-  openModal('<form id="catForm" novalidate><div class="modal-h"><h3>Kelola kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+  openModal('<form id="catForm" novalidate><div class="modal-h"><h3>Kelola Kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
     catTabs(kind) +
     '<div class="modal-b one"><p class="muted" style="margin:0">' + K.hint + ' Ganti nama langsung di kotaknya; semua task/budget yang memakai nama lama ikut diganti.</p>' +
     '<div class="cat-list">' + (rows || '<p class="faint">Belum ada.</p>') + '</div>' +
     (unlisted.length ? '<div class="banner warn" style="margin:0">Dipakai di data tapi belum ada di daftar: ' + unlisted.map(function (u) { return '<button type="button" class="btn sm" data-act="cat-adopt" data-kind="' + kind + '" data-name="' + esc(u) + '">+ ' + esc(u) + '</button>'; }).join(' ') + '</div>' : '') +
     '<div class="cat-add"><input class="input" id="catNew" placeholder="Nama ' + K.label.toLowerCase() + ' baru" maxlength="60"><button type="button" class="btn" data-act="cat-add" data-kind="' + kind + '">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
-    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan nama</button></div></div></form>', 'wide');
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan Nama</button></div></div></form>', 'wide');
   var form = document.getElementById('catForm');
   form.dataset.kind = kind;
   form.onsubmit = function (e) { e.preventDefault(); applyCatRenames(kind); };
@@ -1387,8 +1438,8 @@ function catDelete(kind, idx) {
     if (!prest.length) { toast('Minimal harus ada satu status payment.', true); return; }
     if (!pused) { confirmDialog('Hapus status "' + ps.name + '"?', 'Tidak ada item budget yang memakai status ini.', 'Hapus', function () { db.settings.payStatuses = prest; commit('Status payment dihapus'); payManager(); }); return; }
     openModal('<form id="payDelForm" novalidate><div class="modal-h"><h3>Hapus status "' + esc(ps.name) + '"?</h3></div><div class="modal-b one"><p style="margin:0">Masih dipakai oleh <b>' + pused + ' item budget</b>. Pindahkan ke:</p>' +
-      field('moveTo', 'Status pengganti', sel('moveTo', prest.map(function (x) { return x.name; }), prest[0].name)) + '</div>' +
-      '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="pay">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; hapus</button></div></div></form>', 'sm');
+      field('moveTo', 'Status Pengganti', sel('moveTo', prest.map(function (x) { return x.name; }), prest[0].name)) + '</div>' +
+      '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="pay">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; Hapus</button></div></div></form>', 'sm');
     document.getElementById('payDelForm').onsubmit = function (e) {
       e.preventDefault(); var to = e.target.moveTo.value, n = 0;
       db.finance.forEach(function (f) { if (f.paymentStatus === ps.name) { f.paymentStatus = to; f.updatedAt = Date.now(); n++; } });
@@ -1406,8 +1457,8 @@ function catDelete(kind, idx) {
       return;
     }
     openModal('<form id="stDelForm" novalidate><div class="modal-h"><h3>Hapus status "' + esc(st.name) + '"?</h3></div><div class="modal-b one"><p style="margin:0">Masih dipakai oleh <b>' + used + ' task/segmen rundown</b>. Pindahkan ke:</p>' +
-      field('moveTo', 'Status pengganti', sel('moveTo', rest.map(function (x) { return x.name; }), defaultStatus() === st.name ? rest[0].name : defaultStatus())) + '</div>' +
-      '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="status">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; hapus</button></div></div></form>', 'sm');
+      field('moveTo', 'Status Pengganti', sel('moveTo', rest.map(function (x) { return x.name; }), defaultStatus() === st.name ? rest[0].name : defaultStatus())) + '</div>' +
+      '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="status">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; Hapus</button></div></div></form>', 'sm');
     document.getElementById('stDelForm').onsubmit = function (e) {
       e.preventDefault(); var to = e.target.moveTo.value, n = 0;
       db.tasks.concat(db.rundown || []).forEach(function (t) { if (t.status === st.name) { t.status = to; t.updatedAt = Date.now(); n++; } });
@@ -1426,8 +1477,8 @@ function catDelete(kind, idx) {
   var others = list.filter(function (_, i) { return i !== idx; });
   if (!others.length) { toast('Tambah ' + K.label.toLowerCase() + ' lain dulu sebelum menghapus yang terakhir.', true); return; }
   openModal('<form id="catDelForm" novalidate><div class="modal-h"><h3>Hapus "' + esc(name) + '"?</h3></div><div class="modal-b one"><p style="margin:0">Masih dipakai oleh <b>' + u.tasks + ' task</b>' + (kind === 'workstream' ? ' dan <b>' + u.finance + ' baris budget</b>' : '') + '. Pindahkan ke:</p>' +
-    field('moveTo', 'Pindahkan ke', sel('moveTo', others, others[0])) + '</div>' +
-    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="' + kind + '">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; hapus</button></div></div></form>', 'sm');
+    field('moveTo', 'Pindahkan Ke', sel('moveTo', others, others[0])) + '</div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="cat-tab" data-kind="' + kind + '">Batal</button><button type="submit" class="btn danger solid">Pindahkan &amp; Hapus</button></div></div></form>', 'sm');
   document.getElementById('catDelForm').onsubmit = function (e) {
     e.preventDefault();
     var to = e.target.moveTo.value, n = catRename(kind, name, to);
@@ -1440,21 +1491,21 @@ function catDelete(kind, idx) {
 function renderOverview() {
   var s = taskStats(), ft = totals(db.finance), today = todayISO();
   var h = pageHead('Overview', 'Status hari ini, ' + fmtDate(today) + '. Data timeline dari Master Timeline Road to GX 27.',
-    '<button class="btn" data-act="new-task">+ Task</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
+    '<button class="btn" data-act="new-task">+ Task</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
   h += '<div class="kpis">' +
-    kpi('Total tasks', s.total, s.blocked + ' blocked · ' + s.overdue + ' overdue') +
+    kpi('Total Tasks', s.total, s.blocked + ' blocked · ' + s.overdue + ' overdue') +
     kpi('Completed', s.done, s.total ? Math.round(s.done / s.total * 100) + '% of all tasks' : '—') +
-    kpi('In progress', s.prog, 'operational status') +
+    kpi('In Progress', s.prog, 'operational status') +
     kpi('Pending', s.appr, 'menunggu / tertahan', s.appr > 0) +
     '</div><div class="kpis">' +
-    kpi('Estimated budget', rp(ft.est), ft.count + ' line items · ' + ft.missing + ' without amount', false, true) +
-    kpi('Payments made', rp(ft.paid), '+ ' + rp(ft.fee) + ' biaya transfer', false, true) +
+    kpi('Estimated Budget', rp(ft.est), ft.count + ' line items · ' + ft.missing + ' without amount', false, true) +
+    kpi('Payments Made', rp(ft.paid), '+ ' + rp(ft.fee) + ' biaya transfer', false, true) +
     kpi('Outstanding', rp(ft.outstanding), 'invoice (or estimate) minus paid', ft.outstanding > 0, true) +
-    kpi('Needs verification', ft.flagged + db.tasks.filter(function (t) { return t.source === 'verify'; }).length, 'finance + task records') +
+    kpi('Needs Verification', ft.flagged + db.tasks.filter(function (t) { return t.source === 'verify'; }).length, 'finance + task records') +
     '</div>';
 
   // Prep strip
-  h += '<div class="panel-h" style="border:none;padding:0 0 8px"><h2>Preparation deadlines</h2><span class="muted" style="font-size:12px">Event Day 21 Nov 2026</span></div><div class="prep-strip">';
+  h += '<div class="panel-h" style="border:none;padding:0 0 8px"><h2>Preparation Deadlines</h2><span class="muted" style="font-size:12px">Event Day 21 Nov 2026</span></div><div class="prep-strip">';
   var nextFound = false;
   PREP_DEADLINES.forEach(function (d) {
     var t = db.tasks.filter(function (x) { return x.category === 'Preparation' && x.deadline === d; })[0];
@@ -1470,8 +1521,8 @@ function renderOverview() {
   var upcoming = db.tasks.filter(function (t) { var d = dueState(t); return !isDone(t) && d.kind !== 'none' && d.days >= 0 && d.days <= 14; })
     .sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   h += '<div class="grid-2">' +
-    panel('Urgent · overdue, due ≤3 days, blocked', urgent.length, urgent.length ? urgent.slice(0, 12).map(listRow).join('') + more(urgent.length, 12, 'pending') : emptyBox('Nothing urgent', 'No overdue, blocked or due-soon tasks.')) +
-    panel('Upcoming · next 14 days', upcoming.length, upcoming.length ? upcoming.slice(0, 12).map(listRow).join('') + more(upcoming.length, 12, 'timeline') : emptyBox('No deadlines in the next 14 days', 'Add deadlines to tasks to see them here.')) +
+    panel('Urgent · Overdue, Due ≤3 Days, Blocked', urgent.length, urgent.length ? urgent.slice(0, 12).map(listRow).join('') + more(urgent.length, 12, 'pending') : emptyBox('Nothing Urgent', 'No overdue, blocked or due-soon tasks.')) +
+    panel('Upcoming · Next 14 Days', upcoming.length, upcoming.length ? upcoming.slice(0, 12).map(listRow).join('') + more(upcoming.length, 12, 'timeline') : emptyBox('No Deadlines in the Next 14 Days', 'Add deadlines to tasks to see them here.')) +
     '</div>';
 
   // Workstream summary + verification
@@ -1485,17 +1536,17 @@ function renderOverview() {
   }).join('');
   var vItems = [];
   db.finance.forEach(function (f) { var c = calc(f); if (c.flags.length || f.source === 'verify') vItems.push({ kind: 'fin', id: f.id, title: f.item, ws: f.workstream, msgs: (f.verifyNote ? [f.verifyNote] : []).concat(c.flags.map(function (x) { return x.msg; })) }); });
-  db.tasks.forEach(function (t) { if (t.source === 'verify') vItems.push({ kind: 'task', id: t.id, title: t.name, ws: t.workstream, msgs: [t.verifyNote || 'Needs verification'] }); });
-  h += '<div class="grid-2"><div class="panel"><div class="panel-h"><h2>By workstream</h2></div><div class="table-wrap" style="border:none"><table><thead><tr><th>Workstream</th><th class="r">Done</th><th>Progress</th><th class="r">Est. budget</th><th class="r">Paid</th></tr></thead><tbody>' + wsRows + '</tbody></table></div></div>' +
-    panel('Needs verification', vItems.length, vItems.length ? '<div class="verify-list">' + vItems.slice(0, 14).map(function (v) {
+  db.tasks.forEach(function (t) { if (t.source === 'verify') vItems.push({ kind: 'task', id: t.id, title: t.name, ws: t.workstream, msgs: [t.verifyNote || 'Needs Verification'] }); });
+  h += '<div class="grid-2"><div class="panel"><div class="panel-h"><h2>By Workstream</h2></div><div class="table-wrap" style="border:none"><table><thead><tr><th>Workstream</th><th class="r">Done</th><th>Progress</th><th class="r">Est. Budget</th><th class="r">Paid</th></tr></thead><tbody>' + wsRows + '</tbody></table></div></div>' +
+    panel('Needs Verification', vItems.length, vItems.length ? '<div class="verify-list">' + vItems.slice(0, 14).map(function (v) {
       return '<div class="v-row" data-act="' + (v.kind === 'fin' ? 'edit-fin' : 'open-task') + '" data-id="' + v.id + '" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center;min-width:0">' + wsTag(v.ws) + '<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(v.title) + '</b></div><div class="flag">' + esc(v.msgs.join(' · ')) + '</div></div>';
-    }).join('') + '</div>' + (vItems.length > 14 ? '<div class="empty" style="padding:10px">+' + (vItems.length - 14) + ' more in Tasks and Finance</div>' : '') : emptyBox('All records verified', 'Nothing is flagged right now.')) + '</div>';
+    }).join('') + '</div>' + (vItems.length > 14 ? '<div class="empty" style="padding:10px">+' + (vItems.length - 14) + ' more in Tasks and Finance</div>' : '') : emptyBox('All Records Verified', 'Nothing is flagged right now.')) + '</div>';
   return h;
 }
 function kpi(k, v, s, hl, money) { return '<div class="kpi' + (hl ? ' hl' : '') + '"><span class="k">' + k + '</span><span class="v' + (money ? ' money' : '') + '">' + v + '</span><span class="s">' + s + '</span></div>'; }
 function panel(title, count, body) { return '<div class="panel"><div class="panel-h"><h2>' + title + '</h2><span class="num muted">' + count + '</span></div><div class="panel-b">' + body + '</div></div>'; }
 function emptyBox(t, s) { return '<div class="empty"><b>' + esc(t) + '</b>' + esc(s) + '</div>'; }
-function more(n, lim, view) { return n > lim ? '<div style="padding:6px 14px"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">View all ' + n + ' →</button></div>' : ''; }
+function more(n, lim, view) { return n > lim ? '<div style="padding:6px 14px"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">View All ' + n + ' →</button></div>' : ''; }
 function listRow(t) {
   return '<div class="list-row" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0"><span>' + wsTags(t) + '</span><span class="t">' + esc(t.name) + '<br><span style="font-size:12px">' + dueLabel(t) + '</span></span><span>' + statusBadge(t.status) + '</span></div>';
 }
@@ -1512,7 +1563,7 @@ function dlCmp(a, b, dir) {
 function filteredTasks(view) {
   var q = ui.q.trim().toLowerCase();
   var list = db.tasks.filter(function (t) {
-    var taskWs = taskWorkstreams(t);
+    var taskWs = taskWorkstreams(t).concat(taskFinWs(t));
     if (ui.fWs.length && !ui.fWs.some(function (w) { return taskWs.indexOf(w) > -1; })) return false;
     if (ui.fStatus.length && ui.fStatus.indexOf(t.status) < 0) return false;
     if (ui.fSrc && t.source !== ui.fSrc) return false;
@@ -1540,17 +1591,18 @@ function filteredTasks(view) {
 
 function renderTasks() {
   var views = [['all', 'All Tasks'], ['procurement', 'Finance & Procurement'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
-  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.' + (ui.sort.key === 'deadline' && ui.sort.dir < 0 ? ' Urutan otomatis: deadline terbaru di atas.' : ''), '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola kolom</button><button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
+  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.' + (ui.sort.key === 'deadline' && ui.sort.dir < 0 ? ' Urutan otomatis: deadline terbaru di atas.' : ''), '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola Kolom</button><button class="btn" data-act="manage-categories">Kelola Kategori</button><button class="btn primary" data-act="new-task">+ New Task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
   }).join('') + '</div>';
   h += '<div class="toolbar">' +
     '<input class="input search" id="taskSearch" type="search" placeholder="Search task, PIC, notes…" value="' + esc(ui.q) + '" aria-label="Search tasks">' +
-    '<select class="select" id="fSrc" aria-label="Data source">' + opts([{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], ui.fSrc, 'All sources') + '</select>' +
-    ((ui.q || ui.fWs.length || ui.fStatus.length || ui.fSrc || colFilterActive()) ? '<button class="btn ghost sm" data-act="clear-filters">Clear filters</button>' : '') + '</div>';
+    '<select class="select" id="fSrc" aria-label="Data Source">' + opts([{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], ui.fSrc, 'All Sources') + '</select>' +
+    ((ui.q || ui.fWs.length || ui.fStatus.length || ui.fSrc || colFilterActive()) ? '<button class="btn ghost sm" data-act="clear-filters">Clear Filters</button>' : '') +
+    (ui.taskView !== 'timeline' ? '<button class="btn sm fin-all-btn" data-act="task-fin-all" aria-pressed="' + !ui.tfHide + '">' + (ui.tfHide ? 'Tampilkan Item Finance' : 'Sembunyikan Item Finance') + '</button>' : '') + '</div>';
   var list = filteredTasks(ui.taskView);
-  if (!db.tasks.length) return h + '<div class="table-wrap">' + emptyBox('No tasks yet', 'Create the first task to get started.') + '</div>';
-  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No tasks match', ui.taskView === 'pending' ? 'Nothing pending approval, blocked or overdue with these filters.' : 'Try a different search or clear the filters.') + '</div>';
+  if (!db.tasks.length) return h + '<div class="table-wrap">' + emptyBox('No Tasks Yet', 'Create the first task to get started.') + '</div>';
+  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Tasks Match', ui.taskView === 'pending' ? 'Nothing pending approval, blocked or overdue with these filters.' : 'Try a different search or clear the filters.') + '</div>';
   if (ui.taskView === 'timeline') return h + renderTimeline(list);
   if (ui.taskView === 'operational') return h + taskTable(list, false);
   return h + taskTable(list, false, ui.taskView === 'pending');
@@ -1562,19 +1614,19 @@ function multiSelect(key, allLabel, noun, list) {
   var label = !sel.length ? allLabel : sel.length === 1 ? sel[0] : sel.length + ' ' + noun + ' dipilih';
   return '<details class="msel' + (sel.length ? ' on' : '') + '" data-ms-box="' + key + '"' + (ui.msOpen === key ? ' open' : '') + '><summary class="select">' + esc(label) + '</summary><div class="msel-pop">' +
     list.map(function (v) { return '<label class="msel-opt"><input type="checkbox" data-ms="' + key + '" value="' + esc(v) + '"' + (sel.indexOf(v) > -1 ? ' checked' : '') + '> ' + esc(v) + '</label>'; }).join('') +
-    (sel.length ? '<button type="button" class="btn sm ghost" data-act="ms-clear" data-key="' + key + '">Tampilkan semua</button>' : '') + '</div></details>';
+    (sel.length ? '<button type="button" class="btn sm ghost" data-act="ms-clear" data-key="' + key + '">Tampilkan Semua</button>' : '') + '</div></details>';
 }
 function picList() { return (db.settings.pics || []).slice(); }
 // a PIC field can hold several people, stored as "Putri, Esi"
 function picsOf(v) { return String(v || '').split(/\s*[,;\/]\s*|\s+&\s+/).map(function (x) { return x.trim(); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }); }
 function picJoin(arr) { return arr.filter(function (x, i, a) { return x && a.indexOf(x) === i; }).join(', '); }
-function picChips(v) { var a = picsOf(v); return a.length ? a.map(function (n) { return '<span class="pic-chip">' + esc(n) + '</span>'; }).join('') : '<span class="faint">Belum ada</span>'; }
+function picChips(v) { var a = picsOf(v); return a.length ? a.map(function (n) { return '<span class="pic-chip">' + esc(n) + '</span>'; }).join('') : '<span class="faint">Belum Ada</span>'; }
 // checkbox list of names + "add a new name" box; the chosen names go into a hidden input "pic"
 function picField(v) {
   var cur = picsOf(v), names = picList(); cur.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); });
   return '<div class="field full" data-field="pic"><label>PIC <span class="hint" style="display:inline">· bisa pilih lebih dari satu</span></label>' +
     '<div class="pic-pick" id="picPick">' + names.map(function (n) { return '<label class="pic-opt"><input type="checkbox" class="pic-cb" value="' + esc(n) + '"' + (cur.indexOf(n) > -1 ? ' checked' : '') + (canEdit() ? '' : ' disabled') + '> ' + esc(n) + '</label>'; }).join('') + '</div>' +
-    (canEdit() ? '<div class="pic-new"><input class="input" id="picNewName" placeholder="Tambah nama PIC baru" maxlength="60"><button type="button" class="btn sm" data-act="pic-add-inline">+ Tambah</button> <a href="#" data-act="manage-pics" class="hint">Kelola nama PIC</a></div>' : '') +
+    (canEdit() ? '<div class="pic-new"><input class="input" id="picNewName" placeholder="Tambah nama PIC baru" maxlength="60"><button type="button" class="btn sm" data-act="pic-add-inline">+ Tambah</button> <a href="#" data-act="manage-pics" class="hint">Kelola Nama PIC</a></div>' : '') +
     '<input type="hidden" id="f-pic" name="pic" value="' + esc(picJoin(cur)) + '"><span class="msg" hidden></span></div>';
 }
 function picSync() {
@@ -1602,10 +1654,10 @@ function customColByKey(k) { return colList('tasks').filter(function (c) { retur
 function colFilterKind(key) { return 'set'; }   // every header: pick one or more values
 function taskPayLabel(t) {
   var fins = finForTask(t.id);
-  if (!fins.length) return 'Tidak ada budget';
+  if (!fins.length) return 'Tidak Ada Budget';
   var types = fins.map(function (f) { return payType(f.paymentStatus); });
   if (types.every(function (x) { return x === 'paid'; })) return 'Lunas';
-  return types.some(function (x) { return x !== 'unpaid'; }) ? 'Sebagian dibayar' : 'Belum dibayar';
+  return types.some(function (x) { return x !== 'unpaid'; }) ? 'Sebagian Dibayar' : 'Belum Dibayar';
 }
 // values a task has in a column: [{ v: shown text, k: sort key }]
 function colVals(key, t) {
@@ -1615,11 +1667,11 @@ function colVals(key, t) {
     case 'name': add(t.name); break;
     case 'notes': add(t.notes); break;
     case 'category': add(t.category); break;
-    case 'workstream': taskWorkstreams(t).forEach(function (w) { add(w); }); break;
+    case 'workstream': taskWorkstreams(t).concat(taskFinWs(t)).forEach(function (w) { if (out.every(function (x) { return x.v !== w; })) add(w); }); break;
     case 'pic': picsOf(t.pic).forEach(function (n) { add(n); }); break;
     case 'status': add(t.status, String(1000 + statusList().indexOf(t.status))); break;
     case 'start': case 'deadline': if (t[key]) add(fmtDate(t[key]), t[key]); break;
-    case 'source': add(t.source === 'verify' ? 'Needs verification' : 'Confirmed'); break;
+    case 'source': add(t.source === 'verify' ? 'Needs Verification' : 'Confirmed'); break;
     case 'payment': add(taskPayLabel(t)); break;
     default:
       if (key.indexOf('cf:') === 0) {
@@ -1675,7 +1727,7 @@ function openColFilter(key, btn) {
   var first;
   if (kind === 'text') {
     var cur = ui.colF[key] && ui.colF[key].v || '';
-    pop.innerHTML = '<div class="hf-t">Filter ' + esc(label) + '</div><input class="input" id="hfText" type="search" placeholder="Berisi kata…" value="' + esc(cur) + '"><div class="hf-foot"><button type="button" class="btn sm ghost" data-hf="clear">Hapus filter</button></div>';
+    pop.innerHTML = '<div class="hf-t">Filter ' + esc(label) + '</div><input class="input" id="hfText" type="search" placeholder="Berisi kata…" value="' + esc(cur) + '"><div class="hf-foot"><button type="button" class="btn sm ghost" data-hf="clear">Hapus Filter</button></div>';
     first = pop.querySelector('#hfText');
     first.addEventListener('input', function () { setColFilter(key, 'text', first.value); });
   } else {
@@ -1683,13 +1735,13 @@ function openColFilter(key, btn) {
     db.tasks.forEach(function (t) { colVals(key, t).forEach(function (x) { counts[x.v] = (counts[x.v] || 0) + 1; if (!(x.v in order)) order[x.v] = x.k; }); });
     var values = Object.keys(counts).sort(function (a, b) { return order[a] < order[b] ? -1 : order[a] > order[b] ? 1 : 0; });
     pop.innerHTML = '<div class="hf-t">Filter ' + esc(label) + '</div>' + (values.length > 8 ? '<input class="input" id="hfSearch" type="search" placeholder="Cari nilai…">' : '') +
-      '<div class="hf-list" id="hfList"></div><div class="hf-foot"><button type="button" class="btn sm ghost" data-hf="all">Pilih semua yang tampil</button><button type="button" class="btn sm ghost" data-hf="clear">Hapus filter</button></div>';
+      '<div class="hf-list" id="hfList"></div><div class="hf-foot"><button type="button" class="btn sm ghost" data-hf="all">Pilih Semua yang Tampil</button><button type="button" class="btn sm ghost" data-hf="clear">Hapus Filter</button></div>';
     var list = pop.querySelector('#hfList'), search = pop.querySelector('#hfSearch');
     var draw = function () {
       var q = search ? search.value.trim().toLowerCase() : '', sel = ui.colF[key] && Array.isArray(ui.colF[key].v) ? ui.colF[key].v : [];
       list.innerHTML = values.filter(function (v) { return !q || v.toLowerCase().indexOf(q) > -1; }).map(function (v) {
         return '<label class="hf-opt"><input type="checkbox" value="' + esc(v) + '"' + (sel.indexOf(v) > -1 ? ' checked' : '') + '> <span class="hf-v">' + esc(v) + '</span><span class="hf-n">' + counts[v] + '</span></label>';
-      }).join('') || '<div class="faint" style="padding:6px">Tidak ada nilai</div>';
+      }).join('') || '<div class="faint" style="padding:6px">Tidak Ada Nilai</div>';
     };
     draw();
     if (search) search.addEventListener('input', draw);
@@ -1732,7 +1784,7 @@ function sortTh(key, label, cls, extra) {
 function taskTable(list, compact, showBlockers) {
   var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
   var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
-  var W = { name: 24, workstream: 13, category: 13, start: 11, deadline: 14, pic: 14, status: 12, notes: 20, source: 10, payment: 15 };
+  var W = { name: 24, workstream: 13, category: 12, start: 11, deadline: 13, pic: 10, status: 16, notes: 20, source: 10, payment: 16 };
     var wt = cols.reduce(function (a, c) { return a + (W[c.key] || 11); }, 0) || 1;
     var colg = '<colgroup>' + cols.map(function (c) { return '<col style="width:' + ((W[c.key] || 11) / wt * 100).toFixed(2) + '%">'; }).join('') + '</colgroup>';
     var h = '<div class="table-wrap"><table class="task-table">' + colg + '<thead><tr>' + cols.map(function (c) {
@@ -1744,12 +1796,80 @@ function taskTable(list, compact, showBlockers) {
     var exp = ui.expanded === t.id;
     h += '<tr class="row' + (exp ? ' expanded' : '') + '" data-act="expand" data-id="' + t.id + '" aria-expanded="' + exp + '">' + cols.map(function (c) { return c.custom ? cfCell('tasks', c, t) : taskCell(c.key, t); }).join('') + '</tr>';
     if (exp) h += '<tr class="expanded"><td colspan="' + cols.length + '">' + taskDetail(t) + '</td></tr>';
+    if (taskFinOpen(t)) taskFinRows(t).forEach(function (f) {
+      h += '<tr class="fin-sub" data-act="edit-fin" data-id="' + f.id + '" title="Buka item budget: ' + esc(f.item) + '">' + cols.map(function (c) { return c.custom ? '<td></td>' : finSubCell(c.key, f, t); }).join('') + '</tr>';
+    });
   });
   return h + '</tbody></table></div>';
 }
+/* Finance & Procurement items inside the task list: every budget item linked to a task is listed under that task
+   as its own row (with its own workstream), so All Tasks shows every item from Finance. */
+function taskFinItems(t) {
+  return finForTask(t.id).sort(function (a, b) {
+    var pa = a.parentId ? 1 : 0, pb = b.parentId ? 1 : 0;
+    return pa - pb || rowOrder(a, b);
+  });
+}
+// rows worth listing: skip a single item that is just the task itself (same name)
+function taskFinHasRows(t) {
+  var l = finForTask(t.id);
+  return l.length > 1 || (l.length === 1 && String(l[0].item || '').trim().toLowerCase() !== String(t.name || '').trim().toLowerCase());
+}
+function taskFinOpen(t) {
+  if (ui.tfHide || !taskFinHasRows(t)) return false;
+  var o = (ui.tfOpen || {})[t.id];
+  return o === undefined ? true : !!o;
+}
+// while filtering by workstream or searching, only the items that match are listed
+function taskFinRows(t) {
+  var list = taskFinItems(t);
+  var F = (ui.colF || {}).workstream, wsF = F && Array.isArray(F.v) && F.v.length && activeColFilters().indexOf('workstream') > -1 ? F.v : null;
+  if (wsF) {
+    var wsHit = list.filter(function (f) { return wsF.indexOf(f.workstream || EMPTY_LABEL) > -1; });
+    if (wsHit.length) list = wsHit;     // e.g. filter "Games": only the game items; the task matched on its own workstream → all its items
+  }
+  var q = (ui.q || '').trim().toLowerCase();
+  if (q && String(t.name || '').toLowerCase().indexOf(q) < 0) {
+    var hit = list.filter(function (f) { return [f.item, f.workstream, f.notes].join(' ').toLowerCase().indexOf(q) > -1; });
+    if (hit.length) list = hit;
+  }
+  return list;
+}
+function taskFinWs(t) {
+  var out = [];
+  finForTask(t.id).forEach(function (f) { if (f.workstream && out.indexOf(f.workstream) < 0) out.push(f.workstream); });
+  return out;
+}
+function finSubCell(key, f, t) {
+  var c = calc(f);
+  switch (key) {
+    case 'name':
+      var kind = f.kind === 'vendor' ? 'Vendor Invoice' : f.kind === 'allocation' ? 'Alokasi Dana' : f.parentId ? 'Item Invoice' : 'Item Budget';
+      return '<td class="fs-name"><span class="fs-ind" aria-hidden="true">↳</span><span class="fs-body"><span class="fs-item">' + esc(f.item || '(tanpa nama)') + '</span><span class="fs-meta">' + kind + ' · ' + rp(c.est != null ? c.est : c.base) + (f.qty ? ' · ' + esc(f.qty) + (f.unit ? ' ' + esc(f.unit) : '') : '') + '</span></span></td>';
+    case 'workstream': return '<td>' + wsTag(f.workstream || '') + '</td>';
+    case 'category': return '<td class="muted fs-cat">Item Finance</td>';
+    case 'start': return '<td><span class="faint">—</span></td>';
+    case 'deadline': return '<td class="fs-due">' + (f.paymentDeadline ? fmtDate(f.paymentDeadline, true) : (c.inherited && c.parent && c.parent.paymentDeadline ? '<span class="faint">' + fmtDate(c.parent.paymentDeadline, true) + '</span>' : '<span class="faint">—</span>')) + '</td>';
+    case 'pic': return '<td><span class="faint">—</span></td>';
+    case 'status': return '<td>' + (c.inherited ? '<span class="faint fs-via">Via Invoice</span>' : payBadge(f.paymentStatus)) + '</td>';
+    case 'notes': return '<td class="muted">' + (f.notes ? esc(f.notes) : '<span class="faint">—</span>') + '</td>';
+    case 'source': return '<td>' + srcTag(f.source) + '</td>';
+    case 'payment':
+      if (c.inherited) return '<td class="pay-cell"><span class="faint" title="Dibayar lewat ' + esc((c.parent || {}).item || 'vendor invoice') + '">Termasuk Invoice Vendor</span></td>';
+      if (c.allocation) return '<td class="pay-cell"><span>Sisa dana <b class="num">' + rp(c.fundLeft) + '</b></span></td>';
+      return '<td class="pay-cell"><span class="' + (c.outstanding > 0 ? 'pc-out' : 'pc-ok') + '">Sisa <b class="num">' + rp(c.outstanding) + '</b></span></td>';
+  }
+  return '<td></td>';
+}
 function taskCell(key, t) {
   switch (key) {
-    case 'name': var nfin = finForTask(t.id).length; return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (nfin ? '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' item</span> ' + (nfin > 1 || finForTask(t.id)[0].item !== t.name ? '<span class="fin-names">' + esc(finForTask(t.id).slice(0, 4).map(function (f) { return f.item; }).join(', ')) + (nfin > 4 ? ' +' + (nfin - 4) : '') + '</span> · ' : '') : '') + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
+    case 'name':
+      var nfin = finForTask(t.id).length, finTag = '';
+      if (nfin && taskFinHasRows(t)) {
+        var fo = taskFinOpen(t);
+        finTag = '<button type="button" class="src fin fin-tog" data-act="task-fin-toggle" data-id="' + t.id + '" aria-expanded="' + fo + '" title="' + (fo ? 'Sembunyikan' : 'Tampilkan') + ' item Finance">' + (fo ? '▾' : '▸') + ' Finance · ' + nfin + ' Item</button> ';
+      } else if (nfin) finTag = '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' Item</span> ';
+      return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
@@ -1758,8 +1878,7 @@ function taskCell(key, t) {
       var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
       return '<td class="dl-cell"><input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '">' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
-      if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
-      return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';
+      return '<td class="pic-cell' + (canEdit() ? ' can-edit' : '') + '"><div class="pic-wrap">' + picChips(t.pic) + '</div>' + (canEdit() ? '<button type="button" class="pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="' + (picsOf(t.pic).length ? 'Ubah' : 'Pilih') + ' PIC ' + esc(t.name) + '" title="' + (picsOf(t.pic).length ? 'Ubah PIC' : 'Pilih PIC') + '"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.3 2.3a1.4 1.4 0 0 1 2 2L5.6 12 2.5 13.5 4 10.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>' : '') + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
     case 'notes': return '<td style="max-width:260px" class="muted">' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</td>';
     case 'source': return '<td>' + srcTag(t.source) + '</td>';
@@ -1802,8 +1921,8 @@ function taskDetail(t) {
   return '<div class="detail">' +
     '<div><h4>Notes</h4><p>' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</p></div>' +
 
-    '<div><h4>Finance (payment tracked separately)</h4>' + finHtml + '</div>' +
-    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit task' : 'View details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link budget item</button>' +
+    '<div><h4>Finance (Payment Tracked Separately)</h4>' + finHtml + '</div>' +
+    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit Task' : 'View Details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link Budget Item</button>' +
     '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(taskWorkstreams(t).join(', ')) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
 }
 function renderTimeline(list) {
@@ -1827,7 +1946,7 @@ function renderTimeline(list) {
     });
     h += '</div>';
   });
-  if (undated.length) h += '<div class="tl-month"><h3>No deadline yet</h3><div class="tl-items">' + undated.map(function (t) { return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTags(t) + '<span>' + esc(t.name) + ' ' + srcTag(t.source) + '</span>' + statusBadge(t.status) + '</div>'; }).join('') + '</div></div>';
+  if (undated.length) h += '<div class="tl-month"><h3>No Deadline Yet</h3><div class="tl-items">' + undated.map(function (t) { return '<div class="tl-item" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0">' + wsTags(t) + '<span>' + esc(t.name) + ' ' + srcTag(t.source) + '</span>' + statusBadge(t.status) + '</div>'; }).join('') + '</div></div>';
   return h;
 }
 
@@ -1863,16 +1982,16 @@ function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', '',
-    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open budget sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Kelola kategori</button><button class="btn" data-act="manage-columns" data-table="finance">Kelola kolom</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Kelola Kategori</button><button class="btn" data-act="manage-columns" data-table="finance">Kelola Kolom</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
   if (db.budgetUpdateAvailable && canEdit()) {
     var sm = SHEET_SEED.meta || {};
     h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
       'Terapkan untuk mengganti isi Finance dengan data sheet ini; task tetap, versi lama tetap ada di Version history.' +
-      '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Terapkan data sheet terbaru</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
+      '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Terapkan Data Sheet Terbaru</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
   }
   h += '<div class="kpis">' + kpi('Budget', rp(all.est), all.count + ' item', false, true) +
-    kpi('Sudah dibayar', rp(all.paid), '', false, true) + kpi('Sisa (outstanding)', rp(all.outstanding), '', all.outstanding > 0, true) +
-    kpi('Perlu dicek', all.flagged, 'item', all.flagged > 0) + '</div>';
+    kpi('Sudah Dibayar', rp(all.paid), '', false, true) + kpi('Sisa (Outstanding)', rp(all.outstanding), '', all.outstanding > 0, true) +
+    kpi('Perlu Dicek', all.flagged, 'item', all.flagged > 0) + '</div>';
   if (meta && meta.sheetSubTotal != null) {
     var dEst = all.est - meta.sheetSubTotal, dTf = (all.paid + all.fee) - meta.sheetTransferred;
     if (!dEst && !dTf) h += '<p class="fin-ok">✓ Total cocok dengan budget sheet (' + rp(meta.sheetSubTotal) + ')</p>';
@@ -1880,12 +1999,12 @@ function renderFinance() {
       '. Total transfer sheet (DP Total) ' + rp(meta.sheetTransferred) + ' · app ' + rp(all.paid + all.fee) + (dTf ? ' (selisih ' + rp(dTf) + ' — lihat baris yang di-flag)' : ' ✓') + '.</div></div>';
   }
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
-    '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All categories') + '</select>' +
-    '<select class="select" id="finPay" aria-label="Payment status">' + opts(payList(), ui.finPay, 'All payment status') + '</select>' +
-    '<select class="select" id="finInv" aria-label="Invoice status">' + opts(INV_STATUS, ui.finInv, 'All invoice status') + '</select>' +
-    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear filters</button>' : '') + '</div>';
-  if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No budget items yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
-  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No items match', 'Try a different search or clear the filters.') + '</div>';
+    '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All Categories') + '</select>' +
+    '<select class="select" id="finPay" aria-label="Payment Status">' + opts(payList(), ui.finPay, 'All Payment Status') + '</select>' +
+    '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' +
+    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
+  if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No Budget Items Yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
+  if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Items Match', 'Try a different search or clear the filters.') + '</div>';
   var groups = {};
   list.forEach(function (f) { (groups[f.workstream] = groups[f.workstream] || []).push(f); });
   var FC = visibleCols('finance');
@@ -1904,7 +2023,7 @@ function renderFinance() {
   var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1 };
   function row(f, child, span, underParent) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
-    var flagHtml = (f.source === 'verify' ? '<span class="src verify" title="' + esc(f.verifyNote || 'Needs verification') + '">Verify</span> ' : '') +
+    var flagHtml = (f.source === 'verify' ? '<span class="src verify" title="' + esc(f.verifyNote || 'Needs Verification') + '">Verify</span> ' : '') +
       (c.flags.length ? '<span class="flag' + (c.flags.some(function (x) { return x.lvl === 'crit'; }) ? ' crit' : '') + '" title="' + esc(c.flags.map(function (x) { return x.msg; }).join('\n')) + '">⚠ ' + c.flags.length + '</span>' : (f.source === 'verify' ? '' : '<span class="flag" style="color:var(--ok)">✓</span>'));
     var sub = [];
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
@@ -1930,7 +2049,7 @@ function renderFinance() {
     var cell = {
       item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
-          (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub item</button>' : '') + '</td>',
+          (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
       paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>',
@@ -1960,9 +2079,9 @@ function renderFinance() {
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(auto)</span>', st);
   });
   var gt = totals(list);
-  body += sumRow('grand', list.length === db.finance.length ? 'Grand total' : 'Total (filtered)', gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
+  body += sumRow('grand', list.length === db.finance.length ? 'Grand Total' : 'Total (Filtered)', gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
   h += '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
-  h += '<details class="fin-note"><summary>Cara hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
+  h += '<details class="fin-note"><summary>Cara Hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
   return h;
 }
 
@@ -1973,7 +2092,7 @@ function renderCalendar() {
   var gridStart = new Date(y, m, 1 - startOffset), today = todayISO();
   var byDate = {};
   db.tasks.forEach(function (t) { if (t.deadline) (byDate[t.deadline] = byDate[t.deadline] || []).push(t); });
-  var h = pageHead('Calendar &amp; Deadlines', 'Tugas ditampilkan di tanggal deadline.' + (canEdit() ? ' Klik task untuk ubah deadline.' : ''), '<button class="btn primary" data-act="new-task">+ New task</button>');
+  var h = pageHead('Calendar &amp; Deadlines', 'Tugas ditampilkan di tanggal deadline.' + (canEdit() ? ' Klik task untuk ubah deadline.' : ''), '<button class="btn primary" data-act="new-task">+ New Task</button>');
   var cells = '';
   for (var i = 0; i < 42; i++) {
     var d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
@@ -1985,17 +2104,17 @@ function renderCalendar() {
   }
   var agenda = Object.keys(byDate).filter(function (k) { return k.slice(0, 7) === ui.calMonth; }).sort().map(function (k) {
     return '<div class="a-day"><h5>' + fmtDate(k) + (PREP_DEADLINES.indexOf(k) > -1 ? ' · PREP' : '') + '</h5>' + byDate[k].map(chip).join('') + '</div>';
-  }).join('') || emptyBox('No deadlines this month', 'Use the arrows to see other months.');
+  }).join('') || emptyBox('No Deadlines This Month', 'Use the arrows to see other months.');
   h += '<div class="cal-layout"><div><div class="cal"><div class="cal-head"><button class="btn sm" data-act="cal-prev" aria-label="Previous month">←</button><h2>' + MONTHS_FULL[m] + ' ' + y + '</h2><div style="display:flex;gap:6px"><button class="btn sm" data-act="cal-today">Today</button><button class="btn sm" data-act="cal-next" aria-label="Next month">→</button></div></div>' +
     '<div class="cal-grid cal-dows">' + ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function (x) { return '<div class="cal-dow">' + x + '</div>'; }).join('') + '</div>' +
     '<div class="cal-grid month">' + cells + '</div><div class="agenda">' + agenda + '</div></div>' +
-    '<div class="legend"><span><i style="background:var(--crit-bg);border:1px solid var(--crit)"></i>Overdue</span><span><i style="background:var(--warn-bg);border:1px solid var(--warn)"></i>Due ≤3 days</span><span><i style="background:var(--accent)"></i>Preparation deadline</span><span><i style="background:var(--accent-soft)"></i>Event Day</span><span style="text-decoration:line-through">Done</span></div></div>';
+    '<div class="legend"><span><i style="background:var(--crit-bg);border:1px solid var(--crit)"></i>Overdue</span><span><i style="background:var(--warn-bg);border:1px solid var(--warn)"></i>Due ≤3 Days</span><span><i style="background:var(--accent)"></i>Preparation Deadline</span><span><i style="background:var(--accent-soft)"></i>Event Day</span><span style="text-decoration:line-through">Done</span></div></div>';
   var overdue = db.tasks.filter(function (t) { return dueState(t).kind === 'overdue'; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   var next7 = db.tasks.filter(function (t) { var s = dueState(t); return s.kind !== 'done' && s.kind !== 'none' && s.days >= 0 && s.days <= 7; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   function sideRow(t) { return '<div class="item"><span class="t" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0" title="' + esc(t.name) + '">' + esc(t.name) + '<br><span style="font-size:11.5px">' + wsTags(t) + ' ' + dueLabel(t) + '</span></span><input class="input" type="date" id="dl-' + t.id + '" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline) + '" aria-label="Deadline for ' + esc(t.name) + '"></div>'; }
   h += '<div style="display:flex;flex-direction:column;gap:16px">' +
-    panel('Overdue', overdue.length, overdue.length ? '<div class="side-list">' + overdue.map(sideRow).join('') + '</div>' : emptyBox('Nothing overdue', 'All past deadlines are done.')) +
-    panel('Next 7 days', next7.length, next7.length ? '<div class="side-list">' + next7.map(sideRow).join('') + '</div>' : emptyBox('Clear week', 'No deadlines in the next 7 days.')) + '</div></div>';
+    panel('Overdue', overdue.length, overdue.length ? '<div class="side-list">' + overdue.map(sideRow).join('') + '</div>' : emptyBox('Nothing Overdue', 'All past deadlines are done.')) +
+    panel('Next 7 Days', next7.length, next7.length ? '<div class="side-list">' + next7.map(sideRow).join('') + '</div>' : emptyBox('Clear Week', 'No deadlines in the next 7 days.')) + '</div></div>';
   return h;
 }
 function chip(t) {
@@ -2044,7 +2163,7 @@ function wsField(t) {
   return '<div class="pic-pick" id="wsPick">' + names.map(function (w) {
     return '<label class="pic-opt"><input type="checkbox" class="ws-cb" value="' + esc(w) + '"' + (selected.indexOf(w) > -1 ? ' checked' : '') + '> ' + esc(w) + '</label>';
   }).join('') + '</div>' +
-    (canEdit() ? '<div class="pic-new"><input class="input" id="wsNewName" placeholder="Tambah workstream baru" maxlength="60"><button type="button" class="btn sm" data-act="ws-add-inline">+ Tambah</button> <a href="#" data-act="manage-ws" class="hint">Kelola workstream</a></div>' : '') +
+    (canEdit() ? '<div class="pic-new"><input class="input" id="wsNewName" placeholder="Tambah workstream baru" maxlength="60"><button type="button" class="btn sm" data-act="ws-add-inline">+ Tambah</button> <a href="#" data-act="manage-ws" class="hint">Kelola Workstream</a></div>' : '') +
     '<input type="hidden" id="f-workstreams" name="workstreams" value="' + esc(JSON.stringify(selected)) + '">';
 }
 function wsSync() {
@@ -2064,16 +2183,17 @@ function wsAddInline() {
 function taskForm(t, preset) {
   var isNew = !t; t = t || Object.assign({ name: '', workstream: '', category: 'Program Milestone', start: '2026-10-01', deadline: '', pic: '', status: defaultStatus(), notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '' }, preset || {});
   var wsList = '<datalist id="wsList">' + allWorkstreams().map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
-  openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New task' : 'Edit task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
-    field('name', 'Task name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
+  openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New Task' : 'Edit Task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+    field('name', 'Task Name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
     field('workstream', 'Workstream', wsField(t), { req: true, hint: 'Boleh pilih lebih dari satu' }) +
-    field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola kategori</a>' : '' }) +
-    field('start', 'Start date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
+    field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola Kategori</a>' : '' }) +
+    field('start', 'Start Date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
     picField(t.pic) +
-    field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola status</a>' : '' }) +
+    field('status', 'Operational Status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola Status</a>' : '' }) +
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
-    field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], t.source)) +
+    field('source', 'Data Source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], t.source)) +
+    field('mt', 'Master Timeline', '<label class="pic-opt mt-check"><input type="checkbox" id="f-mt" name="mt"' + (onMaster(t) ? ' checked' : '') + '> Tampilkan di Master Timeline</label>', { hint: 'Semua workstream bisa masuk. Perlu deadline supaya muncul.' }) +
     cfFields('tasks', t) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-task" data-id="' + t.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
@@ -2085,14 +2205,17 @@ function taskForm(t, preset) {
     try { v.workstreams = JSON.parse(v.workstreams || '[]'); } catch (err) { v.workstreams = []; }
     if (!Array.isArray(v.workstreams)) v.workstreams = [];
     v.workstream = v.workstreams[0] || '';   // first one kept for older data and other pages
+    v.name = titleCase(v.name);
+    var wantMt = v.mt === 'on'; delete v.mt;
+    function setMt(o) { delete o.mt; if (wantMt !== mtDefault(o)) o.mt = wantMt; }   // only stored when it differs from the default rule
     var cfr = takeCf('tasks', v, t.cf), errs = cfr.errs;
     if (Object.keys(cfr.cf).length || t.cf) v.cf = cfr.cf;
     if (!v.name) errs.name = 'Task name is required.';
     if (!v.workstreams.length) errs.workstream = 'Pick at least one workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
     if (Object.keys(errs).length) return showErrors(e.target, errs);
-    if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
-    else { Object.assign(t, v, { updatedAt: Date.now() }); closeModal(); commit('Task saved'); }
+    if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); setMt(o); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
+    else { Object.assign(t, v, { updatedAt: Date.now() }); setMt(t); closeModal(); commit('Task saved'); }
   };
 }
 
@@ -2105,29 +2228,29 @@ function finForm(f, presetTask, preset) {
   var hasKids = !isNew && kidsOf(f).length > 0;
   var wsList = '<datalist id="wsList2">' + finCategories().concat(allWorkstreams()).filter(function (v, i, a) { return a.indexOf(v) === i; }).map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   function amt(v) { return v == null ? '' : rpFmt.format(v); }
-  openModal('<form id="finForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New budget item' : 'Edit budget item') + (f.sheetRow ? ' <span class="muted" style="font:500 13px var(--f-body)">· sheet row ' + f.sheetRow + '</span>' : '') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+  openModal('<form id="finForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New Budget Item' : 'Edit Budget Item') + (f.sheetRow ? ' <span class="muted" style="font:500 13px var(--f-body)">· sheet row ' + f.sheetRow + '</span>' : '') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('item', 'Item', inp('item', f.item, 'text', 'maxlength="200"'), { req: true, full: true }) +
-    field('workstream', 'Budget category', inp('workstream', f.workstream, 'text', 'list="wsList2"') + wsList, { req: true }) +
-    field('taskId', 'Linked operational task', sel('taskId', taskOpts, f.taskId, '— Not linked —'), { hint: 'Status task tidak ikut berubah saat dibayar' }) +
-    field('kind', 'Row type', sel('kind', [{ value: '', label: 'Line item' }, { value: 'vendor', label: 'Vendor invoice (punya line item)' }, { value: 'allocation', label: 'Alokasi dana (punya pemakaian)' }], f.kind || '')) +
-    field('parentId', 'Part of', sel('parentId', parentOpts, f.parentId || '', '— Standalone —'), { hint: hasKids ? 'Item ini punya baris di bawahnya, jadi tidak bisa jadi anak' : 'Pilih vendor invoice / alokasi kalau item ini rinciannya' }) +
+    field('workstream', 'Budget Category', inp('workstream', f.workstream, 'text', 'list="wsList2"') + wsList, { req: true }) +
+    field('taskId', 'Linked Operational Task', sel('taskId', taskOpts, f.taskId, '— Not linked —'), { hint: 'Status task tidak ikut berubah saat dibayar' }) +
+    field('kind', 'Row Type', sel('kind', [{ value: '', label: 'Line Item' }, { value: 'vendor', label: 'Vendor Invoice (Punya Line Item)' }, { value: 'allocation', label: 'Alokasi Dana (Punya Pemakaian)' }], f.kind || '')) +
+    field('parentId', 'Part Of', sel('parentId', parentOpts, f.parentId || '', '— Standalone —'), { hint: hasKids ? 'Item ini punya baris di bawahnya, jadi tidak bisa jadi anak' : 'Pilih vendor invoice / alokasi kalau item ini rinciannya' }) +
     field('qty', 'Quantity', inp('qty', f.qty == null ? '' : f.qty, 'text', 'inputmode="decimal"')) +
     field('unit', 'Unit', inp('unit', f.unit, 'text', 'maxlength="20" placeholder="Pcs / Pack / Pax"')) +
-    field('unitCost', 'Harga satuan (Rp)', inp('unitCost', amt(f.unitCost), 'text', 'inputmode="numeric"')) +
-    field('estimated', 'Total / estimasi (Rp)', inp('estimated', amt(f.estimated), 'text', 'inputmode="numeric"'), { hint: 'Kosongkan untuk qty × harga' }) +
-    field('invoice', 'Invoice amount (Rp)', inp('invoice', amt(f.invoice), 'text', 'inputmode="numeric"')) +
-    field('dp', 'DP amount (Rp)', inp('dp', amt(f.dp), 'text', 'inputmode="numeric"')) +
-    field('paidAmount', 'Total transferred (Rp)', inp('paidAmount', amt(f.paidAmount), 'text', 'inputmode="numeric"'), { hint: 'Opsional. Isi kalau nominal transfer beda dari DP/invoice' }) +
-    field('fee', 'Biaya transfer (Rp)', inp('fee', amt(f.fee), 'text', 'inputmode="numeric"')) +
-    field('paymentDeadline', 'Payment deadline', inp('paymentDeadline', f.paymentDeadline, 'date')) +
-    field('invoiceStatus', 'Invoice status', sel('invoiceStatus', INV_STATUS, f.invoiceStatus)) +
-    field('paymentStatus', 'Payment status', sel('paymentStatus', withCurrent(payList(), f.paymentStatus), f.paymentStatus), { hint: canEdit() ? '<a href="#" data-act="manage-pay">Kelola status payment</a>' : '' }) +
-    field('invoiceRef', 'Invoice / quotation file', inp('invoiceRef', f.invoiceRef, 'text', 'maxlength="300"')) +
-    field('receipt', 'Bukti transfer', inp('receipt', f.receipt, 'text', 'maxlength="300" placeholder="Link Drive / nama file / no. referensi"')) +
+    field('unitCost', 'Harga Satuan (Rp)', inp('unitCost', amt(f.unitCost), 'text', 'inputmode="numeric"')) +
+    field('estimated', 'Total / Estimasi (Rp)', inp('estimated', amt(f.estimated), 'text', 'inputmode="numeric"'), { hint: 'Kosongkan untuk qty × harga' }) +
+    field('invoice', 'Invoice Amount (Rp)', inp('invoice', amt(f.invoice), 'text', 'inputmode="numeric"')) +
+    field('dp', 'DP Amount (Rp)', inp('dp', amt(f.dp), 'text', 'inputmode="numeric"')) +
+    field('paidAmount', 'Total Transferred (Rp)', inp('paidAmount', amt(f.paidAmount), 'text', 'inputmode="numeric"'), { hint: 'Opsional. Isi kalau nominal transfer beda dari DP/invoice' }) +
+    field('fee', 'Biaya Transfer (Rp)', inp('fee', amt(f.fee), 'text', 'inputmode="numeric"')) +
+    field('paymentDeadline', 'Payment Deadline', inp('paymentDeadline', f.paymentDeadline, 'date')) +
+    field('invoiceStatus', 'Invoice Status', sel('invoiceStatus', INV_STATUS, f.invoiceStatus)) +
+    field('paymentStatus', 'Payment Status', sel('paymentStatus', withCurrent(payList(), f.paymentStatus), f.paymentStatus), { hint: canEdit() ? '<a href="#" data-act="manage-pay">Kelola Status Payment</a>' : '' }) +
+    field('invoiceRef', 'Invoice / Quotation File', inp('invoiceRef', f.invoiceRef, 'text', 'maxlength="300"')) +
+    field('receipt', 'Bukti Transfer', inp('receipt', f.receipt, 'text', 'maxlength="300" placeholder="Link Drive / nama file / no. referensi"')) +
     '<div class="calc-preview" id="calcPreview"></div><div class="calc-flags" id="calcFlags"></div>' +
     field('notes', 'Notes', ta('notes', f.notes), { full: true }) +
-    field('source', 'Data source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], f.source)) +
-    field('verifyNote', 'Verification note', inp('verifyNote', f.verifyNote, 'text', 'maxlength="300"')) +
+    field('source', 'Data Source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], f.source)) +
+    field('verifyNote', 'Verification Note', inp('verifyNote', f.verifyNote, 'text', 'maxlength="300"')) +
     cfFields('finance', f) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-fin" data-id="' + f.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Add item' : 'Save changes') + '</button></div></div></form>', 'wide');
@@ -2164,6 +2287,7 @@ function finForm(f, presetTask, preset) {
     if (!v.kind && hasKids) errs.kind = 'Masih ada baris di bawah item ini, jadi tipe harus vendor invoice atau alokasi.';
     if (Object.keys(errs).length) return showErrors(form, errs);
     v.taskId = v.taskId || null;
+    v.item = titleCase(v.item);
     // adding a sub item under a plain item turns that item into a group (vendor invoice) that holds the payment
     var par = v.parentId ? finById(v.parentId) : null;
     if (par && !par.kind) { par.kind = 'vendor'; par.updatedAt = Date.now(); }
@@ -2195,9 +2319,9 @@ function deadlineDialog(id) {
   var t = taskById(id); if (!t) return;
   openModal('<form id="dlForm" novalidate><div class="modal-h"><h3>' + esc(t.name) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     '<div class="field full">' + wsTags(t) + ' ' + statusBadge(t.status) + (t.notes ? '<span class="muted" style="margin-top:6px">' + esc(t.notes) + '</span>' : '') + '</div>' +
-    field('start', 'Start date', inp('start', t.start, 'date')) + field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
-    field('status', 'Operational status', sel('status', withCurrent(statusList(), t.status), t.status)) +
-    '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open full task</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
+    field('start', 'Start Date', inp('start', t.start, 'date')) + field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
+    field('status', 'Operational Status', sel('status', withCurrent(statusList(), t.status), t.status)) +
+    '</div><div class="modal-f"><button type="button" class="btn" data-act="open-task" data-id="' + t.id + '">Open Full Task</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Save</button></div></div></form>', 'sm');
   document.getElementById('dlForm').onsubmit = function (e) {
     e.preventDefault();
     var s = e.target.start.value, d = e.target.deadline.value, st = e.target.status.value;
@@ -2213,7 +2337,7 @@ function dayDialog(iso) {
 /* ---------- Data tools ---------- */
 function exportDialog() {
   var json = JSON.stringify(db, null, 2);
-  openModal('<div class="modal-h"><h3>Export backup</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one"><p class="muted" style="margin:0">' + db.tasks.length + ' tasks · ' + db.finance.length + ' budget items. Copy this JSON somewhere safe, or download it (download works when the site is self-hosted).</p><textarea class="input code" id="exportText" readonly>' + esc(json) + '</textarea></div><div class="modal-f"><div class="right"><button class="btn" id="dlBtn">Download .json</button><button class="btn primary" id="copyBtn">Copy JSON</button></div></div>', 'wide');
+  openModal('<div class="modal-h"><h3>Export Backup</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one"><p class="muted" style="margin:0">' + db.tasks.length + ' tasks · ' + db.finance.length + ' budget items. Copy this JSON somewhere safe, or download it (download works when the site is self-hosted).</p><textarea class="input code" id="exportText" readonly>' + esc(json) + '</textarea></div><div class="modal-f"><div class="right"><button class="btn" id="dlBtn">Download .json</button><button class="btn primary" id="copyBtn">Copy JSON</button></div></div>', 'wide');
   document.getElementById('copyBtn').onclick = function () {
     var ta2 = document.getElementById('exportText');
     var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(json) : Promise.reject();
@@ -2225,7 +2349,7 @@ function exportDialog() {
   };
 }
 function importJsonDialog() {
-  openModal('<div class="modal-h"><h3>Restore backup</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one"><p class="muted" style="margin:0">Paste a backup JSON (from Export) or choose a .json file. This replaces all current data.</p><input type="file" id="jsonFile" accept=".json,application/json"><textarea class="input code" id="importText" placeholder="{ &quot;tasks&quot;: [...], &quot;finance&quot;: [...] }"></textarea><div class="form-err" id="importErr" hidden></div></div><div class="modal-f"><div class="right"><button class="btn" data-act="modal-cancel">Cancel</button><button class="btn primary" id="doImport">Replace data</button></div></div>', 'wide');
+  openModal('<div class="modal-h"><h3>Restore Backup</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one"><p class="muted" style="margin:0">Paste a backup JSON (from Export) or choose a .json file. This replaces all current data.</p><input type="file" id="jsonFile" accept=".json,application/json"><textarea class="input code" id="importText" placeholder="{ &quot;tasks&quot;: [...], &quot;finance&quot;: [...] }"></textarea><div class="form-err" id="importErr" hidden></div></div><div class="modal-f"><div class="right"><button class="btn" data-act="modal-cancel">Cancel</button><button class="btn primary" id="doImport">Replace Data</button></div></div>', 'wide');
   document.getElementById('jsonFile').onchange = function (e) { var file = e.target.files[0]; if (!file) return; var r = new FileReader(); r.onload = function () { document.getElementById('importText').value = r.result; }; r.onerror = function () { showImportErr('Could not read that file.'); }; r.readAsText(file); };
   function showImportErr(m) { var el = document.getElementById('importErr'); el.textContent = m; el.hidden = false; }
   document.getElementById('doImport').onclick = function () {
@@ -2235,7 +2359,7 @@ function importJsonDialog() {
     var bad = d.tasks.filter(function (t) { return !t.id || !t.name; }).length + d.finance.filter(function (f) { return !f.id || !f.item; }).length;
     if (bad) return showImportErr(bad + ' record(s) are missing an id or name. Fix the file and try again.');
     var count = d.tasks.length + ' tasks and ' + d.finance.length + ' budget items';
-    confirmDialog('Replace all data?', 'Current data will be replaced with ' + count + '. Export a backup first if you might need it.', 'Replace data', function () {
+    confirmDialog('Replace all data?', 'Current data will be replaced with ' + count + '. Export a backup first if you might need it.', 'Replace Data', function () {
       db = d; db.seq = db.seq || (d.tasks.length + d.finance.length + 100); ui.expanded = null; commit('Backup restored');
     });
   };
@@ -2270,7 +2394,7 @@ function parseDelimited(text) {
   });
 }
 function importCsvDialog() {
-  openModal('<div class="modal-h"><h3>Import budget sheet</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
+  openModal('<div class="modal-h"><h3>Import Budget Sheet</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
     '<p class="muted" style="margin:0">Copy rows from Excel / Google Sheets (including the header row) and paste here. Recognised headers: Item, Category, Qty, Harga satuan, Estimasi/Total, Invoice, DP, Payment deadline, Status invoice, Status pembayaran, Bukti transfer, Notes. Rows named "Subtotal" / "Total" are skipped automatically to avoid double counting.</p>' +
     '<textarea class="input code" id="csvText" placeholder="Item\tCategory\tQty\tHarga satuan\tTotal\tDP\tStatus pembayaran"></textarea>' +
     '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="csvReplace" checked> Remove empty placeholder items for the categories being imported</label>' +
@@ -2395,7 +2519,8 @@ function handleAct(el, e) {
       var Km = CAT_KINDS[el.dataset.kind], li = db.settings[Km.key], ix = +el.dataset.idx, to = ix + (+el.dataset.dir);
       if (to >= 0 && to < li.length) { var tmp = li[ix]; li[ix] = li[to]; li[to] = tmp; persist(db); render(); closeModal(); categoryManager(el.dataset.kind); }
       break;
-    case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: 'GX Connect' }); break;
+    case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: '', mt: true }); break;
+    case 'mt-all': var wsAll = mtWorkstreams(db.tasks.filter(function (t) { return t.deadline && onMaster(t) && t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
     case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: 'Event Day', deadline: EVENT_DATE }); break;
     case 'mt-toggle': var w = el.dataset.ws, hd = ui.mtHide || []; ui.mtHide = hd.indexOf(w) > -1 ? hd.filter(function (x) { return x !== w; }) : hd.concat([w]); render(); break;
     case 'edit-task': closeModal(); if (taskById(id)) taskForm(taskById(id)); else toast('That task no longer exists', true); break;
@@ -2415,6 +2540,8 @@ function handleAct(el, e) {
       setTimeout(function () { var row = main.querySelector('tr[data-id="' + id + '"]'); if (row) row.scrollIntoView({ block: 'center' }); }, 0);
       break;
     case 'go-tasks': ui.taskView = el.dataset.view; go('tasks'); break;
+    case 'task-fin-toggle': { var tt0 = taskById(id); if (tt0) { ui.tfOpen = ui.tfOpen || {}; ui.tfOpen[id] = !taskFinOpen(tt0); render(); } break; }
+    case 'task-fin-all': ui.tfHide = !ui.tfHide; if (!ui.tfHide) ui.tfOpen = {}; render(); break;
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;
     case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : (k === 'deadline' ? -1 : 1) }; render(); break;
    case 'expand': {
