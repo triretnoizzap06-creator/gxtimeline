@@ -1,12 +1,15 @@
-GX27 - Patch v9b (deadline Tasks + header Finance)
+GX27 - Patch v10 (lebar kolom bisa diatur)
 
 File yang berubah: app.js, styles.css, index.html. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9.
+Patch ini sudah termasuk semua perubahan v9 & v9b.
 
 1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
 PERUBAHAN
-1. Tasks: tanggal deadline tidak terpotong lagi dan formatnya dd/mm/yyyy (contoh 21/11/2026).
-   Klik kotak tanggal untuk membuka kalender seperti biasa. Kolom Start & tanggal item finance ikut dd/mm/yyyy.
-2. Finance: semua judul kolom (header) tabel rata tengah.
+1. Tabel Tasks & Finance: lebar kolom bisa dilebarkan / dikecilkan.
+   - Arahkan mouse ke tepi kanan judul kolom sampai kursor jadi panah kiri-kanan (garis biru muncul), lalu drag.
+   - Klik 2x garis itu = kolom tersebut kembali ke lebar awal.
+   - Tombol "Reset Lebar Kolom" (kanan atas tabel) = semua kolom di tabel itu kembali ke awal.
+   - Lebar tersimpan otomatis di browser masing-masing (tidak mengubah tampilan orang lain).
+   - Drag kolom tidak ikut men-sort tabel.

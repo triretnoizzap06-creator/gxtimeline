@@ -1017,6 +1017,7 @@ function render() {
   if (window.scrollY !== winY || window.scrollX !== winX) window.scrollTo(winX, winY);
   if (!canEdit()) main.querySelectorAll('[data-inline]').forEach(function (el) { el.disabled = true; });
   saveUI();
+  try { rzApply(main); } catch (e) { console.error(e); }
   if (Admin && Admin.afterRender) Admin.afterRender();
   if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
 }
@@ -1774,6 +1775,91 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clos
 window.addEventListener('scroll', function (e) { if (hfPop && Date.now() >= hfQuiet && !(e.target && e.target.nodeType === 1 && e.target.closest && e.target.closest('.hf-pop'))) closeColFilter(); }, true);
 window.addEventListener('resize', closeColFilter);
 
+/* ---------- v10: lebar kolom bisa diatur (drag tepi kanan judul kolom) ----------
+   Lebar disimpan per browser (localStorage), per tabel (tasks / finance), per kolom.
+   Klik 2x garis pemisah = kembalikan kolom itu ke lebar awal. */
+var COLW_KEY = 'gx27.colw.v1', RZ_MIN = 48, rzDrag = null, rzEatUntil = 0;
+var colW = (function () { try { var v = JSON.parse(localStorage.getItem(COLW_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } })();
+function colwSave() { try { localStorage.setItem(COLW_KEY, JSON.stringify(colW)); } catch (e) {} }
+function rzKeyOf(th, i) { return th.getAttribute('data-ck') || ('#' + i); }
+function rzHeads(tb) { var r = tb.tHead && tb.tHead.rows[0]; return r ? [].slice.call(r.cells) : []; }
+function rzCols(tb, n) {
+  var cg = tb.querySelector(':scope > colgroup');
+  if (!cg) { cg = document.createElement('colgroup'); tb.insertBefore(cg, tb.firstChild); }
+  while (cg.children.length < n) cg.appendChild(document.createElement('col'));
+  return [].slice.call(cg.children, 0, n);
+}
+// lock every column to a pixel width (saved width, else its current width) so only the dragged one changes
+function rzFix(tb, ths, saved) {
+  var widths = ths.map(function (th, i) { var w = saved && saved[rzKeyOf(th, i)]; return w ? w : Math.max(RZ_MIN, Math.round(th.getBoundingClientRect().width) || 120); });
+  var cols = rzCols(tb, ths.length), sum = 0;
+  widths.forEach(function (w, i) { cols[i].style.width = w + 'px'; sum += w; });
+  tb.classList.add('rz-on'); tb.style.width = sum + 'px';
+  return widths;
+}
+function rzApply(root) {
+  (root || document).querySelectorAll('table[data-rz]').forEach(function (tb) {
+    var key = tb.getAttribute('data-rz'), ths = rzHeads(tb); if (!ths.length) return;
+    ths.forEach(function (th) {
+      if (th.querySelector('.col-rz')) return;
+      var s = document.createElement('span'); s.className = 'col-rz'; s.setAttribute('aria-hidden', 'true');
+      s.title = 'Geser untuk ubah lebar kolom · klik 2x untuk reset';
+      th.appendChild(s);
+    });
+    var saved = colW[key], wrap = tb.closest('.table-wrap');
+    if (saved && ths.some(function (th, i) { return saved[rzKeyOf(th, i)]; })) {
+      rzFix(tb, ths, saved);
+      if (wrap && !(wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('rz-bar')))
+        wrap.insertAdjacentHTML('beforebegin', '<div class="rz-bar"><button type="button" class="btn ghost sm" data-rzreset="' + esc(key) + '">↺ Reset Lebar Kolom</button></div>');
+    }
+  });
+}
+document.addEventListener('pointerdown', function (e) {
+  var hd = e.target.closest && e.target.closest('.col-rz'); if (!hd || (e.button && e.button !== 0)) return;
+  e.preventDefault(); e.stopPropagation();
+  var th = hd.parentNode, tb = th.closest('table'), ths = rzHeads(tb), key = tb.getAttribute('data-rz');
+  var widths = rzFix(tb, ths, colW[key]), idx = ths.indexOf(th);
+  rzDrag = { tb: tb, ths: ths, key: key, idx: idx, widths: widths, cols: rzCols(tb, ths.length), x: e.clientX, w0: widths[idx], hd: hd, moved: false };
+  try { hd.setPointerCapture(e.pointerId); } catch (er) {}
+  hd.classList.add('active'); document.body.classList.add('rz-dragging');
+}, true);
+document.addEventListener('pointermove', function (e) {
+  if (!rzDrag) return;
+  var d = rzDrag, w = Math.max(RZ_MIN, Math.round(d.w0 + e.clientX - d.x));
+  if (Math.abs(e.clientX - d.x) > 2) d.moved = true;
+  d.widths[d.idx] = w; d.cols[d.idx].style.width = w + 'px';
+  d.tb.style.width = d.widths.reduce(function (a, b) { return a + b; }, 0) + 'px';
+});
+function rzEnd() {
+  if (!rzDrag) return;
+  var d = rzDrag; rzDrag = null;
+  d.hd.classList.remove('active'); document.body.classList.remove('rz-dragging');
+  if (!d.moved) return;
+  var m = colW[d.key] = colW[d.key] || {};
+  d.ths.forEach(function (th, i) { m[rzKeyOf(th, i)] = d.widths[i]; });
+  colwSave(); rzEatUntil = Date.now() + 350;
+  var wrap = d.tb.closest('.table-wrap');
+  if (wrap && !(wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('rz-bar')))
+    wrap.insertAdjacentHTML('beforebegin', '<div class="rz-bar"><button type="button" class="btn ghost sm" data-rzreset="' + esc(d.key) + '">↺ Reset Lebar Kolom</button></div>');
+}
+document.addEventListener('pointerup', rzEnd);
+document.addEventListener('pointercancel', rzEnd);
+// a drag must not also sort the column / open a row
+document.addEventListener('click', function (e) {
+  if (Date.now() < rzEatUntil || (e.target.closest && e.target.closest('.col-rz'))) { e.preventDefault(); e.stopPropagation(); return; }
+  var rb = e.target.closest && e.target.closest('[data-rzreset]');
+  if (rb) { e.preventDefault(); e.stopPropagation(); delete colW[rb.getAttribute('data-rzreset')]; colwSave(); render(); toast('Lebar kolom dikembalikan ke awal'); }
+}, true);
+document.addEventListener('dblclick', function (e) {
+  var hd = e.target.closest && e.target.closest('.col-rz'); if (!hd) return;
+  e.preventDefault(); e.stopPropagation();
+  var th = hd.parentNode, tb = th.closest('table'), key = tb.getAttribute('data-rz'), ths = rzHeads(tb), m = colW[key];
+  if (!m) return;
+  delete m[rzKeyOf(th, ths.indexOf(th))];
+  if (!Object.keys(m).length) delete colW[key];
+  colwSave(); render();
+}, true);
+
 // header cell: [label ↑] [▾ filter] on one tidy row
 function thCell(inner, extra, cls, attrs) {
   return '<th' + (cls ? ' class="' + cls + '"' : '') + (attrs || '') + '><div class="th-in"><span class="th-l">' + inner + '</span>' + (extra ? extra : '') + '</div></th>';
@@ -1789,10 +1875,10 @@ function taskTable(list, compact, showBlockers) {
   var W = { name: 24, workstream: 13, category: 12, start: 11, deadline: 13, pic: 10, status: 16, notes: 20, source: 10, payment: 16 };
     var wt = cols.reduce(function (a, c) { return a + (W[c.key] || 11); }, 0) || 1;
     var colg = '<colgroup>' + cols.map(function (c) { return '<col style="width:' + ((W[c.key] || 11) / wt * 100).toFixed(2) + '%">'; }).join('') + '</colgroup>';
-    var h = '<div class="table-wrap"><table class="task-table">' + colg + '<thead><tr>' + cols.map(function (c) {
-    var fk = c.custom ? 'cf:' + c.key : c.key, fb = filterBtn(fk, c.label);
-    if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '', fb);
-    return SORTABLE[c.key] ? sortTh(c.key, esc(c.label), '', fb) : thCell(esc(c.label), fb);
+    var h = '<div class="table-wrap"><table class="task-table" data-rz="tasks">' + colg + '<thead><tr>' + cols.map(function (c) {
+    var fk = c.custom ? 'cf:' + c.key : c.key, fb = filterBtn(fk, c.label), ck = ' data-ck="' + esc(fk) + '"';
+    if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '', fb).replace('<th', '<th' + ck);
+    return (SORTABLE[c.key] ? sortTh(c.key, esc(c.label), '', fb) : thCell(esc(c.label), fb)).replace('<th', '<th' + ck);
   }).join('') + '</tr></thead><tbody>';
   list.forEach(function (t) {
     var exp = ui.expanded === t.id;
@@ -2010,7 +2096,7 @@ function renderFinance() {
   var groups = {};
   list.forEach(function (f) { (groups[f.workstream] = groups[f.workstream] || []).push(f); });
   var FC = visibleCols('finance');
-  var head = '<tr>' + FC.map(function (c) { var b = builtinCol('finance', c.key); return '<th' + ((b && b.num) || c.type === 'number' || c.type === 'money' ? ' class="r"' : '') + '>' + esc(c.label) + '</th>'; }).join('') + '</tr>';
+  var head = '<tr>' + FC.map(function (c) { var b = builtinCol('finance', c.key); return '<th data-ck="' + esc((c.custom ? 'cf:' : '') + c.key) + '"' + ((b && b.num) || c.type === 'number' || c.type === 'money' ? ' class="r"' : '') + '>' + esc(c.label) + '</th>'; }).join('') + '</tr>';
   // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
   function sumRow(cls, label, tot, tail) {
     return '<tr class="' + cls + '">' + FC.map(function (c, i) {
@@ -2082,7 +2168,7 @@ function renderFinance() {
   });
   var gt = totals(list);
   body += sumRow('grand', list.length === db.finance.length ? 'Grand Total' : 'Total (Filtered)', gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
-  h += '<div class="table-wrap"><table class="fin-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+  h += '<div class="table-wrap"><table class="fin-table" data-rz="finance"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
   h += '<details class="fin-note"><summary>Cara Hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
   return h;
 }

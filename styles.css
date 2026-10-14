@@ -995,3 +995,17 @@ tr.expanded>td{background:var(--surface-2)}
 
 /* v9b: header tabel Finance rata tengah */
 .fin-table thead th,.fin-table thead th.r{text-align:center !important;vertical-align:middle}
+
+/* v10: lebar kolom bisa diatur (drag garis di tepi kanan judul kolom) */
+.col-rz{position:absolute;top:0;right:0;width:10px;height:100%;cursor:col-resize;z-index:5;touch-action:none;user-select:none;-webkit-user-select:none}
+.col-rz::after{content:'';position:absolute;top:20%;bottom:20%;right:3px;width:2px;border-radius:2px;background:transparent;transition:background .15s}
+th:hover .col-rz::after{background:var(--line-2,var(--line))}
+.col-rz:hover::after,.col-rz.active::after{background:var(--accent)}
+body.rz-dragging,body.rz-dragging *{cursor:col-resize !important;user-select:none !important;-webkit-user-select:none !important}
+.table-wrap table.rz-on,.table-wrap table.task-table.rz-on{table-layout:fixed !important;min-width:0 !important;max-width:none !important}
+.table-wrap table.rz-on th:first-child,.table-wrap table.rz-on td:first-child{min-width:0 !important;width:auto !important}
+.table-wrap table.rz-on th,.table-wrap table.rz-on td{overflow:hidden;min-width:0}
+.table-wrap table.rz-on th .th-l,.fin-table.rz-on th{text-overflow:ellipsis}
+.fin-table.rz-on td{overflow-wrap:anywhere}
+.rz-bar{display:flex;justify-content:flex-end;margin:0 0 6px}
+@media (hover:none){.col-rz{width:18px}.col-rz::after{right:7px;background:var(--line-2,var(--line))}}
