@@ -940,3 +940,6 @@ tr.expanded>td{background:var(--surface-2)}
 *{scrollbar-width:thin;scrollbar-color:rgba(120,120,128,.35) transparent}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:rgba(120,120,128,.35);border-radius:999px;border:3px solid transparent;background-clip:content-box}
+
+/* penanda task yang tertaut ke Finance & Procurement */
+.src.fin{color:var(--info);background:var(--info-bg)}

@@ -357,7 +357,7 @@ function syncFinanceTasks(d, s) {
     if (p && p.kind === 'vendor' && p.invoiceStatus && f.invoiceStatus !== p.invoiceStatus) { f.invoiceStatus = p.invoiceStatus; f.updatedAt = now; }
   });
   d.finance.forEach(function (f) {
-    if (f.taskSynced) return;
+    if (f.taskSynced && f.taskId && byId[f.taskId]) return;   // already linked to a task that still exists (a missing/deleted task gets re-made)
     if (f.workstream === 'Doorprize') { f.taskId = ensureDoor().id; f.taskSynced = true; f.updatedAt = now; return; }
     var parent = f.parentId ? fById[f.parentId] : null;
     if (f.kind === 'allocation') return;
@@ -1511,6 +1511,7 @@ function filteredTasks(view) {
     if (!colFilterOk(t)) return false;
     if (q && [t.name, taskWs.join(' '), t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
+    if (view === 'procurement' && !(t.category === 'Procurement' || finForTask(t.id).length)) return false;
     if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || k === 'overdue')) return false; }
     return true;
   });
@@ -1530,7 +1531,7 @@ function filteredTasks(view) {
 }
 
 function renderTasks() {
-  var views = [['all', 'All Tasks'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
+  var views = [['all', 'All Tasks'], ['procurement', 'Finance & Procurement'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
   var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.' + (ui.sort.key === 'deadline' && ui.sort.dir < 0 ? ' Urutan otomatis: deadline terbaru di atas.' : ''), '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola kolom</button><button class="btn" data-act="manage-categories">Kelola kategori</button><button class="btn primary" data-act="new-task">+ New task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
@@ -1740,7 +1741,7 @@ function taskTable(list, compact, showBlockers) {
 }
 function taskCell(key, t) {
   switch (key) {
-    case 'name': return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
+    case 'name': var nfin = finForTask(t.id).length; return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (nfin ? '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' item</span> ' : '') + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
