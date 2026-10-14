@@ -938,6 +938,38 @@ function nextId(prefix) {
 function taskById(id) { for (var i = 0; i < db.tasks.length; i++) if (db.tasks[i].id === id) return db.tasks[i]; return null; }
 function finById(id) { for (var i = 0; i < db.finance.length; i++) if (db.finance[i].id === id) return db.finance[i]; return null; }
 function finForTask(id) { return db.finance.filter(function (f) { return f.taskId === id; }); }
+// v14: fund allocations (Emergency Fund) — the allocation row a task carries, and the Emergency Fund allocation itself
+function allocForTask(t) { return db.finance.filter(function (f) { return f.kind === 'allocation' && f.taskId === t.id; })[0] || null; }
+function efAlloc() { return db.finance.filter(function (f) { return f.kind === 'allocation' && wsBase(f.workstream) === 'Emergency Fund'; })[0] || null; }
+// link existing Finance & Procurement items to a task (checked = linked to this task)
+function linkFinDialog(taskId) {
+  var t = taskById(taskId); if (!t) return;
+  var list = db.finance.slice().sort(rowOrder);
+  var rows = list.map(function (f) {
+    var cur = f.taskId ? taskById(f.taskId) : null, mine = f.taskId === t.id;
+    return '<label class="lf-row" data-q="' + esc((f.item + ' ' + f.workstream + ' ' + (cur ? cur.name : '')).toLowerCase()) + '"><input type="checkbox" value="' + f.id + '"' + (mine ? ' checked' : '') + '>' +
+      '<span class="lf-main"><b>' + esc(f.item || '(tanpa nama)') + '</b><span class="muted">' + esc(f.workstream || '—') + (f.parentId ? ' · bagian dari ' + esc((finById(f.parentId) || {}).item || '') : '') +
+      (cur && !mine ? ' · sekarang di task: ' + esc(cur.name) : '') + '</span></span><span class="num lf-amt">' + rp(calc(f).base) + '</span></label>';
+  }).join('');
+  openModal('<form id="lfForm" novalidate><div class="modal-h"><h3>Link Finance &amp; Procurement</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+    '<div class="modal-b one"><p class="muted" style="margin:0">Centang item budget yang mau ditautkan ke task <b>' + esc(t.name) + '</b>. Item yang dicentang pindah ke task ini; yang dihapus centangnya kembali jadi task sendiri.</p>' +
+    '<input class="input" id="lfSearch" type="search" placeholder="Cari item, kategori, task…">' +
+    '<div class="lf-list" id="lfList">' + (rows || '<p class="faint">Belum ada item di Finance.</p>') + '</div></div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">Simpan Link</button></div></div></form>', 'wide');
+  var q = document.getElementById('lfSearch');
+  q.addEventListener('input', function () { var v = q.value.trim().toLowerCase(); document.querySelectorAll('#lfList .lf-row').forEach(function (r) { r.hidden = !!v && r.dataset.q.indexOf(v) < 0; }); });
+  document.getElementById('lfForm').onsubmit = function (e) {
+    e.preventDefault();
+    var n = 0, now = Date.now();
+    document.querySelectorAll('#lfList input[type=checkbox]').forEach(function (c) {
+      var f = finById(c.value); if (!f) return;
+      if (c.checked && f.taskId !== t.id) { f.taskId = t.id; f.taskSynced = true; f.wsSynced = false; f.updatedAt = now; n++; }
+      else if (!c.checked && f.taskId === t.id) { f.taskId = null; f.taskSynced = false; f.updatedAt = now; n++; }
+    });
+    closeModal(); ui.expanded = t.id; ui.tfOpen = ui.tfOpen || {}; ui.tfOpen[t.id] = true;
+    commit(n ? n + ' item budget diperbarui' : 'Tidak ada perubahan');
+  };
+}
 // a task can belong to several workstreams (t.workstreams); t.workstream (the first one) is kept for older data and other pages
 function taskWorkstreams(t) {
   var list = Array.isArray(t.workstreams) ? t.workstreams.slice() : [];
@@ -1574,21 +1606,25 @@ function catDelete(kind, idx) {
 
 /* ---------- Overview ---------- */
 function renderOverview() {
+  // v14: lighter overview — 4 summary cards, two short lists, compact workstream progress; details live in Tasks / Finance
   var s = taskStats(), ft = totals(db.finance), today = todayISO();
-  var h = pageHead('Overview', 'Status hari ini, ' + fmtDate(today) + '. Data timeline dari Master Timeline Road to GX 27.',
+  var h = pageHead('Overview', 'Ringkasan hari ini, ' + fmtDate(today) + '. Detail lengkap ada di Tasks dan Finance.',
     '<button class="btn" data-act="new-task">+ Task</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
-  h += '<div class="kpis">' +
-    kpi('Total Tasks', s.total, s.blocked + ' blocked · ' + s.overdue + ' overdue') +
-    kpi('Completed', s.done, s.total ? Math.round(s.done / s.total * 100) + '% of all tasks' : '—') +
-    kpi('In Progress', s.prog, 'operational status') +
-    kpi('Pending', s.appr, 'menunggu / tertahan', s.appr > 0) +
-    '</div><div class="kpis">' +
-    kpi('Estimated Budget', rp(ft.est), ft.count + ' line items · ' + ft.missing + ' without amount', false, true) +
-    kpi('Payments Made', rp(ft.paid), '+ ' + rp(ft.fee) + ' biaya transfer', false, true) +
-    kpi('Outstanding', rp(ft.outstanding), 'invoice (or estimate) minus paid', ft.outstanding > 0, true) +
-    kpi('Needs Verification', ft.flagged + db.tasks.filter(function (t) { return t.source === 'verify'; }).length, 'finance + task records') +
+  var urgent = db.tasks.filter(function (t) { var k = dueState(t).kind; return !isDone(t) && (k === 'overdue' || k === 'soon' || sType(t.status) === 'blocked'); })
+    .sort(function (a, b) { return (a.deadline || '9') < (b.deadline || '9') ? -1 : 1; });
+  var upcoming = db.tasks.filter(function (t) { var d = dueState(t); return !isDone(t) && d.kind !== 'none' && d.kind !== 'overdue' && d.kind !== 'soon' && d.days >= 0 && d.days <= 14; })
+    .sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
+  var pct = s.total ? Math.round(s.done / s.total * 100) : 0, payPct = ft.est ? Math.min(100, Math.round(ft.paid / ft.est * 100)) : 0;
+  h += '<div class="ov-cards">' +
+    ovCard('Progress Task', pct + '%', s.done + ' dari ' + s.total + ' task selesai', pct, '', 'go-tasks', 'all') +
+    ovCard('Perlu Perhatian', s.overdue + s.blocked, s.overdue + ' overdue · ' + s.blocked + ' terhambat', null, s.overdue + s.blocked > 0 ? 'warn' : '', 'go-tasks', 'pending') +
+    ovCard('Deadline 14 Hari', urgent.filter(function (t) { return dueState(t).kind === 'soon'; }).length + upcoming.length, 'task belum selesai', null, '', 'go-tasks', 'timeline') +
+    ovCard('Sudah Dibayar', rpShort(ft.paid), 'dari ' + rpShort(ft.est) + ' · sisa ' + rpShort(ft.outstanding), payPct, '', 'go-page', 'finance') +
     '</div>';
-
+  h += '<div class="grid-2 ov-lists">' +
+    ovList('Perlu Perhatian', 'Overdue, deadline ≤3 hari, atau terhambat', urgent, 'pending', 'Tidak ada yang mendesak 🎉') +
+    ovList('Deadline Mendatang', '4–14 hari ke depan', upcoming, 'timeline', 'Belum ada deadline dalam 14 hari.') +
+    '</div>';
   // Prep strip
   h += '<div class="panel-h" style="border:none;padding:0 0 8px"><h2>Preparation Deadlines</h2><span class="muted" style="font-size:12px">Event Day 21 Nov 2026</span></div><div class="prep-strip">';
   var nextFound = false;
@@ -1599,34 +1635,46 @@ function renderOverview() {
     h += '<div class="' + cls + '" data-act="open-task" data-id="' + (t ? t.id : '') + '" role="button" tabindex="0"><div class="m">' + MONTHS[parseISO(d).getMonth()].toUpperCase() + '</div><div class="d">' + parseISO(d).getDate() + '</div><div style="margin-top:4px">' + (t ? statusBadge(t.status) : '<span class="faint">—</span>') + '</div><div class="faint" style="font-size:11px;margin-top:3px">' + due + ' other due</div></div>';
   });
   h += '</div>';
-
-  // Urgent + upcoming
-  var urgent = db.tasks.filter(function (t) { var k = dueState(t).kind; return !isDone(t) && (k === 'overdue' || k === 'soon' || sType(t.status) === 'blocked'); })
-    .sort(function (a, b) { return (a.deadline || '9') < (b.deadline || '9') ? -1 : 1; });
-  var upcoming = db.tasks.filter(function (t) { var d = dueState(t); return !isDone(t) && d.kind !== 'none' && d.days >= 0 && d.days <= 14; })
-    .sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
-  h += '<div class="grid-2">' +
-    panel('Urgent · Overdue, Due ≤3 Days, Blocked', urgent.length, urgent.length ? urgent.slice(0, 12).map(listRow).join('') + more(urgent.length, 12, 'pending') : emptyBox('Nothing Urgent', 'No overdue, blocked or due-soon tasks.')) +
-    panel('Upcoming · Next 14 Days', upcoming.length, upcoming.length ? upcoming.slice(0, 12).map(listRow).join('') + more(upcoming.length, 12, 'timeline') : emptyBox('No Deadlines in the Next 14 Days', 'Add deadlines to tasks to see them here.')) +
-    '</div>';
-
-  // Workstream summary + verification
+  // compact progress per workstream (only workstreams that have tasks), order from Manage Categories
   var wsRows = allWorkstreams().map(function (ws) {
     var ts = db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(ws) > -1; });
-    var fs = db.finance.filter(function (f) { return f.workstream === ws; });
-    if (!ts.length && !fs.length) return '';
-    var done = ts.filter(isDone).length, ft2 = totals(fs);
-    var pct = ts.length ? Math.round(done / ts.length * 100) : 0;
-    return '<tr><td>' + wsTag(ws) + '</td><td class="num r">' + done + '/' + ts.length + '</td><td><div class="wsbar" title="' + pct + '%"><i style="width:' + pct + '%"></i></div></td><td class="num r">' + (fs.length ? rp(ft2.est) : '<span class="faint">—</span>') + '</td><td class="num r">' + (fs.length ? rp(ft2.paid) : '<span class="faint">—</span>') + '</td></tr>';
+    if (!ts.length) return '';
+    var done = ts.filter(isDone).length, p = Math.round(done / ts.length * 100), c = wsColor(ws);
+    return '<div class="ov-ws"><span class="ov-ws-n"><i style="background:' + c[0] + '"></i>' + esc(ws) + '</span><div class="ov-bar"><i style="width:' + p + '%;background:' + c[0] + '"></i></div><span class="ov-ws-c num">' + done + '/' + ts.length + '</span></div>';
   }).join('');
+  h += '<div class="panel ov-panel"><div class="panel-h"><h2>Progress per Workstream</h2><span class="muted" style="font-size:12px">task selesai / total</span></div><div class="ov-ws-grid">' + wsRows + '</div></div>';
+  // verification: folded by default
   var vItems = [];
   db.finance.forEach(function (f) { var c = calc(f); if (c.flags.length || f.source === 'verify') vItems.push({ kind: 'fin', id: f.id, title: f.item, ws: f.workstream, msgs: (f.verifyNote ? [f.verifyNote] : []).concat(c.flags.map(function (x) { return x.msg; })) }); });
   db.tasks.forEach(function (t) { if (t.source === 'verify') vItems.push({ kind: 'task', id: t.id, title: t.name, ws: t.workstream, msgs: [t.verifyNote || 'Needs Verification'] }); });
-  h += '<div class="grid-2"><div class="panel"><div class="panel-h"><h2>By Workstream</h2></div><div class="table-wrap" style="border:none"><table><thead><tr><th>Workstream</th><th class="r">Done</th><th>Progress</th><th class="r">Est. Budget</th><th class="r">Paid</th></tr></thead><tbody>' + wsRows + '</tbody></table></div></div>' +
-    panel('Needs Verification', vItems.length, vItems.length ? '<div class="verify-list">' + vItems.slice(0, 14).map(function (v) {
-      return '<div class="v-row" data-act="' + (v.kind === 'fin' ? 'edit-fin' : 'open-task') + '" data-id="' + v.id + '" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center;min-width:0">' + wsTag(v.ws) + '<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(v.title) + '</b></div><div class="flag">' + esc(v.msgs.join(' · ')) + '</div></div>';
-    }).join('') + '</div>' + (vItems.length > 14 ? '<div class="empty" style="padding:10px">+' + (vItems.length - 14) + ' more in Tasks and Finance</div>' : '') : emptyBox('All Records Verified', 'Nothing is flagged right now.')) + '</div>';
+  if (vItems.length) h += '<details class="panel ov-verify"><summary><b>Perlu Verifikasi</b><span class="ov-pill">' + vItems.length + '</span><span class="muted">data budget / task yang perlu dicek ulang · klik untuk lihat</span></summary><div class="verify-list">' +
+    vItems.map(function (v) {
+      return '<div class="v-row" data-act="' + (v.kind === 'fin' ? 'edit-fin' : 'open-task') + '" data-id="' + v.id + '" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center;min-width:0">' + wsTag(v.ws) + '<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(v.title) + '</b></div><div class="muted" style="font-size:12px">' + esc(v.msgs.join(' · ')) + '</div></div>';
+    }).join('') + '</div></details>';
   return h;
+}
+function rpShort(n) {
+  if (n == null || isNaN(n)) return '—';
+  var a = Math.abs(n);
+  if (a >= 1e9) return 'Rp ' + (n / 1e9).toFixed(1).replace('.', ',').replace(',0', '') + ' M';
+  if (a >= 1e6) return 'Rp ' + (n / 1e6).toFixed(1).replace('.', ',').replace(',0', '') + ' jt';
+  return rp(n);
+}
+function ovCard(k, v, sub, bar, tone, act, arg) {
+  var at = act === 'go-page' ? ' data-act="go-page" data-page="' + arg + '"' : ' data-act="' + act + '" data-view="' + arg + '"';
+  return '<button type="button" class="ov-card' + (tone ? ' ' + tone : '') + '"' + at + '><span class="k">' + k + '</span><span class="v">' + v + '</span>' +
+    (bar != null ? '<span class="ov-bar"><i style="width:' + bar + '%"></i></span>' : '') + '<span class="s">' + sub + '</span></button>';
+}
+function ovList(title, sub, list, view, empty) {
+  var LIM = 6;
+  var rows = list.slice(0, LIM).map(function (t) {
+    var c = wsColor(t.workstream);
+    return '<div class="ov-row" data-act="open-task" data-id="' + t.id + '" role="button" tabindex="0"><i class="ov-dot" style="background:' + c[0] + '" title="' + esc(t.workstream) + '"></i>' +
+      '<span class="ov-t"><b>' + esc(t.name) + '</b><span class="muted">' + esc(t.workstream || '—') + ' · ' + dueLabel(t) + '</span></span></div>';
+  }).join('');
+  return '<div class="panel ov-panel"><div class="panel-h"><div><h2>' + title + ' <span class="ov-pill">' + list.length + '</span></h2><span class="muted" style="font-size:12px">' + sub + '</span></div></div>' +
+    '<div class="ov-rows">' + (rows || '<div class="empty" style="padding:18px">' + esc(empty) + '</div>') + '</div>' +
+    (list.length > LIM ? '<div class="ov-more"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">Lihat semua ' + list.length + ' →</button></div>' : '') + '</div>';
 }
 function kpi(k, v, s, hl, money) { return '<div class="kpi' + (hl ? ' hl' : '') + '"><span class="k">' + k + '</span><span class="v' + (money ? ' money' : '') + '">' + v + '</span><span class="s">' + s + '</span></div>'; }
 function panel(title, count, body) { return '<div class="panel"><div class="panel-h"><h2>' + title + '</h2><span class="num muted">' + count + '</span></div><div class="panel-b">' + body + '</div></div>'; }
@@ -2044,7 +2092,9 @@ function taskCell(key, t) {
         var fo = taskFinOpen(t);
         finTag = '<button type="button" class="src fin fin-tog" data-act="task-fin-toggle" data-id="' + t.id + '" aria-expanded="' + fo + '" title="' + (fo ? 'Sembunyikan' : 'Tampilkan') + ' item Finance">' + (fo ? '▾' : '▸') + ' Finance · ' + nfin + ' Item</button> ';
       } else if (nfin) finTag = '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' Item</span> ';
-      return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
+      var alc = canEdit() ? allocForTask(t) : null;
+      return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span>' +
+        (alc ? '<button type="button" class="btn sm ghost task-add-sub" data-act="new-sub" data-id="' + alc.id + '" title="Tambah pemakaian dana di bawah ' + esc(alc.item) + '">+ Sub Item</button>' : '') + '</td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDMY(t.start) : '<span class="faint">—</span>') + '</td>';
@@ -2097,7 +2147,8 @@ function taskDetail(t) {
     '<div><h4>Notes</h4><p>' + (t.notes ? esc(t.notes) : '<span class="faint">—</span>') + '</p></div>' +
 
     '<div><h4>Finance (Payment Tracked Separately)</h4>' + finHtml + '</div>' +
-    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit Task' : 'View Details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Link Budget Item</button>' +
+    '<div class="actions"><button class="btn sm primary" data-act="edit-task" data-id="' + t.id + '">' + (canEdit() ? 'Edit Task' : 'View Details') + '</button><button class="btn sm" data-act="new-fin" data-task="' + t.id + '">+ Item Budget Baru</button><button class="btn sm" data-act="link-fin" data-id="' + t.id + '">Link Item Finance</button>' +
+    (allocForTask(t) && canEdit() ? '<button class="btn sm" data-act="new-sub" data-id="' + allocForTask(t).id + '">+ Sub Item</button>' : '') +
     '<button class="btn sm danger" data-act="delete-task" data-id="' + t.id + '">Delete</button><span class="faint" style="font-size:12px;align-self:center;margin-left:auto">' + t.id + ' · ' + esc(taskWorkstreams(t).join(', ')) + ' · ' + (t.start ? 'start ' + fmtDate(t.start, true) + ' · ' : '') + 'updated ' + new Date(t.updatedAt).toLocaleDateString('id-ID') + '</span></div></div>';
 }
 function renderTimeline(list) {
@@ -2369,10 +2420,18 @@ function taskForm(t, preset) {
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
     field('source', 'Data Source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], t.source)) +
     field('mt', 'Master Timeline', '<label class="pic-opt mt-check"><input type="checkbox" id="f-mt" name="mt"' + (onMaster(t) ? ' checked' : '') + '> Tampilkan di Master Timeline</label>', { hint: 'Semua workstream bisa masuk. Perlu deadline supaya muncul.' }) +
-    cfFields('tasks', t) +
+    cfFields('tasks', t) + taskFinField(t, isNew) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-task" data-id="' + t.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
-  document.getElementById('taskForm').onsubmit = function (e) {
+  var tfForm = document.getElementById('taskForm');
+  // "+ Item Budget Baru" / "Link Item yang Ada" inside the form: save the task first, then open the finance step
+  tfForm.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-fin-after]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    tfForm.dataset.after = b.getAttribute('data-fin-after');
+    if (tfForm.requestSubmit) tfForm.requestSubmit(); else tfForm.onsubmit({ preventDefault: function () {}, target: tfForm });
+  });
+  tfForm.onsubmit = function (e) {
     e.preventDefault();
     wsSync();
     var fd = new FormData(e.target), v = {};
@@ -2382,6 +2441,12 @@ function taskForm(t, preset) {
     v.workstream = v.workstreams[0] || '';   // first one kept for older data and other pages
     v.name = titleCase(v.name);
     var wantMt = v.mt === 'on'; delete v.mt;
+    var addFin = v.addFin === 'on'; delete v.addFin;
+    var after = tfForm.dataset.after || (addFin ? 'new' : ''); tfForm.dataset.after = '';
+    function finStep(id, name) {
+      if (after === 'new') finForm(null, id, { item: name });
+      else if (after === 'link') linkFinDialog(id);
+    }
     function setMt(o) { delete o.mt; if (wantMt !== mtDefault(o)) o.mt = wantMt; }   // only stored when it differs from the default rule
     var cfr = takeCf('tasks', v, t.cf), errs = cfr.errs;
     if (Object.keys(cfr.cf).length || t.cf) v.cf = cfr.cf;
@@ -2389,11 +2454,39 @@ function taskForm(t, preset) {
     if (!v.workstreams.length) errs.workstream = 'Pick at least one workstream.';
     if (v.start && v.deadline && v.start > v.deadline) errs.start = 'Start date is after the deadline.';
     if (Object.keys(errs).length) return showErrors(e.target, errs);
-    if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); setMt(o); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); }
-    else { Object.assign(t, v, { updatedAt: Date.now() }); setMt(t); closeModal(); commit('Task saved'); }
+    // v14: a new task in the Emergency Fund workstream becomes a usage row (sub item) of the Emergency Fund allocation,
+    // so everything stays summarised under one task ("Alokasi Emergency Fund")
+    var efA = isNew ? efAlloc() : null;
+    if (efA && wsBase(v.workstream) === 'Emergency Fund') {
+      var at = efA.taskId ? taskById(efA.taskId) : null, now = Date.now();
+      var nf = { id: nextId('F'), createdAt: now, updatedAt: now, item: v.name, workstream: efA.workstream, parentId: efA.id, kind: '', qty: null, unit: '', unitCost: null, estimated: null,
+        invoice: null, dp: null, fee: null, paidAmount: null, paymentDeadline: v.deadline || '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', invoiceRef: '',
+        notes: [v.notes, v.pic ? 'PIC: ' + v.pic : ''].filter(Boolean).join('\n'), source: v.source || 'confirmed', verifyNote: '', taskId: at ? at.id : null, taskSynced: !!at };
+      db.finance.push(nf);
+      if (at) { ui.expanded = at.id; ui.tfOpen = ui.tfOpen || {}; ui.tfOpen[at.id] = true; }
+      closeModal(); commit('Masuk sebagai sub item ' + (efA.item || 'Emergency Fund') + ' · isi nominalnya di form berikut');
+      var made = finById(nf.id); if (made) finForm(made);
+      return;
+    }
+    if (isNew) { var o = Object.assign({ id: nextId('T'), createdAt: Date.now() }, v, { updatedAt: Date.now() }); setMt(o); db.tasks.push(o); ui.expanded = o.id; closeModal(); commit('Task created'); finStep(o.id, o.name); }
+    else { Object.assign(t, v, { updatedAt: Date.now() }); setMt(t); closeModal(); commit('Task saved'); finStep(t.id, t.name); }
   };
 }
 
+// Finance & Procurement block inside the task form
+function taskFinField(t, isNew) {
+  if (!canEdit()) return '';
+  if (isNew) return field('addFin', 'Finance & Procurement', '<label class="pic-opt mt-check"><input type="checkbox" name="addFin"> Tambahkan juga ke Finance &amp; Procurement</label>',
+    { full: true, hint: 'Setelah task dibuat, form item budget langsung terbuka dan otomatis ter-link ke task ini. Task dengan workstream Emergency Fund otomatis jadi sub item Emergency Fund.' });
+  var fins = finForTask(t.id), al = allocForTask(t);
+  var list = fins.length ? '<div class="tf-fin-list">' + fins.slice().sort(rowOrder).map(function (f) {
+    return '<a href="#finance" data-act="edit-fin" data-id="' + f.id + '">' + (f.parentId ? '↳ ' : '') + esc(f.item || '(tanpa nama)') + ' <span class="muted">· ' + rp(calc(f).base) + ' · ' + esc(f.paymentStatus || '') + '</span></a>';
+  }).join('') + '</div>' : '<p class="faint" style="margin:0 0 6px">Belum ada item budget yang ter-link.</p>';
+  return field('finLinks', 'Finance & Procurement', list +
+    '<div class="tf-fin-btns"><button type="button" class="btn sm" data-fin-after="new">+ Item Budget Baru</button><button type="button" class="btn sm" data-fin-after="link">Link Item yang Ada</button>' +
+    (al ? '<button type="button" class="btn sm" data-act="new-sub" data-id="' + al.id + '">+ Sub Item ' + esc(al.item) + '</button>' : '') + '</div>',
+    { full: true, hint: 'Perubahan task disimpan dulu, lalu form Finance terbuka.' });
+}
 function finForm(f, presetTask, preset) {
   var isNew = !f;
   f = f || Object.assign({ item: '', workstream: presetTask ? (taskById(presetTask) || {}).workstream || '' : '', qty: null, unit: '', unitCost: null, estimated: null, invoice: null, dp: null, fee: null, paidAmount: null,
@@ -2651,7 +2744,7 @@ document.getElementById('sideTools').addEventListener('click', function (e) {
   else if (tool === 'import-csv') importCsvDialog();
   else if (tool === 'reset') confirmDialog('Reset to initial data?', 'All tasks and budget items will be replaced with the original GX27 timeline and empty budget categories. Your edits will be lost unless you exported a backup.', 'Reset data', function () { db = seed(); ui.expanded = null; storageError = ''; commit('Data reset'); });
 });
-var MUTATING = ['ws-add-inline','manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
+var MUTATING = ['link-fin','ws-add-inline','manage-ws','new-sub','pick-pic','pic-add-inline','manage-pay','manage-pics','manage-columns','col-add','col-delete','col-move','col-show','new-task','new-milestone','new-event-item','delete-task','new-fin','delete-fin','import-csv','new-rundown','edit-rundown','delete-rundown','new-zone','delete-zone','manage-categories','manage-statuses','budget-apply','budget-ignore','cat-add','cat-delete','cat-move','cat-adopt'];
 function handleAct(el, e) {
   var act = el.dataset.act, id = el.dataset.id;
   if (MUTATING.indexOf(act) > -1 && !canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
@@ -2706,6 +2799,7 @@ function handleAct(el, e) {
       var pf = finById(id); if (!pf) break;
       closeModal(); finForm(null, null, { parentId: pf.id, workstream: pf.workstream, taskId: '' }); break;
     case 'edit-fin': e.preventDefault(); closeModal(); if (finById(id)) finForm(finById(id)); break;
+    case 'link-fin': closeModal(); linkFinDialog(id); break;
     case 'delete-fin': closeModal(); deleteFin(id); break;
     case 'open-task':
       e.preventDefault(); closeModal();
@@ -2715,6 +2809,7 @@ function handleAct(el, e) {
       setTimeout(function () { var row = main.querySelector('tr[data-id="' + id + '"]'); if (row) row.scrollIntoView({ block: 'center' }); }, 0);
       break;
     case 'go-tasks': ui.taskView = el.dataset.view; go('tasks'); break;
+    case 'go-page': go(el.dataset.page); break;
     case 'task-fin-toggle': { var tt0 = taskById(id); if (tt0) { ui.tfOpen = ui.tfOpen || {}; ui.tfOpen[id] = !taskFinOpen(tt0); render(); } break; }
     case 'task-fin-all': ui.tfHide = !ui.tfHide; if (!ui.tfHide) ui.tfOpen = {}; render(); break;
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;

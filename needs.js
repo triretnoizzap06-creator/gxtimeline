@@ -87,6 +87,14 @@
   function wsTag(w) { return w === NO_NAME ? '<span class="ws">' + esc(w) + '</span>' : App.wsTag(w); }
   // "design belum selesai" = bukan pilihan pertama (mis. Doesn't Need) dan bukan pilihan terakhir (mis. Done)
   function designPending(v) { var c = colByKey('design'), o = (c && c.options) || DESIGN; return !!v && v !== o[0] && v !== o[o.length - 1]; }
+  // warna dropdown Design sama seperti Status di Tasks: nama yang sama dengan status task pakai warna status itu,
+  // selain itu: pilihan pertama abu-abu, terakhir hijau, kedua kuning, sisanya biru
+  function dcolor(v) {
+    var st = stDefs().filter(function (x) { return x.name.toLowerCase() === String(v || '').toLowerCase(); })[0];
+    if (st && st.color) return st.color;
+    var k = dcls(v);
+    return { none: 'neutral', done: 'ok', todo: 'warn', doing: 'info' }[k] || 'neutral';
+  }
   function dcls(v) {
     var c = colByKey('design'), o = (c && c.options) || DESIGN, i = o.indexOf(v);
     return i < 0 ? 'none' : i === 0 ? 'none' : i === o.length - 1 ? 'done' : i === 1 ? 'todo' : 'doing';
@@ -109,7 +117,7 @@
     if (c.type === 'textarea') return '<td><textarea class="input need-notes" ' + a + ' rows="1">' + esc(v == null ? '' : v) + '</textarea></td>';
     if (c.type === 'select') {
       var o = (c.options || []).slice(); if (v && o.indexOf(v) < 0) o.push(v);
-      return '<td><select class="input' + (c.key === 'design' ? ' need-d-' + dcls(v) : '') + '" ' + a + '>' + (c.key === 'design' ? '' : '<option value=""></option>') +
+      return '<td><select class="' + (c.key === 'design' ? 'inline-select need-dsel st-' + dcolor(v) : 'input') + '" ' + a + '>' + (c.key === 'design' ? '' : '<option value=""></option>') +
         o.map(function (d) { return '<option' + (d === v ? ' selected' : '') + '>' + esc(d) + '</option>'; }).join('') + '</select></td>';
     }
     if (c.type === 'date') return '<td><input class="input" type="date" ' + a + ' value="' + esc(v || '') + '"></td>';
@@ -416,7 +424,7 @@
     '.need-chk{text-align:center;padding-top:12px !important}',
     '.need-chk input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent);vertical-align:middle}',
     '.need-ok td:first-child{box-shadow:inset 3px 0 0 var(--accent)}',
-    '.need-d-done{color:#8fbf7a}.need-d-doing{color:var(--accent)}.need-d-todo{color:#e0a458}.need-d-none{color:var(--muted)}',
+    '.need-tbl select.need-dsel{width:100%;min-width:0;box-sizing:border-box;padding:6px 8px;font-size:12.5px;font-weight:600;border-radius:8px;min-height:32px}',
     '.need-foot{padding:8px 14px}',
     '.need-empty{margin:20px;padding:28px;border:1px dashed var(--line);border-radius:12px;text-align:center}',
     '.need-chip{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}',

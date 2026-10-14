@@ -1019,3 +1019,57 @@ body.rz-dragging,body.rz-dragging *{cursor:col-resize !important;user-select:non
 body.rd-dragging,body.rd-dragging *{cursor:grabbing !important;user-select:none !important;-webkit-user-select:none !important}
 body.readonly .drag-h{display:none}
 body.readonly .cat-list>[data-ri]{padding-left:0}
+
+/* v14: Finance & Procurement di task, sub item Emergency Fund */
+.tf-fin-list{display:flex;flex-direction:column;gap:4px;margin:0 0 8px}
+.tf-fin-list a{font-size:13px;text-decoration:none;color:var(--fg);padding:5px 8px;border:1px solid var(--line);border-radius:8px}
+.tf-fin-list a:hover{background:var(--hover)}
+.tf-fin-btns{display:flex;gap:6px;flex-wrap:wrap}
+.task-add-sub{display:inline-flex;margin-top:6px;font-size:12px;padding:2px 8px}
+.lf-list{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow:auto}
+.lf-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.lf-row:hover{background:var(--hover)}
+.lf-row[hidden]{display:none}
+.lf-main{display:flex;flex-direction:column;min-width:0}
+.lf-main b{font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+.lf-main .muted{font-size:12px}
+.lf-amt{font-size:12.5px;white-space:nowrap}
+
+/* v14: Overview lebih ringkas */
+.ov-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.ov-card{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;padding:16px 18px;background:var(--surface);border-radius:var(--r-lg,14px);box-shadow:var(--shadow-card,0 1px 2px rgba(0,0,0,.06));cursor:pointer;min-width:0}
+.ov-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.ov-card:focus-visible{outline:2px solid var(--accent)}
+.ov-card .k{font-size:12.5px;font-weight:600;color:var(--muted)}
+.ov-card .v{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-card .s{font-size:12.5px;color:var(--muted)}
+.ov-card.warn{background:var(--warn-bg)}
+.ov-card.warn .v{color:var(--warn)}
+.ov-bar{display:block;height:6px;border-radius:99px;background:rgba(120,120,128,.16);overflow:hidden;min-width:40px}
+.ov-bar i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.ov-lists{margin-bottom:18px}
+.ov-panel .panel-h h2{display:flex;align-items:center;gap:8px}
+.ov-pill{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:20px;padding:0 7px;border-radius:99px;background:var(--neutral-bg);color:var(--muted);font-size:12px;font-weight:600}
+.ov-rows{display:flex;flex-direction:column}
+.ov-row{display:flex;gap:10px;align-items:flex-start;padding:9px 18px;cursor:pointer;border-top:1px solid var(--line)}
+.ov-row:first-child{border-top:0}
+.ov-row:hover{background:var(--hover)}
+.ov-dot{flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px}
+.ov-t{display:flex;flex-direction:column;min-width:0}
+.ov-t b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-t .muted{font-size:12px}
+.ov-more{padding:6px 12px 10px}
+.ov-ws-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 28px;padding:10px 18px 16px}
+.ov-ws{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 44px;gap:10px;align-items:center;padding:4px 0;font-size:13px}
+.ov-ws-n{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-ws-n i{flex:none;width:8px;height:8px;border-radius:50%}
+.ov-ws-c{text-align:right;color:var(--muted);font-size:12.5px}
+.ov-panel{margin-bottom:18px}
+.ov-verify{margin:0 0 18px;padding:0}
+.ov-verify>summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;cursor:pointer;list-style:none}
+.ov-verify>summary::-webkit-details-marker{display:none}
+.ov-verify>summary::before{content:'▸';color:var(--muted);font-size:12px}
+.ov-verify[open]>summary::before{content:'▾'}
+.ov-verify>summary .muted{font-size:12.5px}
+@media (max-width:980px){.ov-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.ov-ws-grid{grid-template-columns:1fr}}
+@media (max-width:520px){.ov-card .v{font-size:22px}.ov-ws{grid-template-columns:minmax(0,130px) minmax(0,1fr) 40px}}

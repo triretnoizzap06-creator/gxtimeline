@@ -1,12 +1,26 @@
-GX27 - Patch v13 (Need per Station + Emergency Fund)
+GX27 - Patch v14 (Overview ringkas, link Finance di task, Emergency Fund 1 task)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10, v11 & v12.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10, v11, v12 & v13.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-PERUBAHAN v13
+PERUBAHAN v14
+1. Overview lebih ringkas: 4 kartu (Progress Task, Perlu Perhatian, Deadline 14 Hari, Sudah Dibayar),
+   2 daftar pendek (maks. 6 item + "Lihat semua"), progress per workstream tanpa kolom budget,
+   dan "Perlu Verifikasi" dilipat (klik untuk buka). Kartu bisa diklik untuk ke Tasks / Finance.
+2. Need per Station: dropdown Design berwarna seperti Status di Tasks.
+3. Task <-> Finance & Procurement:
+   - Form New Task: centang "Tambahkan juga ke Finance & Procurement" -> setelah task dibuat, form item budget terbuka & otomatis ter-link.
+   - Form Edit Task: bagian Finance & Procurement (daftar item ter-link, "+ Item Budget Baru", "Link Item yang Ada").
+   - Detail task (klik baris): tombol "+ Item Budget Baru" dan "Link Item Finance".
+4. Emergency Fund jadi 1 ringkasan:
+   - Task baru dengan workstream Emergency Fund otomatis masuk sebagai sub item di bawah "Alokasi Emergency Fund"
+     (tidak jadi task terpisah), lalu form nominal langsung terbuka.
+   - Tombol "+ Sub Item" di baris task "Alokasi Emergency Fund" (dan di detail/form task-nya).
+
+PERUBAHAN v13 (sudah termasuk)
 1. Need per Station dikelompokkan per Workstream (nama & urutan ikut Manage Categories).
    - Tiap station punya dropdown Workstream untuk pindah kelompok.
    - Tombol "+ Station di <workstream>" di tiap kelompok; form Station Baru juga ada pilihan Workstream.
