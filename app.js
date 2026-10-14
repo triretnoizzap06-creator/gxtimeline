@@ -361,6 +361,7 @@ function syncFinanceTasks(d, s) {
     if (f.workstream === 'Doorprize') { f.taskId = ensureDoor().id; f.taskSynced = true; f.updatedAt = now; return; }
     var parent = f.parentId ? fById[f.parentId] : null;
     if (f.kind === 'allocation') return;
+    if (parent && parent.kind === 'vendor') return;   // line item of a vendor invoice: merged into the invoice's task below
     var src = parent && parent.kind === 'vendor' ? parent : f;   // who carries the payment
     var cur = f.taskId ? byId[f.taskId] : null;
     var placeholder = cur && String(cur.verifyNote || '').indexOf(FIN_PLACEHOLDER) === 0;
@@ -375,10 +376,37 @@ function syncFinanceTasks(d, s) {
     }
     f.taskId = id; f.taskSynced = true; f.updatedAt = now;
   });
+  // Every vendor invoice with line items (Bali Games, BUMI, OJISAN, ...) works like Doorprize: its items are merged into ONE task,
+  // the task that carries the invoice. (Fund allocations such as Emergency Fund are not merged: each usage row is its own payment.)
+  function vendorTask(p) {
+    var cur = p.taskId ? byId[p.taskId] : null;
+    if (cur) return cur;
+    var id = 'TF-' + p.id, t = byId[id];
+    if (!t) {
+      var pd = (s.payStatuses || []).filter(function (x) { return x.name === p.paymentStatus; })[0];
+      var pType = pd ? pd.type : (PAY_GUESS[String(p.paymentStatus || '').toLowerCase()] || 'unpaid');
+      t = { id: id, name: p.item || '(tanpa nama)', workstream: p.workstream || '', category: 'Procurement', start: '', deadline: p.paymentDeadline || '', pic: '',
+        status: pType === 'paid' && doneSt ? doneSt : todoSt, notes: '', blockers: '', dependencies: '', source: 'confirmed', verifyNote: '', autoFin: p.id, createdAt: now, updatedAt: now };
+      d.tasks.push(t); byId[id] = t;
+    }
+    p.taskId = id; p.taskSynced = true; p.updatedAt = now;
+    return t;
+  }
+  d.finance.forEach(function (f) {
+    var p = f.parentId ? fById[f.parentId] : null;
+    if (!p || p.kind !== 'vendor' || p.workstream === 'Doorprize') return;     // Doorprize is handled above
+    var cur = f.taskId ? byId[f.taskId] : null;
+    var own = cur && (cur.id === 'TF-' + f.id || cur.autoFin === f.id);        // a task that was auto-made just for this item
+    if (cur && !own && f.taskSynced) return;                                   // linked somewhere on purpose: leave it
+    var vt = vendorTask(p);
+    if (f.taskId !== vt.id) { f.taskId = vt.id; f.updatedAt = now; }
+    f.taskSynced = true;
+  });
   var linked = {}; d.finance.forEach(function (f) { if (f.taskId) linked[f.taskId] = 1; });
   d.tasks = d.tasks.filter(function (t) {
     if (String(t.verifyNote || '').indexOf(FIN_PLACEHOLDER) === 0 && !linked[t.id]) return false;      // generic holder task nobody uses any more
     if (t.autoFin && !fById[t.autoFin]) { if (!t.pic && !t.notes) return false; delete t.autoFin; }   // its budget item was deleted
+    if (t.autoFin && fById[t.autoFin] && !linked[t.id] && !t.pic && (!t.notes || String(t.notes).indexOf('Bagian dari') === 0)) return false;   // item moved into its vendor invoice's task; nothing was typed here
     return true;
   });
   d.finTasksV1 = true;
@@ -844,7 +872,7 @@ function dueState(t) {
 function dueLabel(t) {
   var s = dueState(t);
   if (s.kind === 'none') return '<span class="faint">No deadline</span>';
-  var txt = fmtRange(t), sub = '';
+  var txt = fmtDate(t.deadline, true), sub = '';   // satu tanggal saja (start date hanya ada di form Edit task)
   if (s.kind === 'overdue') sub = ' · ' + (-s.days) + 'd overdue';
   else if (s.kind === 'soon') sub = s.days === 0 ? ' · today' : ' · in ' + s.days + 'd';
   return '<span class="due ' + s.kind + '">' + txt + sub + '</span>';
@@ -1616,7 +1644,8 @@ function colFilterOk(t) {
 }
 function filterBtn(key, label) {
   var f = (ui.colF || {})[key], on = f && (f.t === 'text' ? String(f.v || '').trim() : (f.v || []).length);
-  return '<button type="button" class="hf-btn' + (on ? ' on' : '') + '" data-act="col-filter" data-key="' + esc(key) + '" data-label="' + esc(label) + '" aria-label="Filter ' + esc(label) + (on ? ' (aktif)' : '') + '" title="Filter ' + esc(label) + '">' + (on ? '●' : '▾') + '</button>';
+  var chev = '<svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return '<button type="button" class="hf-btn' + (on ? ' on' : '') + '" data-act="col-filter" data-key="' + esc(key) + '" data-label="' + esc(label) + '" aria-label="Filter ' + esc(label) + (on ? ' (aktif)' : '') + '" title="Filter ' + esc(label) + (on ? ' (aktif)' : '') + '">' + chev + '</button>';
 }
 var hfPop = null, hfKey = '', hfQuiet = 0;
 function closeColFilter() { if (hfPop) { hfPop.remove(); hfPop = null; hfKey = ''; } }
@@ -1682,20 +1711,25 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clos
 window.addEventListener('scroll', function (e) { if (hfPop && Date.now() >= hfQuiet && !(e.target && e.target.nodeType === 1 && e.target.closest && e.target.closest('.hf-pop'))) closeColFilter(); }, true);
 window.addEventListener('resize', closeColFilter);
 
+// header cell: [label ↑] [▾ filter] on one tidy row
+function thCell(inner, extra, cls, attrs) {
+  return '<th' + (cls ? ' class="' + cls + '"' : '') + (attrs || '') + '><div class="th-in"><span class="th-l">' + inner + '</span>' + (extra ? extra : '') + '</div></th>';
+}
 function sortTh(key, label, cls, extra) {
   var on = ui.sort.key === key;
-  return '<th class="sortable ' + (cls || '') + '" data-act="sort" data-key="' + key + '" aria-sort="' + (on ? (ui.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '">' + label + (on ? ' <span class="arr">' + (ui.sort.dir > 0 ? '↑' : '↓') + '</span>' : '') + (extra ? ' ' + extra : '') + '</th>';
+  return thCell(label + (on ? '<span class="arr">' + (ui.sort.dir > 0 ? '↑' : '↓') + '</span>' : ''), extra, 'sortable ' + (cls || ''),
+    ' data-act="sort" data-key="' + key + '" aria-sort="' + (on ? (ui.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '"');
 }
 function taskTable(list, compact, showBlockers) {
   var cols = visibleCols('tasks').filter(function (c) { return !(compact && c.key === 'workstream'); });
   var SORTABLE = { name: 1, workstream: 1, category: 1, deadline: 1, pic: 1, status: 1, start: 1, source: 1 };
-  var W = { name: 30, workstream: 14, category: 10, start: 8, deadline: 9, pic: 9, status: 10, notes: 22, source: 8, payment: 15 };
+  var W = { name: 28, workstream: 14, category: 10, start: 9, deadline: 12, pic: 10, status: 11, notes: 22, source: 9, payment: 15 };
     var wt = cols.reduce(function (a, c) { return a + (W[c.key] || 11); }, 0) || 1;
     var colg = '<colgroup>' + cols.map(function (c) { return '<col style="width:' + ((W[c.key] || 11) / wt * 100).toFixed(2) + '%">'; }).join('') + '</colgroup>';
     var h = '<div class="table-wrap"><table class="task-table">' + colg + '<thead><tr>' + cols.map(function (c) {
     var fk = c.custom ? 'cf:' + c.key : c.key, fb = filterBtn(fk, c.label);
     if (c.custom) return sortTh('cf:' + c.key, esc(c.label), c.type === 'number' || c.type === 'money' ? 'r' : '', fb);
-    return SORTABLE[c.key] ? sortTh(c.key, esc(c.label), '', fb) : '<th>' + esc(c.label) + ' ' + fb + '</th>';
+    return SORTABLE[c.key] ? sortTh(c.key, esc(c.label), '', fb) : thCell(esc(c.label), fb);
   }).join('') + '</tr></thead><tbody>';
   list.forEach(function (t) {
     var exp = ui.expanded === t.id;
@@ -1713,8 +1747,7 @@ function taskCell(key, t) {
     case 'deadline':
       if (!canEdit()) return '<td>' + dueLabel(t) + '</td>';
       var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
-      return '<td class="dl-cell"><div class="dl-range"><input class="input dl-input dl-start" type="date" data-inline="start" data-id="' + t.id + '" value="' + esc(t.start || '') + '" title="Start date" aria-label="Start date ' + esc(t.name) + '"><span class="dl-sep" aria-hidden="true">–</span>' +
-        '<input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '"></div>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
+      return '<td class="dl-cell"><input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '">' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
       if (canEdit() && !picsOf(t.pic).length) return '<td class="pic-cell"><button type="button" class="btn sm pic-add" data-act="pick-pic" data-id="' + t.id + '">+ Pilih PIC</button></td>';
       return '<td class="pic-cell">' + picChips(t.pic) + (canEdit() ? ' <button type="button" class="btn sm ghost pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="Ubah PIC ' + esc(t.name) + '">✎</button>' : '') + '</td>';

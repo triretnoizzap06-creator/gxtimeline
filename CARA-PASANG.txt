@@ -1,30 +1,18 @@
-GX27 - Patch: 3 permintaan + Need per Station
+GX27 - Patch: deadline 1 tanggal + header filter rapi + Finance -> Tasks merged
 
-Dasar: gxtimeline-all-features-multiworkstream.zip (sudah ada filter kolom & multi-workstream),
-ditambah fitur dari doorprize-merged-FILES-ONLY.zip yang dipindahkan ke dalamnya.
+File yang berubah: app.js, styles.css, index.html (needs.js tidak berubah). Tidak perlu SQL.
 
-File di zip ini: app.js, styles.css, index.html, needs.js (BARU). File lain tidak berubah. Tidak perlu SQL.
-
-1. Upload 4 file ke repo GitHub (timpa yang lama, needs.js file baru).
+1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
 PERUBAHAN
-1. Kolom tabel Tasks pas di layar (tanpa scroll ke samping). Lebar kolom dibagi otomatis; teks panjang turun ke baris
-   berikutnya. Di layar HP (<760px) tabel boleh digeser supaya tetap terbaca.
-2. Edit task: workstream bisa dipilih lebih dari satu (centang). Workstream pertama tetap jadi workstream utama.
-3. Finance <-> Task:
-   - Semua item Doorprize ada di SATU task "Doorprize procurement".
-   - Item di dalam invoice vendor tampil terlipat ("Tampilkan 21 item") di Finance, dan di detail task muncul
-     "21 item termasuk di invoice di atas" (bisa dibuka).
-   - Invoice status item yang termasuk di invoice otomatis mengikuti baris paling atas (mis. Submitted).
-     Berlaku untuk semua invoice vendor, bukan hanya Doorprize.
-4. Filter Tasks:
-   - Filter "All workstreams" dan "All statuses" di atas tabel DIHAPUS. Yang tersisa: Search dan Sources.
-   - SEMUA header tabel (Task, Workstream, Category, Deadline, PIC, Status, Payment, + kolom custom/Start/Notes/Source
-     kalau ditampilkan) punya tombol filter ▾. Isinya centang nilai, bisa pilih lebih dari satu, ada kotak cari,
-     dan tombol "Pilih semua yang tampil" / "Hapus filter". Filter antar-header digabung (AND), tombol jadi ● kalau aktif.
-   - Perbaikan: popup tidak lagi tertutup sendiri setelah satu centang (tertutup karena scroll otomatis saat tabel digambar ulang).
-   - "Clear filters" menghapus semua filter.
-5. Need per Station (needs.js): menu di bawah Tasks. Klik "Isi dari sheet Need per Station" untuk 9 station awal.
-
-Menghapus Need per Station: hapus baris <script src="/needs.js..."> di index.html.
+1. Kolom Deadline di tabel Tasks sekarang HANYA 1 tanggal (deadline). Start date tetap ada & bisa diisi lewat Edit task
+   (atau tampilkan kolom "Start" lewat Kelola kolom). Teks "x hari lewat / dalam x hari" tetap muncul di bawah tanggal.
+2. Header tabel Tasks dirapikan: [Nama kolom ↑] [▾] satu baris, tombol filter jadi kotak dropdown kecil yang sejajar
+   di kanan tiap header (aktif = kotak kuning). Nama kolom tidak lagi turun ke baris kedua.
+3. Finance -> Tasks: semua invoice vendor yang punya item di bawahnya sekarang digabung jadi 1 task, sama seperti Doorprize:
+   Doorprize (21 item), Bali Games (9 item), BUMI Creative (4 item), OJISAN (2 item).
+   - Data lama otomatis dirapikan saat dibuka (task per-item yang belum pernah diisi dihapus, item pindah ke task invoice-nya).
+   - Item baru yang ditambah lewat "+ Sub item" di bawah invoice vendor otomatis masuk ke task invoice itu.
+   - Emergency Fund (alokasi dana) sengaja TIDAK digabung karena tiap pemakaiannya invoice/pembayaran sendiri.
+   - Kalau kamu sengaja menautkan item ke task lain secara manual, tautan itu tidak ditimpa.

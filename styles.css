@@ -752,3 +752,18 @@ td.fin-task a{white-space:normal;overflow:visible;text-overflow:clip;line-height
 /* ===== Filter header: tombol lebih besar, popup rapi ===== */
 .hf-btn{font-size:12px;line-height:18px;padding:1px 6px;min-width:22px}
 .hf-foot{gap:6px;justify-content:space-between}
+
+/* ===== Header tabel Tasks: label + panah + dropdown filter satu baris rapi ===== */
+.task-table th{padding:8px 8px;vertical-align:middle}
+.th-in{display:flex;align-items:center;gap:6px;min-width:0}
+.th-l{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th-l .arr{margin-left:4px}
+th.r .th-in{justify-content:flex-end}
+.th-in .hf-btn{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:22px;height:20px;min-width:22px;padding:0;line-height:1;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--muted);border-radius:5px}
+th.r .th-in .hf-btn{margin-left:0}
+.th-in .hf-btn:hover{border-color:var(--muted);color:var(--fg)}
+.th-in .hf-btn.on{background:var(--accent);border-color:var(--accent);color:#1A1A17}
+.th-in .hf-btn svg{display:block}
+/* deadline: satu tanggal */
+.dl-cell .dl-input{width:100%;max-width:100%}
