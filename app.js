@@ -779,6 +779,7 @@ function toISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padS
 function todayISO() { return toISO(new Date()); }
 function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 864e5); }
 function fmtDate(s, short) { var d = parseISO(s); if (!d) return '—'; return String(d.getDate()).padStart(2, '0') + ' ' + MONTHS[d.getMonth()] + (short ? '' : ' ' + d.getFullYear()); }
+function fmtDMY(s) { var d = parseISO(s); return d ? String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear() : ''; }
 function fmtRange(t) { if (t.start && t.deadline && t.start !== t.deadline) return fmtDate(t.start, true) + ' – ' + fmtDate(t.deadline, true); return fmtDate(t.deadline, true); }
 var rpFmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 function rp(n) { return n == null ? '—' : 'Rp ' + rpFmt.format(n); }
@@ -1670,7 +1671,7 @@ function colVals(key, t) {
     case 'workstream': taskWorkstreams(t).concat(taskFinWs(t)).forEach(function (w) { if (out.every(function (x) { return x.v !== w; })) add(w); }); break;
     case 'pic': picsOf(t.pic).forEach(function (n) { add(n); }); break;
     case 'status': add(t.status, String(1000 + statusList().indexOf(t.status))); break;
-    case 'start': case 'deadline': if (t[key]) add(fmtDate(t[key]), t[key]); break;
+    case 'start': case 'deadline': if (t[key]) add(fmtDMY(t[key]), t[key]); break;
     case 'source': add(t.source === 'verify' ? 'Needs Verification' : 'Confirmed'); break;
     case 'payment': add(taskPayLabel(t)); break;
     default:
@@ -1767,6 +1768,7 @@ function openColFilter(key, btn) {
   pop.style.top = (r.bottom + 6 + hgt > window.innerHeight - 8 ? Math.max(8, r.top - hgt - 6) : r.bottom + 6) + 'px';
   if (first) first.focus({ preventScroll: true });
 }
+document.addEventListener('click', function (e) { var dn = e.target.closest && e.target.closest('.dl-box'); if (dn) { var di = dn.querySelector('.dl-native'); if (di && !di.disabled && di.showPicker) { e.preventDefault(); try { di.showPicker(); } catch (er) { di.focus(); } } } });
 document.addEventListener('click', function (e) { if (hfPop && !e.target.closest('.hf-pop') && !e.target.closest('.hf-btn')) closeColFilter(); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeColFilter(); });
 window.addEventListener('scroll', function (e) { if (hfPop && Date.now() >= hfQuiet && !(e.target && e.target.nodeType === 1 && e.target.closest && e.target.closest('.hf-pop'))) closeColFilter(); }, true);
@@ -1849,7 +1851,7 @@ function finSubCell(key, f, t) {
     case 'workstream': return '<td>' + wsTag(f.workstream || '') + '</td>';
     case 'category': return '<td class="muted fs-cat">Item Finance</td>';
     case 'start': return '<td><span class="faint">—</span></td>';
-    case 'deadline': return '<td class="fs-due">' + (f.paymentDeadline ? fmtDate(f.paymentDeadline, true) : (c.inherited && c.parent && c.parent.paymentDeadline ? '<span class="faint">' + fmtDate(c.parent.paymentDeadline, true) + '</span>' : '<span class="faint">—</span>')) + '</td>';
+    case 'deadline': return '<td class="fs-due">' + (f.paymentDeadline ? fmtDMY(f.paymentDeadline) : (c.inherited && c.parent && c.parent.paymentDeadline ? '<span class="faint">' + fmtDMY(c.parent.paymentDeadline) + '</span>' : '<span class="faint">—</span>')) + '</td>';
     case 'pic': return '<td><span class="faint">—</span></td>';
     case 'status': return '<td>' + (c.inherited ? '<span class="faint fs-via">Via Invoice</span>' : payBadge(f.paymentStatus)) + '</td>';
     case 'notes': return '<td class="muted">' + (f.notes ? esc(f.notes) : '<span class="faint">—</span>') + '</td>';
@@ -1872,11 +1874,11 @@ function taskCell(key, t) {
       return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
-    case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
+    case 'start': return '<td>' + (t.start ? fmtDMY(t.start) : '<span class="faint">—</span>') + '</td>';
     case 'deadline':
-      if (!canEdit()) return '<td>' + dueLabel(t) + '</td>';
+      if (!canEdit()) return '<td class="dl-cell">' + (t.deadline ? '<span class="dl-ro">' + fmtDMY(t.deadline) + '</span>' : '<span class="faint">—</span>') + '</td>';
       var ds = dueState(t), dsub = ds.kind === 'overdue' ? '<span class="due overdue">' + (-ds.days) + ' hari lewat</span>' : ds.kind === 'soon' ? '<span class="due soon">' + (ds.days === 0 ? 'hari ini' : 'dalam ' + ds.days + ' hari') + '</span>' : '';
-      return '<td class="dl-cell"><input class="input dl-input dl-end" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '">' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
+      return '<td class="dl-cell"><label class="dl-box' + (t.deadline ? '' : ' empty') + '"><span class="dl-text">' + (t.deadline ? fmtDMY(t.deadline) : 'dd/mm/yyyy') + '</span><svg class="dl-ico" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3" stroke="currentColor" stroke-width="1.4"/></svg><input class="dl-native" type="date" data-inline="deadline" data-id="' + t.id + '" value="' + esc(t.deadline || '') + '" title="Deadline" aria-label="Deadline ' + esc(t.name) + '"></label>' + (dsub ? '<span class="dl-sub">' + dsub + '</span>' : '') + '</td>';
     case 'pic':
       return '<td class="pic-cell' + (canEdit() ? ' can-edit' : '') + '"><div class="pic-wrap">' + picChips(t.pic) + '</div>' + (canEdit() ? '<button type="button" class="pic-edit" data-act="pick-pic" data-id="' + t.id + '" aria-label="' + (picsOf(t.pic).length ? 'Ubah' : 'Pilih') + ' PIC ' + esc(t.name) + '" title="' + (picsOf(t.pic).length ? 'Ubah PIC' : 'Pilih PIC') + '"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.3 2.3a1.4 1.4 0 0 1 2 2L5.6 12 2.5 13.5 4 10.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>' : '') + '</td>';
     case 'status': return '<td><select class="inline-select st-' + esc(statusDef(t.status).color) + '" data-inline="status" data-id="' + t.id + '" aria-label="Status for ' + esc(t.name) + '">' + opts(withCurrent(statusList(), t.status), t.status) + '</select></td>';
@@ -2080,7 +2082,7 @@ function renderFinance() {
   });
   var gt = totals(list);
   body += sumRow('grand', list.length === db.finance.length ? 'Grand Total' : 'Total (Filtered)', gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
-  h += '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+  h += '<div class="table-wrap"><table class="fin-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
   h += '<details class="fin-note"><summary>Cara Hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
   return h;
 }
@@ -2545,7 +2547,7 @@ function handleAct(el, e) {
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;
     case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : (k === 'deadline' ? -1 : 1) }; render(); break;
    case 'expand': {
-  if (e.target.closest('select,a,button')) return;
+  if (e.target.closest('select,a,button,.dl-box,.pic-cell')) return;
   var taskScrollY = window.scrollY;
   ui.expanded = ui.expanded === id ? null : id;
   render();

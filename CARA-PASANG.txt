@@ -1,21 +1,12 @@
-GX27 - Update v9
+GX27 - Patch v9b (deadline Tasks + header Finance)
 
-File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
+File yang berubah: app.js, styles.css, index.html. Tidak perlu SQL.
+Patch ini sudah termasuk semua perubahan v9.
 
-1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
+1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
 PERUBAHAN
-1. Tasks: semua item Finance & Procurement sekarang muncul di All Tasks sebagai baris "↳" di bawah task-nya,
-   masing-masing dengan workstream-nya sendiri (Doorprize, Games, Emergency Fund, dst). Task vendor tetap 1 task per invoice.
-   - Filter Workstream di header ikut membaca workstream item finance (filter "Games" -> task + item game-nya saja).
-   - Klik baris item = buka item budget-nya. Tombol "▾ Finance · N Item" untuk lipat per task,
-     tombol "Sembunyikan Item Finance" di toolbar untuk lipat semua.
-2. Kolom PIC lebih ramping, kolom Status lebih lebar. Ikon pensil sekarang di pojok kanan atas tiap sel PIC
-   (termasuk yang belum ada PIC-nya).
-3. Master Timeline: bisa diisi milestone dari SEMUA workstream. "+ Add Milestone" -> pilih workstream apa saja.
-   Pill filter muncul otomatis untuk tiap workstream yang punya milestone (+ tombol Hide All / Show All).
-   Di form Edit task ada centang "Tampilkan di Master Timeline" untuk memasukkan/mengeluarkan task apa pun.
-4. Kapitalisasi dirapikan di seluruh website: tombol, tab, judul, kolom, label form pakai Title Case.
-   Nama task, item finance, segmen rundown & zona dirapikan sekali otomatis (kata sambung seperti dan/di/untuk,
-   satuan seperti pcs/pack, dan singkatan seperti QR/DTF/GX tetap). Nama baru yang diketik juga otomatis dirapikan.
+1. Tasks: tanggal deadline tidak terpotong lagi dan formatnya dd/mm/yyyy (contoh 21/11/2026).
+   Klik kotak tanggal untuk membuka kalender seperti biasa. Kolom Start & tanggal item finance ikut dd/mm/yyyy.
+2. Finance: semua judul kolom (header) tabel rata tengah.
