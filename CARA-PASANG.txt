@@ -18,6 +18,13 @@ PERUBAHAN
      "21 item termasuk di invoice di atas" (bisa dibuka).
    - Invoice status item yang termasuk di invoice otomatis mengikuti baris paling atas (mis. Submitted).
      Berlaku untuk semua invoice vendor, bukan hanya Doorprize.
-4. Need per Station (needs.js): menu di bawah Tasks. Klik "Isi dari sheet Need per Station" untuk 9 station awal.
+4. Filter Tasks:
+   - Filter "All workstreams" dan "All statuses" di atas tabel DIHAPUS. Yang tersisa: Search dan Sources.
+   - SEMUA header tabel (Task, Workstream, Category, Deadline, PIC, Status, Payment, + kolom custom/Start/Notes/Source
+     kalau ditampilkan) punya tombol filter ▾. Isinya centang nilai, bisa pilih lebih dari satu, ada kotak cari,
+     dan tombol "Pilih semua yang tampil" / "Hapus filter". Filter antar-header digabung (AND), tombol jadi ● kalau aktif.
+   - Perbaikan: popup tidak lagi tertutup sendiri setelah satu centang (tertutup karena scroll otomatis saat tabel digambar ulang).
+   - "Clear filters" menghapus semua filter.
+5. Need per Station (needs.js): menu di bawah Tasks. Klik "Isi dari sheet Need per Station" untuk 9 station awal.
 
 Menghapus Need per Station: hapus baris <script src="/needs.js..."> di index.html.

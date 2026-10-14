@@ -821,7 +821,8 @@ function loadUI() {
   var d = { page: 'timeline', mtHide: [], rdLoc: '', rdQ: '', taskView: 'all', q: '', fWs: [], fStatus: [], fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
     finQ: '', finWs: '', finPay: '', finInv: '', calMonth: '2026-10', colF: {} };
   try { var raw = localStorage.getItem(UI_KEY); if (raw) { var p = JSON.parse(raw); for (var k in p) d[k] = p[k]; } } catch (e) {}
-  ['fWs', 'fStatus'].forEach(function (k) { if (!Array.isArray(d[k])) d[k] = d[k] ? [d[k]] : []; });
+  d.fWs = []; d.fStatus = [];   // toolbar filters removed: column-header filters replace them
+  if (d.colF) Object.keys(d.colF).forEach(function (k) { if (!d.colF[k] || !Array.isArray(d.colF[k].v)) delete d.colF[k]; });
   d.msOpen = '';
   if (!d.colF || typeof d.colF !== 'object' || Array.isArray(d.colF)) d.colF = {};
   if (d.sortV !== 3) { d.sort = { key: 'deadline', dir: -1 }; d.sortV = 3; }   // everyone starts on deadline order, newest first
@@ -1508,8 +1509,6 @@ function renderTasks() {
   }).join('') + '</div>';
   h += '<div class="toolbar">' +
     '<input class="input search" id="taskSearch" type="search" placeholder="Search task, PIC, notes…" value="' + esc(ui.q) + '" aria-label="Search tasks">' +
-    multiSelect('fWs', 'All workstreams', 'workstream', allWorkstreams()) +
-    multiSelect('fStatus', 'All statuses', 'status', statusList()) +
     '<select class="select" id="fSrc" aria-label="Data source">' + opts([{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs verification' }], ui.fSrc, 'All sources') + '</select>' +
     ((ui.q || ui.fWs.length || ui.fStatus.length || ui.fSrc || colFilterActive()) ? '<button class="btn ghost sm" data-act="clear-filters">Clear filters</button>' : '') + '</div>';
   var list = filteredTasks(ui.taskView);
@@ -1563,11 +1562,7 @@ function tlKey(t) { return (t.start || t.deadline || '9999-99-99') + '|' + (t.de
 /* ---------- Column filters: every header in the Task table can be filtered ---------- */
 var EMPTY_LABEL = '(kosong)';
 function customColByKey(k) { return colList('tasks').filter(function (c) { return c.custom && c.key === k; })[0] || null; }
-function colFilterKind(key) {
-  if (key === 'name' || key === 'notes') return 'text';
-  if (key.indexOf('cf:') === 0) { var c = customColByKey(key.slice(3)); return c && (c.type === 'text' || c.type === 'link') ? 'text' : 'set'; }
-  return 'set';
-}
+function colFilterKind(key) { return 'set'; }   // every header: pick one or more values
 function taskPayLabel(t) {
   var fins = finForTask(t.id);
   if (!fins.length) return 'Tidak ada budget';
@@ -1623,11 +1618,12 @@ function filterBtn(key, label) {
   var f = (ui.colF || {})[key], on = f && (f.t === 'text' ? String(f.v || '').trim() : (f.v || []).length);
   return '<button type="button" class="hf-btn' + (on ? ' on' : '') + '" data-act="col-filter" data-key="' + esc(key) + '" data-label="' + esc(label) + '" aria-label="Filter ' + esc(label) + (on ? ' (aktif)' : '') + '" title="Filter ' + esc(label) + '">' + (on ? '●' : '▾') + '</button>';
 }
-var hfPop = null, hfKey = '';
+var hfPop = null, hfKey = '', hfQuiet = 0;
 function closeColFilter() { if (hfPop) { hfPop.remove(); hfPop = null; hfKey = ''; } }
 function setColFilter(key, kind, v) {
   ui.colF = ui.colF || {};
   if (kind === 'text' ? !String(v).trim() : !v.length) delete ui.colF[key]; else ui.colF[key] = { t: kind, v: v };
+  hfQuiet = Date.now() + 900;   // render() restores scroll positions; that must not close the popup
   render();
 }
 function openColFilter(key, btn) {
@@ -1649,19 +1645,25 @@ function openColFilter(key, btn) {
     db.tasks.forEach(function (t) { colVals(key, t).forEach(function (x) { counts[x.v] = (counts[x.v] || 0) + 1; if (!(x.v in order)) order[x.v] = x.k; }); });
     var values = Object.keys(counts).sort(function (a, b) { return order[a] < order[b] ? -1 : order[a] > order[b] ? 1 : 0; });
     pop.innerHTML = '<div class="hf-t">Filter ' + esc(label) + '</div>' + (values.length > 8 ? '<input class="input" id="hfSearch" type="search" placeholder="Cari nilai…">' : '') +
-      '<div class="hf-list" id="hfList"></div><div class="hf-foot"><button type="button" class="btn sm ghost" data-hf="clear">Tampilkan semua</button></div>';
+      '<div class="hf-list" id="hfList"></div><div class="hf-foot"><button type="button" class="btn sm ghost" data-hf="all">Pilih semua yang tampil</button><button type="button" class="btn sm ghost" data-hf="clear">Hapus filter</button></div>';
     var list = pop.querySelector('#hfList'), search = pop.querySelector('#hfSearch');
     var draw = function () {
-      var q = search ? search.value.trim().toLowerCase() : '', sel = ui.colF[key] && ui.colF[key].v || [];
+      var q = search ? search.value.trim().toLowerCase() : '', sel = ui.colF[key] && Array.isArray(ui.colF[key].v) ? ui.colF[key].v : [];
       list.innerHTML = values.filter(function (v) { return !q || v.toLowerCase().indexOf(q) > -1; }).map(function (v) {
         return '<label class="hf-opt"><input type="checkbox" value="' + esc(v) + '"' + (sel.indexOf(v) > -1 ? ' checked' : '') + '> <span class="hf-v">' + esc(v) + '</span><span class="hf-n">' + counts[v] + '</span></label>';
       }).join('') || '<div class="faint" style="padding:6px">Tidak ada nilai</div>';
     };
     draw();
     if (search) search.addEventListener('input', draw);
+    pop.addEventListener('click', function (e) {
+      if (!e.target.closest('[data-hf="all"]')) return;
+      var q = search ? search.value.trim().toLowerCase() : '', cur = ui.colF[key] && Array.isArray(ui.colF[key].v) ? ui.colF[key].v.slice() : [];
+      values.forEach(function (v) { if ((!q || v.toLowerCase().indexOf(q) > -1) && cur.indexOf(v) < 0) cur.push(v); });
+      setColFilter(key, 'set', cur); draw();
+    });
     list.addEventListener('change', function (e) {
       var c = e.target; if (!c || c.type !== 'checkbox') return;
-      var sel = (ui.colF[key] && ui.colF[key].v || []).filter(function (x) { return x !== c.value; });
+      var sel = (ui.colF[key] && Array.isArray(ui.colF[key].v) ? ui.colF[key].v : []).filter(function (x) { return x !== c.value; });
       if (c.checked) sel.push(c.value);
       setColFilter(key, 'set', sel);
     });
@@ -1677,7 +1679,7 @@ function openColFilter(key, btn) {
 }
 document.addEventListener('click', function (e) { if (hfPop && !e.target.closest('.hf-pop') && !e.target.closest('.hf-btn')) closeColFilter(); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeColFilter(); });
-window.addEventListener('scroll', function (e) { if (hfPop && !(e.target && e.target.nodeType === 1 && e.target.closest && e.target.closest('.hf-pop'))) closeColFilter(); }, true);
+window.addEventListener('scroll', function (e) { if (hfPop && Date.now() >= hfQuiet && !(e.target && e.target.nodeType === 1 && e.target.closest && e.target.closest('.hf-pop'))) closeColFilter(); }, true);
 window.addEventListener('resize', closeColFilter);
 
 function sortTh(key, label, cls, extra) {

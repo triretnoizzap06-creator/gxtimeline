@@ -748,3 +748,7 @@ td.fin-task a{white-space:normal;overflow:visible;text-overflow:clip;line-height
   .task-table{table-layout:auto;min-width:700px}
   .task-table td .tname{min-width:150px}
 }
+
+/* ===== Filter header: tombol lebih besar, popup rapi ===== */
+.hf-btn{font-size:12px;line-height:18px;padding:1px 6px;min-width:22px}
+.hf-foot{gap:6px;justify-content:space-between}
