@@ -1009,3 +1009,13 @@ body.rz-dragging,body.rz-dragging *{cursor:col-resize !important;user-select:non
 .fin-table.rz-on td{overflow-wrap:anywhere}
 .rz-bar{display:flex;justify-content:flex-end;margin:0 0 6px}
 @media (hover:none){.col-rz{width:18px}.col-rz::after{right:7px;background:var(--line-2,var(--line))}}
+
+/* v11: drag & drop urutan di Manage Columns / Manage Categories */
+.cat-list>[data-ri]{position:relative;padding-left:26px;border-radius:8px;transition:background .12s}
+.drag-h{position:absolute;left:2px;top:50%;transform:translateY(-50%);width:20px;height:30px;display:grid;place-items:center;color:var(--faint);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:6px}
+.drag-h:hover{color:var(--fg);background:var(--hover)}
+.cat-list>[data-ri].dragging{background:var(--hover);box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:2}
+.cat-list>[data-ri].dragging .drag-h{color:var(--accent)}
+body.rd-dragging,body.rd-dragging *{cursor:grabbing !important;user-select:none !important;-webkit-user-select:none !important}
+body.readonly .drag-h{display:none}
+body.readonly .cat-list>[data-ri]{padding-left:0}

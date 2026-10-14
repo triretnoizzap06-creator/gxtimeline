@@ -150,7 +150,7 @@ function columnManager(table) {
   var list = colList(table);
   var rows = list.map(function (c, i) {
     var b = builtinCol(table, c.key), locked = b && b.locked;
-    return '<div class="col-row' + (c.visible ? '' : ' off') + '">' +
+    return '<div class="col-row' + (c.visible ? '' : ' off') + '" data-ri="' + i + '">' + DRAG_GRIP +
       '<label class="col-vis" title="Tampilkan di tabel"><input type="checkbox" data-col-vis="' + i + '"' + (c.visible ? ' checked' : '') + (locked ? ' disabled' : '') + '></label>' +
       '<input class="input" id="col-' + i + '" data-col-idx="' + i + '" value="' + esc(c.label) + '" maxlength="60" aria-label="Nama kolom">' +
       '<span class="col-type">' + (c.custom ? esc((COL_TYPES.filter(function (t) { return t.value === c.type; })[0] || {}).label || c.type) + (c.type === 'select' ? '<input class="input" id="colopt-' + i + '" value="' + esc((c.options || []).join(', ')) + '" placeholder="Pilihan, pisahkan koma" aria-label="Pilihan dropdown">' : '') : (b ? 'Bawaan' : '')) + '</span>' +
@@ -159,10 +159,10 @@ function columnManager(table) {
       (locked ? '<span class="col-lock">wajib</span>' : '<button class="btn sm danger" type="button" data-act="col-delete" data-table="' + table + '" data-idx="' + i + '">Hapus</button>') + '</span></div>';
   }).join('');
   var hidden = list.filter(function (c) { return !c.custom && !c.visible; });
-  openModal('<form id="colForm" novalidate><div class="modal-h"><h3>Kelola Kolom</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+  openModal('<form id="colForm" novalidate><div class="modal-h"><h3>Manage Columns</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
     '<div class="tabs" role="tablist" style="margin:0 20px">' + Object.keys(COL_TABLES).map(function (k) { return '<button type="button" role="tab" data-act="col-tab" data-table="' + k + '" aria-selected="' + (k === table) + '">' + COL_TABLES[k] + '</button>'; }).join('') + '</div>' +
-    '<div class="modal-b one"><p class="muted" style="margin:0">Urutan dari atas ke bawah = urutan kolom dari kiri ke kanan. Centang = tampil di tabel. Ganti nama langsung di kotaknya. Kolom bawaan yang dihapus hanya disembunyikan (datanya tetap ada, bisa dikembalikan). Kolom tambahan yang dihapus ikut menghapus isinya.</p>' +
-    '<div class="cat-list">' + rows + '</div>' +
+    '<div class="modal-b one"><p class="muted" style="margin:0">Urutan dari atas ke bawah = urutan kolom dari kiri ke kanan (drag ⋮⋮ atau pakai ↑↓ untuk ubah urutan). Centang = tampil di tabel. Ganti nama langsung di kotaknya. Kolom bawaan yang dihapus hanya disembunyikan (datanya tetap ada, bisa dikembalikan). Kolom tambahan yang dihapus ikut menghapus isinya.</p>' +
+    '<div class="cat-list" data-reorder="col:' + table + '">' + rows + '</div>' +
     (hidden.length ? '<div class="col-restore"><span class="muted">Kolom bawaan tersembunyi:</span> ' + hidden.map(function (c) { return '<button type="button" class="btn sm" data-act="col-show" data-table="' + table + '" data-key="' + esc(c.key) + '">+ ' + esc(c.label) + '</button>'; }).join(' ') + '</div>' : '') +
     '<div class="col-add"><input class="input" id="colNew" placeholder="Nama kolom baru, mis. Vendor, Lokasi, Link file" maxlength="60"><select class="select" id="colNewType" aria-label="Tipe kolom">' + opts(COL_TYPES, 'text') + '</select>' +
     '<input class="input" id="colNewOpts" placeholder="Pilihan dropdown, pisahkan koma" hidden><button type="button" class="btn" data-act="col-add" data-table="' + table + '">+ Tambah Kolom</button></div>' +
@@ -214,6 +214,54 @@ function colDelete(table, idx) {
     commit('Kolom "' + c.label + '" dihapus');
   });
 }
+var DRAG_GRIP = '<span class="drag-h" title="Drag untuk ubah urutan" aria-hidden="true"><svg viewBox="0 0 10 16" width="10" height="16"><g fill="currentColor"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></g></svg></span>';
+/* v11: drag & drop urutan di Manage Columns / Manage Categories */
+function listReorder(spec, from, to) {
+  if (from === to || from < 0 || to < 0) return;
+  var p = spec.split(':'), kind = p[0], name = p[1];
+  if (kind === 'col') {
+    if (!colApply(name)) return;
+    var cl = colList(name); if (to >= cl.length) return;
+    cl.splice(to, 0, cl.splice(from, 1)[0]);
+    persist(db); render(); columnManager(name); return;
+  }
+  var K = CAT_KINDS[name], li = db.settings[K.key]; if (!li || to >= li.length) return;
+  li.splice(to, 0, li.splice(from, 1)[0]);
+  persist(db); render(); closeModal(); categoryManager(name);
+}
+var rdDrag = null;
+document.addEventListener('pointerdown', function (e) {
+  var g = e.target.closest && e.target.closest('.drag-h'); if (!g || (e.button && e.button !== 0)) return;
+  var row = g.closest('[data-ri]'), list = row && row.closest('[data-reorder]'); if (!list) return;
+  e.preventDefault();
+  if (!canEdit()) { toast('Hanya admin yang bisa mengubah data.', true); return; }
+  rdDrag = { row: row, list: list, from: +row.dataset.ri };
+  try { g.setPointerCapture(e.pointerId); } catch (er) {}
+  row.classList.add('dragging'); document.body.classList.add('rd-dragging');
+});
+document.addEventListener('pointermove', function (e) {
+  if (!rdDrag) return;
+  var d = rdDrag, rows = [].slice.call(d.list.querySelectorAll(':scope > [data-ri]'));
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i]; if (r === d.row) continue;
+    var b = r.getBoundingClientRect();
+    if (e.clientY >= b.top && e.clientY <= b.bottom) {
+      if (e.clientY < b.top + b.height / 2) d.list.insertBefore(d.row, r); else d.list.insertBefore(d.row, r.nextSibling);
+      break;
+    }
+  }
+  var lb = d.list.getBoundingClientRect();
+  if (e.clientY < lb.top + 24) d.list.scrollTop -= 8; else if (e.clientY > lb.bottom - 24) d.list.scrollTop += 8;
+});
+function rdEnd() {
+  if (!rdDrag) return;
+  var d = rdDrag; rdDrag = null;
+  d.row.classList.remove('dragging'); document.body.classList.remove('rd-dragging');
+  var to = [].slice.call(d.list.querySelectorAll(':scope > [data-ri]')).indexOf(d.row);
+  if (to !== d.from) listReorder(d.list.getAttribute('data-reorder'), d.from, to);
+}
+document.addEventListener('pointerup', rdEnd);
+document.addEventListener('pointercancel', rdEnd);
 function colMove(table, idx, dir) {
   if (!colApply(table)) return;
   var list = colList(table), to = idx + dir;
@@ -1272,7 +1320,7 @@ function statusUsage(name) { return db.tasks.filter(function (t) { return t.stat
 function statusManager() {
   var list = db.settings.taskStatuses;
   var rows = list.map(function (x, i) {
-    return '<div class="st-row"><span class="badge b-' + esc(x.color) + '" aria-hidden="true">' + esc(x.name) + '</span>' +
+    return '<div class="st-row" data-ri="' + i + '">' + DRAG_GRIP + '<span class="badge b-' + esc(x.color) + '" aria-hidden="true">' + esc(x.name) + '</span>' +
       '<input class="input" id="st-name-' + i + '" data-st-idx="' + i + '" value="' + esc(x.name) + '" maxlength="40" aria-label="Nama status">' +
       '<select class="select" id="st-type-' + i + '" aria-label="Jenis status">' + opts(STATUS_TYPES, x.type) + '</select>' +
       '<select class="select" id="st-color-' + i + '" aria-label="Warna">' + opts(STATUS_COLORS, x.color) + '</select>' +
@@ -1282,10 +1330,10 @@ function statusManager() {
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="status" data-idx="' + i + '">Hapus</button></span></div>';
   }).join('');
   var noDone = !list.some(function (x) { return x.type === 'done'; });
-  openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Kelola Kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('status') +
+  openModal('<form id="stForm" novalidate><div class="modal-h"><h3>Manage Categories</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('status') +
     '<div class="modal-b one"><p class="muted" style="margin:0">Status yang dipilih di task. <b>Jenis</b> menentukan perilakunya: <i>Selesai</i> dihitung sebagai task selesai (dicoret, masuk KPI Completed), <i>Terhambat</i> wajib isi blocker dan masuk daftar urgent, <i>Menunggu</i> masuk KPI Pending & tab Pending, <i>Berjalan</i> masuk KPI In progress. Ganti nama otomatis memperbarui semua task.</p>' +
     (noDone ? '<div class="banner warn" style="margin:0">Belum ada status berjenis <b>Selesai</b>, jadi tidak ada task yang dihitung selesai.</div>' : '') +
-    '<div class="cat-list">' + rows + '</div>' +
+    '<div class="cat-list" data-reorder="cat:status">' + rows + '</div>' +
     '<div class="cat-add"><input class="input" id="stNew" placeholder="Nama status baru, mis. Waiting Vendor" maxlength="40"><select class="select" id="stNewType" aria-label="Jenis">' + opts(STATUS_TYPES, 'progress') + '</select><button type="button" class="btn" data-act="cat-add" data-kind="status">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
     '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan Perubahan</button></div></div></form>', 'wide');
@@ -1311,7 +1359,7 @@ function payManager() {
   var list = db.settings.payStatuses;
   var rows = list.map(function (x, i) {
     var used = db.finance.filter(function (f) { return f.paymentStatus === x.name; }).length;
-    return '<div class="st-row"><span class="badge b-' + esc(x.color) + '" aria-hidden="true">' + esc(x.name) + '</span>' +
+    return '<div class="st-row" data-ri="' + i + '">' + DRAG_GRIP + '<span class="badge b-' + esc(x.color) + '" aria-hidden="true">' + esc(x.name) + '</span>' +
       '<input class="input" id="pay-name-' + i + '" value="' + esc(x.name) + '" maxlength="40" aria-label="Nama status payment">' +
       '<select class="select" id="pay-type-' + i + '" aria-label="Jenis">' + opts(PAY_TYPES, x.type) + '</select>' +
       '<select class="select" id="pay-color-' + i + '" aria-label="Warna">' + opts(STATUS_COLORS, x.color) + '</select>' +
@@ -1320,9 +1368,9 @@ function payManager() {
       '<button class="btn sm" type="button" data-act="cat-move" data-kind="pay" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="pay" data-idx="' + i + '">Hapus</button></span></div>';
   }).join('');
-  openModal('<form id="payForm" novalidate><div class="modal-h"><h3>Kelola Kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('pay') +
+  openModal('<form id="payForm" novalidate><div class="modal-h"><h3>Manage Categories</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' + catTabs('pay') +
     '<div class="modal-b one"><p class="muted" style="margin:0">Pilihan di dropdown Payment status (Finance). <b>Jenis</b> menentukan hitungan: <i>Belum Bayar</i> = dibayar Rp 0, <i>Bayar Sebagian (DP)</i> = dibayar sebesar DP, <i>Lunas</i> = dibayar penuh. Kalau kolom "Total transferred" diisi, angka itu yang dipakai. Ganti nama otomatis memperbarui semua item budget.</p>' +
-    '<div class="cat-list">' + rows + '</div>' +
+    '<div class="cat-list" data-reorder="cat:pay">' + rows + '</div>' +
     '<div class="cat-add"><input class="input" id="payNew" placeholder="Nama status baru, mis. Waiting Invoice" maxlength="40"><select class="select" id="payNewType" aria-label="Jenis">' + opts(PAY_TYPES, 'unpaid') + '</select><button type="button" class="btn" data-act="cat-add" data-kind="pay">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
     '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button><button type="submit" class="btn primary">Simpan Perubahan</button></div></div></form>', 'wide');
@@ -1360,16 +1408,16 @@ function categoryManager(kind) {
     .forEach(function (v) { if (v && list.indexOf(v) < 0 && unlisted.indexOf(v) < 0) unlisted.push(v); });
   var rows = list.map(function (name, i) {
     var u = catUsage(kind, name);
-    return '<div class="cat-row"><input class="input" id="cat-' + i + '" data-cat-idx="' + i + '" value="' + esc(name) + '" aria-label="Nama ' + esc(name) + '" maxlength="60">' +
+    return '<div class="cat-row" data-ri="' + i + '">' + DRAG_GRIP + '<input class="input" id="cat-' + i + '" data-cat-idx="' + i + '" value="' + esc(name) + '" aria-label="Nama ' + esc(name) + '" maxlength="60">' +
       '<span class="cat-use">' + u.tasks + ' task' + (kind === 'workstream' ? ' · ' + u.finance + ' budget' : '') + '</span>' +
       '<button class="btn sm" type="button" data-act="cat-move" data-kind="' + kind + '" data-idx="' + i + '" data-dir="-1" aria-label="Naik"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
       '<button class="btn sm" type="button" data-act="cat-move" data-kind="' + kind + '" data-idx="' + i + '" data-dir="1" aria-label="Turun"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
       '<button class="btn sm danger" type="button" data-act="cat-delete" data-kind="' + kind + '" data-idx="' + i + '">Hapus</button></div>';
   }).join('');
-  openModal('<form id="catForm" novalidate><div class="modal-h"><h3>Kelola Kategori</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+  openModal('<form id="catForm" novalidate><div class="modal-h"><h3>Manage Categories</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
     catTabs(kind) +
-    '<div class="modal-b one"><p class="muted" style="margin:0">' + K.hint + ' Ganti nama langsung di kotaknya; semua task/budget yang memakai nama lama ikut diganti.</p>' +
-    '<div class="cat-list">' + (rows || '<p class="faint">Belum ada.</p>') + '</div>' +
+    '<div class="modal-b one"><p class="muted" style="margin:0">' + K.hint + ' Ganti nama langsung di kotaknya; semua task/budget yang memakai nama lama ikut diganti. Drag ⋮⋮ untuk ubah urutan; urutan ini juga dipakai di dropdown dan filter tabel.</p>' +
+    '<div class="cat-list" data-reorder="cat:' + kind + '">' + (rows || '<p class="faint">Belum ada.</p>') + '</div>' +
     (unlisted.length ? '<div class="banner warn" style="margin:0">Dipakai di data tapi belum ada di daftar: ' + unlisted.map(function (u) { return '<button type="button" class="btn sm" data-act="cat-adopt" data-kind="' + kind + '" data-name="' + esc(u) + '">+ ' + esc(u) + '</button>'; }).join(' ') + '</div>' : '') +
     '<div class="cat-add"><input class="input" id="catNew" placeholder="Nama ' + K.label.toLowerCase() + ' baru" maxlength="60"><button type="button" class="btn" data-act="cat-add" data-kind="' + kind + '">+ Tambah</button></div>' +
     '<div class="form-err" id="catErr" hidden></div></div>' +
@@ -1593,7 +1641,7 @@ function filteredTasks(view) {
 
 function renderTasks() {
   var views = [['all', 'All Tasks'], ['procurement', 'Finance & Procurement'], ['operational', 'Operational'], ['pending', 'Pending'], ['timeline', 'Timeline']];
-  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.' + (ui.sort.key === 'deadline' && ui.sort.dir < 0 ? ' Urutan otomatis: deadline terbaru di atas.' : ''), '<button class="btn" data-act="manage-columns" data-table="tasks">Kelola Kolom</button><button class="btn" data-act="manage-categories">Kelola Kategori</button><button class="btn primary" data-act="new-task">+ New Task</button>');
+  var h = pageHead('Task Management', 'Satu database task. Status operasional terpisah dari status pembayaran.' + (ui.sort.key === 'deadline' && ui.sort.dir < 0 ? ' Urutan otomatis: deadline terbaru di atas.' : ''), '<button class="btn" data-act="manage-columns" data-table="tasks">Manage Columns</button><button class="btn" data-act="manage-categories">Manage Categories</button><button class="btn primary" data-act="new-task">+ New Task</button>');
   h += '<div class="tabs" role="tablist">' + views.map(function (v) {
     return '<button role="tab" data-act="task-view" data-view="' + v[0] + '" aria-selected="' + (ui.taskView === v[0]) + '">' + v[1] + '<span class="c">' + filteredTasks(v[0]).length + '</span></button>';
   }).join('') + '</div>';
@@ -1662,15 +1710,17 @@ function taskPayLabel(t) {
   return types.some(function (x) { return x !== 'unpaid'; }) ? 'Sebagian Dibayar' : 'Belum Dibayar';
 }
 // values a task has in a column: [{ v: shown text, k: sort key }]
+// sort key that follows the order set in Manage Categories (unlisted values go last, A–Z)
+function listRank(list, v) { var i = (list || []).indexOf(v); return i > -1 ? String(10000 + i) : '2' + String(v).toLowerCase(); }
 function colVals(key, t) {
   var out = [];
   function add(v, k) { if (v != null && String(v) !== '') out.push({ v: String(v), k: String(k == null ? v : k).toLowerCase() }); }
   switch (key) {
     case 'name': add(t.name); break;
     case 'notes': add(t.notes); break;
-    case 'category': add(t.category); break;
-    case 'workstream': taskWorkstreams(t).concat(taskFinWs(t)).forEach(function (w) { if (out.every(function (x) { return x.v !== w; })) add(w); }); break;
-    case 'pic': picsOf(t.pic).forEach(function (n) { add(n); }); break;
+    case 'category': add(t.category, listRank(db.settings.taskCategories, t.category)); break;
+    case 'workstream': taskWorkstreams(t).concat(taskFinWs(t)).forEach(function (w) { if (out.every(function (x) { return x.v !== w; })) add(w, listRank(db.settings.workstreams, w)); }); break;
+    case 'pic': picsOf(t.pic).forEach(function (n) { add(n, listRank(db.settings.pics, n)); }); break;
     case 'status': add(t.status, String(1000 + statusList().indexOf(t.status))); break;
     case 'start': case 'deadline': if (t[key]) add(fmtDMY(t[key]), t[key]); break;
     case 'source': add(t.source === 'verify' ? 'Needs Verification' : 'Confirmed'); break;
@@ -2070,7 +2120,7 @@ function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', '',
-    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Kelola Kategori</button><button class="btn" data-act="manage-columns" data-table="finance">Kelola Kolom</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Manage Categories</button><button class="btn" data-act="manage-columns" data-table="finance">Manage Columns</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
   if (db.budgetUpdateAvailable && canEdit()) {
     var sm = SHEET_SEED.meta || {};
     h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
@@ -2274,7 +2324,7 @@ function taskForm(t, preset) {
   openModal('<form id="taskForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New Task' : 'Edit Task') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('name', 'Task Name', inp('name', t.name, 'text', 'maxlength="160" required'), { req: true, full: true }) +
     field('workstream', 'Workstream', wsField(t), { req: true, hint: 'Boleh pilih lebih dari satu' }) +
-    field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Kelola Kategori</a>' : '' }) +
+    field('category', 'Category', sel('category', withCurrent(taskCategories(), t.category), t.category), { hint: canEdit() ? '<a href="#" data-act="manage-categories">Manage Categories</a>' : '' }) +
     field('start', 'Start Date', inp('start', t.start, 'date'), { hint: 'Opsional, untuk rentang tanggal' }) +
     field('deadline', 'Deadline', inp('deadline', t.deadline, 'date')) +
     picField(t.pic) +

@@ -1,15 +1,18 @@
-GX27 - Patch v10 (lebar kolom bisa diatur)
+GX27 - Patch v11 (urutan drag & drop + label English)
 
 File yang berubah: app.js, styles.css, index.html. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9 & v9b.
+Patch ini sudah termasuk semua perubahan v9, v9b & v10.
 
 1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-PERUBAHAN
-1. Tabel Tasks & Finance: lebar kolom bisa dilebarkan / dikecilkan.
-   - Arahkan mouse ke tepi kanan judul kolom sampai kursor jadi panah kiri-kanan (garis biru muncul), lalu drag.
-   - Klik 2x garis itu = kolom tersebut kembali ke lebar awal.
-   - Tombol "Reset Lebar Kolom" (kanan atas tabel) = semua kolom di tabel itu kembali ke awal.
-   - Lebar tersimpan otomatis di browser masing-masing (tidak mengubah tampilan orang lain).
-   - Drag kolom tidak ikut men-sort tabel.
+PERUBAHAN v11
+1. Tombol & judul "Kelola Kolom" -> "Manage Columns", "Kelola Kategori" -> "Manage Categories".
+2. Manage Columns & Manage Categories (semua tab: Kategori Task, Workstream, Status Task, PIC, Status Payment):
+   urutan bisa diatur dengan drag ikon titik-titik di kiri tiap baris. Tombol up/down tetap ada.
+   Urutan tersimpan ke data (ikut tersinkron ke semua user).
+3. Filter di judul kolom Tasks (Workstream, Category, PIC, Status) sekarang urut sesuai urutan di Manage Categories.
+   Nilai yang belum ada di daftar ditaruh paling bawah (A-Z).
+
+PERUBAHAN v10 (sudah termasuk)
+- Lebar kolom tabel Tasks & Finance bisa di-drag. Klik 2x garis = reset kolom itu, tombol "Reset Lebar Kolom" = reset semua.
