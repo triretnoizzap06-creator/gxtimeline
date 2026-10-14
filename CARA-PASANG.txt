@@ -1,12 +1,20 @@
-GX27 - Patch v11 (urutan drag & drop + label English)
+GX27 - Patch v12 (Master Timeline ikut nama Workstream)
 
 File yang berubah: app.js, styles.css, index.html. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b & v10.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 & v11.
 
 1. Upload app.js, styles.css, index.html ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-PERUBAHAN v11
+PERUBAHAN v12
+1. Master Timeline otomatis ikut nama Workstream di Manage Categories.
+   Kalau nama workstream diganti (mis. "HYROX" -> "GX Race"), tombol filter, label item, warna,
+   dan status "program" di Master Timeline langsung ikut nama baru. Item tidak hilang dari timeline.
+2. Warna workstream tetap sama walaupun namanya diganti atau urutannya digeser.
+3. Urutan tombol workstream di Master Timeline ikut urutan di Manage Categories.
+4. Filter yang sedang aktif (sembunyikan workstream di Master Timeline, filter Workstream di Tasks) ikut pindah ke nama baru.
+
+PERUBAHAN v11 (sudah termasuk)
 1. Tombol & judul "Kelola Kolom" -> "Manage Columns", "Kelola Kategori" -> "Manage Categories".
 2. Manage Columns & Manage Categories (semua tab: Kategori Task, Workstream, Status Task, PIC, Status Payment):
    urutan bisa diatur dengan drag ikon titik-titik di kiri tiap baris. Tombol up/down tetap ada.

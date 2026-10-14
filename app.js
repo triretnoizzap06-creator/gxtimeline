@@ -533,6 +533,8 @@ function normalizeDb(d) {
     s.finMinimal = true;
   }
   syncFinanceTasks(d, s);
+  if (!s.wsOrigin || typeof s.wsOrigin !== 'object' || Array.isArray(s.wsOrigin)) s.wsOrigin = {};
+  wsColorSlots(s);
   d.settings = s;
   // Rundown added later: older saved data gets the rundown from the sheet, nothing else is touched
   if (!Array.isArray(d.rundown)) { d.rundown = rundownSeed(); d.flowMeta = FLOW_SEED.meta; }
@@ -663,11 +665,30 @@ var WS_PALETTE = [
   ['#C2410C', '#FFE8D9'], ['#6D28D9', '#EDE4FD'], ['#047857', '#D8F5EA'], ['#BE185D', '#FCE1EE'], ['#1D4ED8', '#E0E9FD'], ['#78350F', '#F6E9D7'],
   ['#4D7C0F', '#E8F4D3'], ['#9D174D', '#F9DDE9'], ['#155E75', '#DAF0F6'], ['#92400E', '#FDECCB'], ['#5B21B6', '#EAE2FB'], ['#065F46', '#D5F2E6']
 ];
+/* v12: a renamed workstream keeps its identity (colour, program status on the Master Timeline).
+   settings.wsOrigin maps current name -> original name; settings.wsColorIdx maps original name -> palette slot,
+   so colours also stay put when the list is reordered. */
+function wsBase(ws) { var m = db && db.settings && db.settings.wsOrigin; return (m && m[ws]) || ws; }
+function wsCurrent(base) {
+  var m = (db && db.settings && db.settings.wsOrigin) || {};
+  for (var k in m) if (m[k] === base) return k;
+  return base;
+}
+function wsColorSlots(s) {
+  var map = s.wsColorIdx = (s.wsColorIdx && typeof s.wsColorIdx === 'object' && !Array.isArray(s.wsColorIdx)) ? s.wsColorIdx : {};
+  var org = s.wsOrigin || {}, used = {}, k;
+  for (k in map) used[map[k]] = 1;
+  (s.workstreams || []).forEach(function (w) {
+    var b = org[w] || w; if (WS_CLASS[b] || map[b] != null) return;
+    var i = 0; while (used[i]) i++;
+    map[b] = i; used[i] = 1;
+  });
+}
 function wsColor(ws) {
-  if (WS_CLASS[ws]) return WS_FIXED[WS_CLASS[ws]];
-  var list = ((db && db.settings && db.settings.workstreams) || []).filter(function (w) { return !WS_CLASS[w]; });
-  var i = list.indexOf(ws);
-  if (i < 0) { i = 0; for (var k = 0; k < String(ws || '').length; k++) i = (i * 31 + String(ws).charCodeAt(k)) % 997; }
+  var b = wsBase(ws);
+  if (WS_CLASS[b]) return WS_FIXED[WS_CLASS[b]];
+  var map = db && db.settings && db.settings.wsColorIdx, i = map ? map[b] : null;
+  if (i == null) { i = 0; for (var k = 0; k < String(b || '').length; k++) i = (i * 31 + String(b).charCodeAt(k)) % 997; }
   return WS_PALETTE[i % WS_PALETTE.length];
 }
 
@@ -860,7 +881,7 @@ function parseFlexDate(s) {
   if (m && mm[m[2].toLowerCase()]) return (m[3] || '2026') + '-' + String(mm[m[2].toLowerCase()]).padStart(2, '0') + '-' + m[1].padStart(2, '0');
   return null;
 }
-function wsClass(ws) { return WS_CLASS[ws] || ''; }
+function wsClass(ws) { return WS_CLASS[wsBase(ws)] || ''; }
 function wsTag(ws) { var c = wsColor(ws); return '<span class="ws ' + wsClass(ws) + '" style="color:' + c[0] + ';background:' + c[1] + '">' + esc(ws || '—') + '</span>'; }
 function statusBadge(s) {
   var c = 'b-' + (statusDef(s).color || 'neutral');
@@ -1079,12 +1100,16 @@ function pageHead(title, sub, actions) {
 var PROGRAMS = ['GX Connect','GX Got Talent','Mobile Legends','HYROX'];
 // which tasks are on the Master Timeline: Event Day segments, every "Program Milestone" (any workstream), program tasks that are not procurement,
 // plus any task switched on/off by hand with "Tampilkan di Master Timeline" (t.mt)
-function mtDefault(t) { return t.category === 'Event Day' || t.category === 'Program Milestone' || (PROGRAMS.indexOf(t.workstream) > -1 && t.category !== 'Procurement'); }
+function isProgram(ws) { return PROGRAMS.indexOf(wsBase(ws)) > -1; }
+function mtDefault(t) { return t.category === 'Event Day' || t.category === 'Program Milestone' || (isProgram(t.workstream) && t.category !== 'Procurement'); }
 function onMaster(t) { return typeof t.mt === 'boolean' ? t.mt : mtDefault(t); }
 function mtWorkstreams(list) {
+  // legend follows the names and order set in Manage Categories (Workstream); the 4 programs are always listed
   var have = {}; list.forEach(function (t) { if (t.workstream) have[t.workstream] = 1; });
-  var order = PROGRAMS.concat(allWorkstreams().filter(function (w) { return PROGRAMS.indexOf(w) < 0 && w !== 'Event Day'; }));
-  return order.filter(function (w) { return PROGRAMS.indexOf(w) > -1 || have[w]; });
+  var order = allWorkstreams().filter(function (w) { return wsBase(w) !== 'Event Day'; });
+  PROGRAMS.forEach(function (p) { var cur = wsCurrent(p); if (order.indexOf(cur) < 0 && have[cur]) order.push(cur); });
+  Object.keys(have).forEach(function (w) { if (order.indexOf(w) < 0 && wsBase(w) !== 'Event Day') order.push(w); });
+  return order.filter(function (w) { return have[w] || (isProgram(w) && db.settings.workstreams.indexOf(w) > -1); });
 }
 function mtStyle(ws, kind) {
   if (wsClass(ws)) return '';
@@ -1441,7 +1466,14 @@ function catRename(kind, from, to) {
     }
     if (hit) { r.updatedAt = Date.now(); n++; }
   });
-  if (kind === 'workstream') ui.fWs = ui.fWs.map(function (x) { return x === from ? to : x; });
+  if (kind === 'workstream') {
+    ui.fWs = ui.fWs.map(function (x) { return x === from ? to : x; });
+    ui.mtHide = (ui.mtHide || []).map(function (x) { return x === from ? to : x; });
+    if (ui.colF && ui.colF.workstream && Array.isArray(ui.colF.workstream.v)) ui.colF.workstream.v = ui.colF.workstream.v.map(function (x) { return x === from ? to : x; });
+    var org = db.settings.wsOrigin = db.settings.wsOrigin || {}, base = org[from] || from;
+    delete org[from];
+    if (base !== to) org[to] = base;
+  }
   if (kind === 'workstream' && ui.finWs === from) ui.finWs = to;
   return n;
 }
@@ -2588,9 +2620,9 @@ function importCsvDialog() {
 function matchWs(cat) {
   if (!cat) return '';
   var c = cat.toLowerCase().trim(), list = allWorkstreams();
-  for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === c) return list[i];
+  for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === c || wsBase(list[i]).toLowerCase() === c) return list[i];
   var aliases = { 'design':'Design & Production','production':'Design & Production','produksi':'Design & Production','game':'Games & Competition','games':'Games & Competition','connect':'GX Connect','got talent':'GX Got Talent','talent':'GX Got Talent','hyrox':'HYROX','entertainment':'Entertainment','hiburan':'Entertainment','tenant':'Tenants','doorprize':'Doorprize','door prize':'Doorprize','hadiah':"Winners' Prizes",'prize':"Winners' Prizes",'winner':"Winners' Prizes",'pengadaan':'Procurement','procurement':'Procurement','emergency':'Emergency Fund','dana darurat':'Emergency Fund','mobile legends':'Mobile Legends','mlbb':'Mobile Legends' };
-  for (var k in aliases) if (c.indexOf(k) > -1) return aliases[k];
+  for (var k in aliases) if (c.indexOf(k) > -1) return wsCurrent(aliases[k]);
   return cat.trim();
 }
 
@@ -2659,7 +2691,7 @@ function handleAct(el, e) {
       break;
     case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: '', mt: true }); break;
     case 'mt-all': var wsAll = mtWorkstreams(db.tasks.filter(function (t) { return t.deadline && onMaster(t) && t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
-    case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: 'Event Day', deadline: EVENT_DATE }); break;
+    case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: wsCurrent('Event Day'), deadline: EVENT_DATE }); break;
     case 'mt-toggle': var w = el.dataset.ws, hd = ui.mtHide || []; ui.mtHide = hd.indexOf(w) > -1 ? hd.filter(function (x) { return x !== w; }) : hd.concat([w]); render(); break;
     case 'edit-task': closeModal(); if (taskById(id)) taskForm(taskById(id)); else toast('That task no longer exists', true); break;
     case 'delete-task': closeModal(); deleteTask(id); break;
