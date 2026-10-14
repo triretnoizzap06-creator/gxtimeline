@@ -1,12 +1,37 @@
-GX27 - Patch v14 (Overview ringkas, link Finance di task, Emergency Fund 1 task)
+GX27 - Patch v16 (Collapsible sidebar + Presentation dashboard)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10, v11, v12 & v13.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v15.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-PERUBAHAN v14
+CHANGES v16
+1. Collapsible sidebar: ☰ button fixed at the top-left shows / hides the sidebar; the page content widens automatically.
+   The choice is remembered in each browser. Works on desktop and mobile (on mobile it hides the top menu bar).
+2. Presentation dashboard: new menu item "Presentation" (#present), built live from the same Tasks & Finance data
+   (no copied or hardcoded numbers):
+   - Task Progress: donut + Completed / In Progress / Pending / Blocked / Not Started, and Overdue count.
+   - Budget Summary: Total Budget, Paid, Outstanding Payment, Buffer Budget (click for the savings detail) + paid/outstanding bar.
+   - Overdue items and Upcoming (next 14 days) — tasks and unpaid payment deadlines.
+   - Recent Updates — latest edited tasks and budget items.
+   - Progress by Workstream.
+   - "Full Screen" button for meetings (hides the sidebar; press Esc to exit). Every item is clickable to open its task / budget item.
+
+CHANGES v15 (included)
+1. Overview: all text and labels in English (cards, lists, workstream progress, Needs Verification). Short amounts use M / B (Rp 82.6M).
+2. Finance summary cards: Total Budget, Paid, Outstanding Payment, Buffer Budget.
+3. Buffer Budget card is clickable -> item-level savings (Original Budget, Actual Cost, Savings), plus Over Budget items,
+   Net Buffer, and "potential savings not counted yet".
+   - Calculated automatically from Finance data; no new fields, no database change.
+   - Only confirmed savings count: invoice Submitted or fully paid, and not marked Needs Verification.
+   - No double counting: line items inside a vendor invoice are compared once at invoice level; Emergency Fund allocation
+     and its usage rows are excluded; transfer fees ignored.
+4. Finance filter "Due Date" next to All Invoice Status: All / Due on date / Due date range / Overdue (unpaid) / No due date.
+   Combines with all other filters (category, payment status, invoice status, search). Line items follow their vendor invoice's due date.
+5. Need per Station: checklist checkboxes centered in their column and aligned with the first line of each row.
+
+PERUBAHAN v14 (sudah termasuk)
 1. Overview lebih ringkas: 4 kartu (Progress Task, Perlu Perhatian, Deadline 14 Hari, Sudah Dibayar),
    2 daftar pendek (maks. 6 item + "Lihat semua"), progress per workstream tanpa kolom budget,
    dan "Perlu Verifikasi" dilipat (klik untuk buka). Kartu bisa diklik untuk ke Tasks / Finance.

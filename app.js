@@ -1001,7 +1001,7 @@ function loadUI() {
   if (!d.colF || typeof d.colF !== 'object' || Array.isArray(d.colF)) d.colF = {};
   if (d.sortV !== 3) { d.sort = { key: 'deadline', dir: -1 }; d.sortV = 3; }   // everyone starts on deadline order, newest first
   var h = (location.hash || '').replace('#', '');
-  if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
+  if (['timeline','rundown','overview','present','tasks','finance','calendar','admin'].indexOf(h) > -1) d.page = h;
   return d;
 }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch (e) {} }
@@ -1057,6 +1057,50 @@ function calc(f) {
   var outstanding = base == null ? null : Math.max(base - paid, 0);
   return { qty: qty, est: est, inv: inv, dp: dp, base: base, paid: paid, fee: fee, outstanding: outstanding, flags: flags, basedOnEstimate: inv == null && est != null };
 }
+/* v15: Buffer Budget = confirmed savings, item by item.
+   Original budget = the item's estimate (a vendor invoice uses its own estimate or the sum of its line items).
+   Actual cost = invoice amount (or the amount transferred when there is no invoice and it is fully paid).
+   Counted only when the cost is confirmed: invoice Submitted or payment fully paid, and the row is not marked "Needs Verification".
+   No double counting: line items inside a vendor invoice are compared once at invoice level, fund allocations (Emergency Fund) and
+   their usage rows are excluded, transfer fees are ignored, and every row is counted at most once. */
+function bufferBudget() {
+  var out = { items: [], overItems: [], pending: [], savings: 0, over: 0 };
+  db.finance.forEach(function (f) {
+    var c = calc(f), par = f.parentId ? finById(f.parentId) : null;
+    if (c.inherited || c.allocation || (par && par.kind === 'allocation')) return;
+    var est = c.est, paidAmt = numOrNull(f.paidAmount), isPaid = payType(f.paymentStatus) === 'paid';
+    var actual = c.inv != null ? c.inv : (paidAmt != null && isPaid ? paidAmt : null);
+    if (est == null || est <= 0 || actual == null) return;
+    var submitted = f.invoiceStatus === 'Submitted';
+    var confirmed = (isPaid || submitted) && f.source !== 'verify';
+    var row = { f: f, est: est, actual: actual, diff: est - actual, basis: isPaid ? 'Paid' : submitted ? 'Invoice submitted' : f.source === 'verify' ? 'Needs verification' : 'Invoice not submitted' };
+    if (!confirmed) { if (row.diff > 0) out.pending.push(row); return; }
+    if (row.diff > 0) { out.items.push(row); out.savings += row.diff; }
+    else if (row.diff < 0) { out.overItems.push(row); out.over += -row.diff; }
+  });
+  out.items.sort(function (a, b) { return b.diff - a.diff; });
+  out.overItems.sort(function (a, b) { return a.diff - b.diff; });
+  return out;
+}
+function bufferDialog() {
+  var b = bufferBudget();
+  function table(rows, kind) {
+    if (!rows.length) return '<p class="faint" style="margin:0">' + (kind === 'save' ? 'No confirmed savings yet.' : 'None.') + '</p>';
+    return '<div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Original Budget</th><th class="r">Actual Cost</th><th class="r">' + (kind === 'over' ? 'Over Budget' : 'Savings') + '</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + esc(r.basis) + '</span></td>' +
+          '<td class="num r" data-l="Original">' + rp(r.est) + '</td><td class="num r" data-l="Actual">' + rp(r.actual) + '</td><td class="num r ' + (r.diff >= 0 ? 'buf-pos' : 'buf-neg') + '" data-l="' + (kind === 'over' ? 'Over' : 'Savings') + '">' + rp(Math.abs(r.diff)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  openModal('<div class="modal-h"><h3>Buffer Budget</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+    '<div class="modal-b one">' +
+    '<div class="buf-sum"><div><span>Confirmed Savings</span><b class="buf-pos">' + rp(b.savings) + '</b></div><div><span>Over Budget (confirmed)</span><b class="buf-neg">' + rp(b.over) + '</b></div><div><span>Net Buffer</span><b>' + rp(b.savings - b.over) + '</b></div></div>' +
+    '<p class="muted" style="margin:0;font-size:12.5px">Savings = original budget − actual cost, per item. Only confirmed costs count (invoice submitted or fully paid, and not marked Needs Verification). Line items inside a vendor invoice are compared once at invoice level; Emergency Fund allocations and transfer fees are excluded. Click a row to open the item.</p>' +
+    '<h4 class="buf-h">Savings · ' + b.items.length + ' item' + (b.items.length === 1 ? '' : 's') + '</h4>' + table(b.items, 'save') +
+    (b.overItems.length ? '<h4 class="buf-h">Over Budget · ' + b.overItems.length + ' item' + (b.overItems.length === 1 ? '' : 's') + '</h4>' + table(b.overItems, 'over') : '') +
+    (b.pending.length ? '<details class="buf-pending"><summary>Potential savings not counted yet · ' + b.pending.length + ' item' + (b.pending.length === 1 ? '' : 's') + ' (' + rp(b.pending.reduce(function (s, r) { return s + r.diff; }, 0)) + ')</summary>' + table(b.pending, 'save') + '</details>' : '') +
+    '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Close</button></div></div>', 'wide', { allowReadonly: true });
+}
 function totals(list) {
   var inList = {}; list.forEach(function (f) { inList[f.id] = 1; });
   var t = { est: 0, inv: 0, paid: 0, fee: 0, outstanding: 0, missing: 0, flagged: 0, count: list.length };
@@ -1088,6 +1132,7 @@ function render() {
   applySettings();
   document.body.classList.toggle('readonly', !canEdit());
   document.body.classList.toggle('mode-admin', MODE === 'admin');
+  applySidebar();
   document.querySelectorAll('#nav button').forEach(function (b) { b.setAttribute('aria-current', b.dataset.page === ui.page ? 'page' : 'false'); });
   var st = taskStats();
   document.getElementById('navTaskCount').textContent = st.total;
@@ -1107,6 +1152,7 @@ function render() {
     else if (ui.page === 'timeline') html = renderMaster();
     else if (ui.page === 'rundown') html = renderRundown();
     else if (ui.page === 'overview') html = renderOverview();
+    else if (ui.page === 'present') html = renderPresent();
     else if (ui.page === 'tasks') html = renderTasks();
     else if (ui.page === 'finance') html = renderFinance();
     else html = renderCalendar();
@@ -1125,6 +1171,123 @@ function render() {
   if (Admin && Admin.afterRender) Admin.afterRender();
   if (focusId) { var el = document.getElementById(focusId); if (el) { el.focus({ preventScroll: true }); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
 }
+
+/* ---------- v16: collapsible sidebar (☰ top-left). Remembered per browser in ui.sideHidden. ---------- */
+function applySidebar() {
+  var hidden = !!ui.sideHidden || document.body.classList.contains('present-fs');
+  document.body.classList.toggle('side-hidden', hidden);
+  var b = document.getElementById('sideToggle');
+  if (b) { b.setAttribute('aria-expanded', String(!hidden)); b.setAttribute('aria-label', hidden ? 'Show sidebar' : 'Hide sidebar'); b.title = hidden ? 'Show sidebar' : 'Hide sidebar'; }
+}
+(function () {
+  var b = document.getElementById('sideToggle');
+  if (b) b.addEventListener('click', function () { ui.sideHidden = !ui.sideHidden; saveUI(); applySidebar(); });
+})();
+
+/* ---------- v16: Presentation dashboard — live summary of Tasks & Finance for meetings ---------- */
+function relTime(ms) {
+  if (!ms) return '';
+  var m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  var h = Math.round(m / 60); if (h < 24) return h + ' h ago';
+  var d = Math.round(h / 24); if (d < 31) return d + ' d ago';
+  return new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+function pDonut(parts, total, center, sub) {
+  var r = 52, C = 2 * Math.PI * r, off = 0;
+  var segs = parts.filter(function (x) { return x.n > 0; }).map(function (x) {
+    var len = total ? x.n / total * C : 0, seg = '<circle r="' + r + '" cx="64" cy="64" fill="none" stroke="' + x.c + '" stroke-width="16" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 64 64)"><title>' + esc(x.k) + ': ' + x.n + '</title></circle>';
+    off += len; return seg;
+  }).join('');
+  return '<svg class="pd-donut" viewBox="0 0 128 128" role="img" aria-label="' + esc(center + ' ' + sub) + '"><circle r="' + r + '" cx="64" cy="64" fill="none" stroke="var(--neutral-bg)" stroke-width="16"/>' + segs +
+    '<text x="64" y="62" text-anchor="middle" class="pd-donut-v">' + esc(center) + '</text><text x="64" y="80" text-anchor="middle" class="pd-donut-s">' + esc(sub) + '</text></svg>';
+}
+function renderPresent() {
+  var today = todayISO(), st = taskStats(), ft = totals(db.finance), buf = bufferBudget();
+  var notStarted = Math.max(0, st.total - st.done - st.prog - st.appr - st.blocked);
+  var pct = st.total ? Math.round(st.done / st.total * 100) : 0;
+  var parts = [
+    { k: 'Completed', n: st.done, c: 'var(--ok)' }, { k: 'In Progress', n: st.prog, c: 'var(--info)' },
+    { k: 'Pending', n: st.appr, c: 'var(--warn)' }, { k: 'Blocked', n: st.blocked, c: 'var(--crit)' }, { k: 'Not Started', n: notStarted, c: 'var(--faint)' }
+  ];
+  var dl = daysBetween(today, EVENT_DATE), now = new Date();
+  var h = '<div class="pd">';
+  h += '<div class="pd-head"><div><div class="pd-eyebrow">' + esc(db.settings.eventName || 'Event') + ' · Status Update</div><h1>Project Dashboard</h1>' +
+    '<p>Live data as of ' + fmtDate(today) + ', ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' · Event Day ' + fmtDate(EVENT_DATE) + '</p></div>' +
+    '<div class="pd-head-r"><div class="pd-count"><b>' + (dl >= 0 ? dl : 0) + '</b><span>' + (dl === 1 ? 'day' : 'days') + ' to Event Day</span></div>' +
+    '<button class="btn" data-act="present-fs" type="button">' + (document.fullscreenElement ? 'Exit Full Screen' : 'Full Screen') + '</button></div></div>';
+
+  // tasks + budget
+  var stat = function (k, n, c, sub, act, arg) { return '<button type="button" class="pd-stat" data-act="' + act + '" data-view="' + arg + '" style="--c:' + c + '"><span class="k">' + k + '</span><b>' + n + '</b>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>'; };
+  h += '<div class="pd-row pd-row-2">';
+  h += '<section class="pd-card"><div class="pd-card-h"><h2>Task Progress</h2><span class="muted">' + st.total + ' tasks</span></div><div class="pd-tasks">' +
+    pDonut(parts, st.total, pct + '%', 'completed') +
+    '<div class="pd-legend">' + parts.map(function (x) { return '<div><i style="background:' + x.c + '"></i><span>' + x.k + '</span><b class="num">' + x.n + '</b></div>'; }).join('') + '</div></div>' +
+    '<div class="pd-stats">' + stat('Completed', st.done, 'var(--ok)', '', 'go-tasks', 'all') + stat('In Progress', st.prog, 'var(--info)', '', 'go-tasks', 'all') +
+    stat('Pending', st.appr, 'var(--warn)', '', 'go-tasks', 'pending') + stat('Overdue', st.overdue, 'var(--crit)', 'past deadline, not done', 'go-tasks', 'pending') + '</div></section>';
+  var paidPct = ft.est ? Math.min(100, ft.paid / ft.est * 100) : 0, outPct = ft.est ? Math.min(100 - paidPct, ft.outstanding / ft.est * 100) : 0;
+  h += '<section class="pd-card"><div class="pd-card-h"><h2>Budget Summary</h2><span class="muted">' + ft.count + ' budget items</span></div>' +
+    '<div class="pd-money">' +
+    '<div><span>Total Budget</span><b>' + rpShort(ft.est) + '</b><em>' + rp(ft.est) + '</em></div>' +
+    '<div style="--c:var(--ok)"><span>Paid</span><b>' + rpShort(ft.paid) + '</b><em>' + Math.round(paidPct) + '% of budget</em></div>' +
+    '<div style="--c:var(--warn)"><span>Outstanding Payment</span><b>' + rpShort(ft.outstanding) + '</b><em>' + rp(ft.outstanding) + '</em></div>' +
+    '<button type="button" data-act="buffer-detail" style="--c:var(--info)"><span>Buffer Budget</span><b>' + rpShort(buf.savings) + '</b><em>' + buf.items.length + ' confirmed saving' + (buf.items.length === 1 ? '' : 's') + (buf.over ? ' · net ' + rpShort(buf.savings - buf.over) : '') + '</em></button></div>' +
+    '<div class="pd-budgetbar" role="img" aria-label="Paid ' + Math.round(paidPct) + '%, outstanding ' + Math.round(outPct) + '%"><i class="paid" style="width:' + paidPct.toFixed(1) + '%"></i><i class="out" style="width:' + outPct.toFixed(1) + '%"></i></div>' +
+    '<div class="pd-budgetkey"><span><i class="paid"></i>Paid</span><span><i class="out"></i>Outstanding</span><span><i class="rest"></i>Not yet invoiced / no amount</span></div></section>';
+  h += '</div>';
+
+  // overdue + upcoming (tasks and payments) + recent updates
+  var items = [];
+  db.tasks.forEach(function (t) { if (t.deadline && !isDone(t)) items.push({ kind: 'Task', date: t.deadline, title: t.name, ws: t.workstream, act: 'open-task', id: t.id, status: t.status }); });
+  db.finance.forEach(function (f) {
+    var c = calc(f); if (c.inherited || c.allocation || !f.paymentDeadline || payType(f.paymentStatus) === 'paid') return;
+    items.push({ kind: 'Payment', date: f.paymentDeadline, title: f.item, ws: f.workstream, act: 'edit-fin', id: f.id, status: f.paymentStatus, amt: c.outstanding });
+  });
+  var overdue = items.filter(function (x) { return x.date < today; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  var upcoming = items.filter(function (x) { var d = daysBetween(today, x.date); return d >= 0 && d <= 14; }).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  var LIM = 7;
+  function itemRow(x, mode) {
+    var d = daysBetween(today, x.date), c = wsColor(x.ws);
+    var when = mode === 'over' ? (-d) + 'd overdue' : d === 0 ? 'today' : d === 1 ? 'tomorrow' : 'in ' + d + 'd';
+    return '<div class="pd-item" data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="pd-date' + (mode === 'over' ? ' over' : d <= 3 ? ' soon' : '') + '"><b>' + fmtDate(x.date, true) + '</b><em>' + when + '</em></span>' +
+      '<span class="pd-it"><b>' + esc(x.title || '(no name)') + '</b><span><i style="background:' + c[0] + '"></i>' + esc(x.ws || '—') + ' · <span class="pd-kind">' + x.kind + '</span>' + (x.amt ? ' · ' + rp(x.amt) : '') + '</span></span></div>';
+  }
+  function list(title, arr, mode, empty, act, view) {
+    return '<section class="pd-card pd-list"><div class="pd-card-h"><h2>' + title + ' <span class="pd-pill' + (mode === 'over' && arr.length ? ' crit' : '') + '">' + arr.length + '</span></h2></div>' +
+      (arr.length ? arr.slice(0, LIM).map(function (x) { return itemRow(x, mode); }).join('') : '<div class="pd-empty">' + empty + '</div>') +
+      (arr.length > LIM ? '<button type="button" class="pd-more" data-act="' + act + '" data-view="' + view + '">+ ' + (arr.length - LIM) + ' more</button>' : '') + '</section>';
+  }
+  var recent = db.tasks.map(function (t) { return { kind: 'Task', at: t.updatedAt || t.createdAt || 0, title: t.name, ws: t.workstream, act: 'open-task', id: t.id, status: t.status }; })
+    .concat(db.finance.map(function (f) { return { kind: 'Budget', at: f.updatedAt || f.createdAt || 0, title: f.item, ws: f.workstream, act: 'edit-fin', id: f.id, status: f.paymentStatus }; }))
+    .filter(function (x) { return x.at; }).sort(function (a, b) { return b.at - a.at; }).slice(0, LIM);
+  h += '<div class="pd-row pd-row-3">' +
+    list('Overdue', overdue, 'over', 'Nothing overdue.', 'go-tasks', 'pending') +
+    list('Upcoming · Next 14 Days', upcoming, 'up', 'No deadlines in the next 14 days.', 'go-tasks', 'timeline') +
+    '<section class="pd-card pd-list"><div class="pd-card-h"><h2>Recent Updates</h2></div>' + (recent.length ? recent.map(function (x) {
+      var c = wsColor(x.ws);
+      return '<div class="pd-item" data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="pd-date"><b>' + relTime(x.at) + '</b><em>' + x.kind + '</em></span>' +
+        '<span class="pd-it"><b>' + esc(x.title || '(no name)') + '</b><span><i style="background:' + c[0] + '"></i>' + esc(x.ws || '—') + (x.status ? ' · ' + esc(x.status) : '') + '</span></span></div>';
+    }).join('') : '<div class="pd-empty">No updates yet.</div>') + '</section></div>';
+
+  // progress by workstream
+  var ws = allWorkstreams().map(function (w) {
+    var ts = db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(w) > -1; });
+    if (!ts.length) return null;
+    var d = ts.filter(isDone).length, od = ts.filter(function (t) { return dueState(t).kind === 'overdue'; }).length;
+    return { w: w, n: ts.length, d: d, od: od, p: Math.round(d / ts.length * 100) };
+  }).filter(Boolean);
+  h += '<section class="pd-card"><div class="pd-card-h"><h2>Progress by Workstream</h2><span class="muted">tasks done / total</span></div><div class="pd-ws">' + ws.map(function (x) {
+    var c = wsColor(x.w);
+    return '<div class="pd-ws-r"><span class="pd-ws-n"><i style="background:' + c[0] + '"></i>' + esc(x.w) + '</span><span class="pd-ws-bar"><i style="width:' + x.p + '%;background:' + c[0] + '"></i></span>' +
+      '<span class="pd-ws-c num">' + x.d + '/' + x.n + (x.od ? ' <em>' + x.od + ' overdue</em>' : '') + '</span></div>';
+  }).join('') + '</div></section>';
+  return h + '</div>';
+}
+document.addEventListener('fullscreenchange', function () {
+  if (!document.fullscreenElement) document.body.classList.remove('present-fs');
+  if (ui.page === 'present') render(); else applySidebar();
+});
 
 function pageHead(title, sub, actions) {
   return '<div class="page-head"><div><h1>' + title + '</h1>' + (sub ? '<p>' + sub + '</p>' : '') + '</div>' + (actions ? '<div class="toolbar" style="margin:0">' + actions + '</div>' : '') + '</div>';
@@ -1608,7 +1771,7 @@ function catDelete(kind, idx) {
 function renderOverview() {
   // v14: lighter overview — 4 summary cards, two short lists, compact workstream progress; details live in Tasks / Finance
   var s = taskStats(), ft = totals(db.finance), today = todayISO();
-  var h = pageHead('Overview', 'Ringkasan hari ini, ' + fmtDate(today) + '. Detail lengkap ada di Tasks dan Finance.',
+  var h = pageHead('Overview', 'Today\'s summary, ' + fmtDate(today) + '. Full details are in Tasks and Finance.',
     '<button class="btn" data-act="new-task">+ Task</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
   var urgent = db.tasks.filter(function (t) { var k = dueState(t).kind; return !isDone(t) && (k === 'overdue' || k === 'soon' || sType(t.status) === 'blocked'); })
     .sort(function (a, b) { return (a.deadline || '9') < (b.deadline || '9') ? -1 : 1; });
@@ -1616,14 +1779,14 @@ function renderOverview() {
     .sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
   var pct = s.total ? Math.round(s.done / s.total * 100) : 0, payPct = ft.est ? Math.min(100, Math.round(ft.paid / ft.est * 100)) : 0;
   h += '<div class="ov-cards">' +
-    ovCard('Progress Task', pct + '%', s.done + ' dari ' + s.total + ' task selesai', pct, '', 'go-tasks', 'all') +
-    ovCard('Perlu Perhatian', s.overdue + s.blocked, s.overdue + ' overdue · ' + s.blocked + ' terhambat', null, s.overdue + s.blocked > 0 ? 'warn' : '', 'go-tasks', 'pending') +
-    ovCard('Deadline 14 Hari', urgent.filter(function (t) { return dueState(t).kind === 'soon'; }).length + upcoming.length, 'task belum selesai', null, '', 'go-tasks', 'timeline') +
-    ovCard('Sudah Dibayar', rpShort(ft.paid), 'dari ' + rpShort(ft.est) + ' · sisa ' + rpShort(ft.outstanding), payPct, '', 'go-page', 'finance') +
+    ovCard('Task Progress', pct + '%', s.done + ' of ' + s.total + ' tasks done', pct, '', 'go-tasks', 'all') +
+    ovCard('Needs Attention', s.overdue + s.blocked, s.overdue + ' overdue · ' + s.blocked + ' blocked', null, s.overdue + s.blocked > 0 ? 'warn' : '', 'go-tasks', 'pending') +
+    ovCard('Due in 14 Days', urgent.filter(function (t) { return dueState(t).kind === 'soon'; }).length + upcoming.length, 'open tasks', null, '', 'go-tasks', 'timeline') +
+    ovCard('Paid', rpShort(ft.paid), 'of ' + rpShort(ft.est) + ' · ' + rpShort(ft.outstanding) + ' outstanding', payPct, '', 'go-page', 'finance') +
     '</div>';
   h += '<div class="grid-2 ov-lists">' +
-    ovList('Perlu Perhatian', 'Overdue, deadline ≤3 hari, atau terhambat', urgent, 'pending', 'Tidak ada yang mendesak 🎉') +
-    ovList('Deadline Mendatang', '4–14 hari ke depan', upcoming, 'timeline', 'Belum ada deadline dalam 14 hari.') +
+    ovList('Needs Attention', 'Overdue, due within 3 days, or blocked', urgent, 'pending', 'Nothing urgent right now.') +
+    ovList('Upcoming Deadlines', 'Due in the next 4–14 days', upcoming, 'timeline', 'No deadlines in the next 14 days.') +
     '</div>';
   // Prep strip
   h += '<div class="panel-h" style="border:none;padding:0 0 8px"><h2>Preparation Deadlines</h2><span class="muted" style="font-size:12px">Event Day 21 Nov 2026</span></div><div class="prep-strip">';
@@ -1642,22 +1805,23 @@ function renderOverview() {
     var done = ts.filter(isDone).length, p = Math.round(done / ts.length * 100), c = wsColor(ws);
     return '<div class="ov-ws"><span class="ov-ws-n"><i style="background:' + c[0] + '"></i>' + esc(ws) + '</span><div class="ov-bar"><i style="width:' + p + '%;background:' + c[0] + '"></i></div><span class="ov-ws-c num">' + done + '/' + ts.length + '</span></div>';
   }).join('');
-  h += '<div class="panel ov-panel"><div class="panel-h"><h2>Progress per Workstream</h2><span class="muted" style="font-size:12px">task selesai / total</span></div><div class="ov-ws-grid">' + wsRows + '</div></div>';
+  h += '<div class="panel ov-panel"><div class="panel-h"><h2>Progress by Workstream</h2><span class="muted" style="font-size:12px">tasks done / total</span></div><div class="ov-ws-grid">' + wsRows + '</div></div>';
   // verification: folded by default
   var vItems = [];
   db.finance.forEach(function (f) { var c = calc(f); if (c.flags.length || f.source === 'verify') vItems.push({ kind: 'fin', id: f.id, title: f.item, ws: f.workstream, msgs: (f.verifyNote ? [f.verifyNote] : []).concat(c.flags.map(function (x) { return x.msg; })) }); });
   db.tasks.forEach(function (t) { if (t.source === 'verify') vItems.push({ kind: 'task', id: t.id, title: t.name, ws: t.workstream, msgs: [t.verifyNote || 'Needs Verification'] }); });
-  if (vItems.length) h += '<details class="panel ov-verify"><summary><b>Perlu Verifikasi</b><span class="ov-pill">' + vItems.length + '</span><span class="muted">data budget / task yang perlu dicek ulang · klik untuk lihat</span></summary><div class="verify-list">' +
+  if (vItems.length) h += '<details class="panel ov-verify"><summary><b>Needs Verification</b><span class="ov-pill">' + vItems.length + '</span><span class="muted">budget and task records to double-check · click to view</span></summary><div class="verify-list">' +
     vItems.map(function (v) {
       return '<div class="v-row" data-act="' + (v.kind === 'fin' ? 'edit-fin' : 'open-task') + '" data-id="' + v.id + '" role="button" tabindex="0"><div style="display:flex;gap:8px;align-items:center;min-width:0">' + wsTag(v.ws) + '<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(v.title) + '</b></div><div class="muted" style="font-size:12px">' + esc(v.msgs.join(' · ')) + '</div></div>';
     }).join('') + '</div></details>';
   return h;
 }
+// short English amounts for the Overview: Rp 82.6M, Rp 1.2B
 function rpShort(n) {
   if (n == null || isNaN(n)) return '—';
   var a = Math.abs(n);
-  if (a >= 1e9) return 'Rp ' + (n / 1e9).toFixed(1).replace('.', ',').replace(',0', '') + ' M';
-  if (a >= 1e6) return 'Rp ' + (n / 1e6).toFixed(1).replace('.', ',').replace(',0', '') + ' jt';
+  if (a >= 1e9) return 'Rp ' + (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (a >= 1e6) return 'Rp ' + (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
   return rp(n);
 }
 function ovCard(k, v, sub, bar, tone, act, arg) {
@@ -1674,7 +1838,7 @@ function ovList(title, sub, list, view, empty) {
   }).join('');
   return '<div class="panel ov-panel"><div class="panel-h"><div><h2>' + title + ' <span class="ov-pill">' + list.length + '</span></h2><span class="muted" style="font-size:12px">' + sub + '</span></div></div>' +
     '<div class="ov-rows">' + (rows || '<div class="empty" style="padding:18px">' + esc(empty) + '</div>') + '</div>' +
-    (list.length > LIM ? '<div class="ov-more"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">Lihat semua ' + list.length + ' →</button></div>' : '') + '</div>';
+    (list.length > LIM ? '<div class="ov-more"><button class="btn sm ghost" data-act="go-tasks" data-view="' + view + '">View all ' + list.length + ' →</button></div>' : '') + '</div>';
 }
 function kpi(k, v, s, hl, money) { return '<div class="kpi' + (hl ? ' hl' : '') + '"><span class="k">' + k + '</span><span class="v' + (money ? ' money' : '') + '">' + v + '</span><span class="s">' + s + '</span></div>'; }
 function panel(title, count, body) { return '<div class="panel"><div class="panel-h"><h2>' + title + '</h2><span class="num muted">' + count + '</span></div><div class="panel-b">' + body + '</div></div>'; }
@@ -2183,14 +2347,37 @@ function filteredFinance() {
     if (ui.finWs && f.workstream !== ui.finWs) return false;
     if (ui.finPay && f.paymentStatus !== ui.finPay) return false;
     if (ui.finInv && f.invoiceStatus !== ui.finInv) return false;
+    if (finDueActive() && !finDueMatch(f)) return false;
     if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].concat(Object.keys(f.cf || {}).map(function (k) { return f.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false; }
     return true;
   };
   var hit = {}; db.finance.forEach(function (f) { if (match(f)) hit[f.id] = 1; });
   // keep vendor groups together: a matching line item brings its vendor row, a matching vendor row brings its line items
   db.finance.forEach(function (f) { if (hit[f.id] && f.parentId) hit[f.parentId] = hit[f.parentId] || 2; });
-  db.finance.forEach(function (f) { if (f.parentId && hit[f.parentId] === 1 && !ui.finPay && !ui.finInv) hit[f.id] = hit[f.id] || 1; });
+  db.finance.forEach(function (f) { if (f.parentId && hit[f.parentId] === 1 && !ui.finPay && !ui.finInv && !finDueActive()) hit[f.id] = hit[f.id] || 1; });
   return db.finance.filter(function (f) { return hit[f.id]; });
+}
+/* v15: Due Date filter (Finance). ui.finDue = { m: '' | 'on' | 'range' | 'overdue' | 'none', a: on/from date, b: to date }.
+   A line item inside a vendor invoice uses the invoice's due date and payment status. Works together with every other filter. */
+function finDue() { var d = ui.finDue; return d && typeof d === 'object' ? d : { m: '', a: '', b: '' }; }
+function finDueActive() { var d = finDue(); return d.m === 'overdue' || d.m === 'none' || ((d.m === 'on' || d.m === 'range') && !!(d.a || d.b)); }
+function finDueOf(f) { var c = calc(f), src = c.inherited && c.parent ? c.parent : f; return { due: src.paymentDeadline || '', paid: payType(src.paymentStatus) === 'paid' }; }
+function finDueMatch(f) {
+  var d = finDue(), x = finDueOf(f);
+  if (d.m === 'none') return !x.due;
+  if (!x.due) return false;
+  if (d.m === 'overdue') return x.due < todayISO() && !x.paid;
+  if (d.m === 'on') return x.due === (d.a || d.b);
+  if (d.m === 'range') { var lo = d.a, hi = d.b; if (lo && hi && lo > hi) { var t = lo; lo = hi; hi = t; } return (!lo || x.due >= lo) && (!hi || x.due <= hi); }
+  return true;
+}
+function finDueControl() {
+  var d = finDue();
+  return '<span class="fin-due" role="group" aria-label="Due Date filter"><select class="select" id="finDueMode" aria-label="Due Date">' +
+    [['', 'All Due Dates'], ['on', 'Due on date…'], ['range', 'Due date range…'], ['overdue', 'Overdue (unpaid)'], ['none', 'No due date']].map(function (o) { return '<option value="' + o[0] + '"' + (d.m === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+    (d.m === 'on' ? '<input class="input" type="date" id="finDueA" value="' + esc(d.a || '') + '" aria-label="Due on">' : '') +
+    (d.m === 'range' ? '<input class="input" type="date" id="finDueA" value="' + esc(d.a || '') + '" aria-label="Due from"><span class="muted fin-due-to">to</span><input class="input" type="date" id="finDueB" value="' + esc(d.b || '') + '" aria-label="Due until">' : '') +
+    '</span>';
 }
 function finCategories() {
   var order = {}, seq = 0;
@@ -2200,7 +2387,7 @@ function finCategories() {
 function rowOrder(a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); }
 // a vendor invoice with line items: the Doorprize group starts folded (the prizes are included in the invoice row), other groups start open
 function finCollapsed(f) {
-  if (ui.finQ || ui.finWs || ui.finPay || ui.finInv) return false;      // while searching/filtering, show everything
+  if (ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDueActive()) return false;      // while searching/filtering, show everything
   var o = (ui.finOpen || {})[f.id];
   return o === undefined ? f.workstream === 'Doorprize' : !o;
 }
@@ -2215,9 +2402,12 @@ function renderFinance() {
       'Terapkan untuk mengganti isi Finance dengan data sheet ini; task tetap, versi lama tetap ada di Version history.' +
       '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Terapkan Data Sheet Terbaru</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
   }
-  h += '<div class="kpis">' + kpi('Budget', rp(all.est), all.count + ' item', false, true) +
-    kpi('Sudah Dibayar', rp(all.paid), '', false, true) + kpi('Sisa (Outstanding)', rp(all.outstanding), '', all.outstanding > 0, true) +
-    kpi('Perlu Dicek', all.flagged, 'item', all.flagged > 0) + '</div>';
+  var buf = bufferBudget();
+  h += '<div class="kpis fin-kpis">' + kpi('Total Budget', rp(all.est), all.count + ' items' + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, true) +
+    kpi('Paid', rp(all.paid), all.fee ? '+ ' + rp(all.fee) + ' transfer fees' : 'transfers made', false, true) +
+    kpi('Outstanding Payment', rp(all.outstanding), 'invoice (or estimate) minus paid', all.outstanding > 0, true) +
+    '<button type="button" class="kpi kpi-btn" data-act="buffer-detail" aria-label="Buffer Budget details"><span class="k">Buffer Budget</span><span class="v money">' + rp(buf.savings) + '</span>' +
+    '<span class="s">' + buf.items.length + ' confirmed saving' + (buf.items.length === 1 ? '' : 's') + (buf.over ? ' · net ' + rp(buf.savings - buf.over) : '') + ' · view details →</span></button></div>';
   if (meta && meta.sheetSubTotal != null) {
     var dEst = all.est - meta.sheetSubTotal, dTf = (all.paid + all.fee) - meta.sheetTransferred;
     if (!dEst && !dTf) h += '<p class="fin-ok">✓ Total cocok dengan budget sheet (' + rp(meta.sheetSubTotal) + ')</p>';
@@ -2227,8 +2417,8 @@ function renderFinance() {
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
     '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All Categories') + '</select>' +
     '<select class="select" id="finPay" aria-label="Payment Status">' + opts(payList(), ui.finPay, 'All Payment Status') + '</select>' +
-    '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' +
-    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
+    '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' + finDueControl() +
+    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDue().m) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
   if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No Budget Items Yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Items Match', 'Try a different search or clear the filters.') + '</div>';
   var groups = {};
@@ -2800,6 +2990,11 @@ function handleAct(el, e) {
       closeModal(); finForm(null, null, { parentId: pf.id, workstream: pf.workstream, taskId: '' }); break;
     case 'edit-fin': e.preventDefault(); closeModal(); if (finById(id)) finForm(finById(id)); break;
     case 'link-fin': closeModal(); linkFinDialog(id); break;
+    case 'buffer-detail': bufferDialog(); break;
+    case 'present-fs':
+      if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); }
+      else { document.body.classList.add('present-fs'); applySidebar(); var de = document.documentElement; if (de.requestFullscreen) de.requestFullscreen().catch(function () { document.body.classList.remove('present-fs'); applySidebar(); }); }
+      break;
     case 'delete-fin': closeModal(); deleteFin(id); break;
     case 'open-task':
       e.preventDefault(); closeModal();
@@ -2827,7 +3022,7 @@ function handleAct(el, e) {
     case 'clear-filters': ui.q = ui.fSrc = ''; ui.fWs = []; ui.fStatus = []; ui.colF = {}; ui.msOpen = ''; closeColFilter(); render(); break;
     case 'col-filter': openColFilter(el.dataset.key, el); break;
     case 'ms-clear': ui[el.dataset.key] = []; render(); break;
-    case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ''; render(); break;
+    case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
     case 'import-csv': importCsvDialog(); break;
     case 'cal-prev': case 'cal-next':
       var p = ui.calMonth.split('-'), d = new Date(+p[0], +p[1] - 1 + (act === 'cal-next' ? 1 : -1), 1); ui.calMonth = toISO(d).slice(0, 7); render(); break;
@@ -2871,6 +3066,12 @@ main.addEventListener('change', function (e) {
     var key = t.dataset.ms, arr = (ui[key] || []).filter(function (x) { return x !== t.value; });
     if (t.checked) arr.push(t.value);
     ui[key] = arr; ui.msOpen = key; render(); return;
+  }
+  if (t.id === 'finDueMode' || t.id === 'finDueA' || t.id === 'finDueB') {
+    var fd = Object.assign({ m: '', a: '', b: '' }, finDue());
+    if (t.id === 'finDueMode') { fd.m = t.value; if (!fd.m) { fd.a = ''; fd.b = ''; } }
+    else if (t.id === 'finDueA') fd.a = t.value; else fd.b = t.value;
+    ui.finDue = fd; render(); return;
   }
   var map = { fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }

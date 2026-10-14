@@ -421,8 +421,10 @@
     '.need-tbl th.c{text-align:center}',
     '.need-tbl .input{width:100%;min-width:0;box-sizing:border-box}',
     '.need-notes{resize:vertical;min-height:34px;max-width:100%;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;field-sizing:content}',
-    '.need-chk{text-align:center;padding-top:12px !important}',
-    '.need-chk input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent);vertical-align:middle}',
+    /* checklist: kotak centang tepat di tengah kolom & sejajar dengan baris pertama input di sebelahnya */
+    '.need-tbl th.c,.need-tbl td.need-chk{text-align:center}',
+    '.need-tbl td.need-chk{padding:6px 4px;vertical-align:top}',
+    '.need-tbl td.need-chk input{display:block;width:18px;height:18px;margin:8px auto 0;cursor:pointer;accent-color:var(--accent)}',
     '.need-ok td:first-child{box-shadow:inset 3px 0 0 var(--accent)}',
     '.need-tbl select.need-dsel{width:100%;min-width:0;box-sizing:border-box;padding:6px 8px;font-size:12.5px;font-weight:600;border-radius:8px;min-height:32px}',
     '.need-foot{padding:8px 14px}',
