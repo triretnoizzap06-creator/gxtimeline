@@ -1,4 +1,4 @@
-GX27 - Patch: deadline 1 tanggal + header filter rapi + Finance -> Tasks merged
+GX27 - Patch v2b: perbaikan teks nabrak kolom di tabel Tasks (hanya styles.css + index.html yang berubah dari v2)
 
 File yang berubah: app.js, styles.css, index.html (needs.js tidak berubah). Tidak perlu SQL.
 
