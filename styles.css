@@ -943,3 +943,4 @@ tr.expanded>td{background:var(--surface-2)}
 
 /* penanda task yang tertaut ke Finance & Procurement */
 .src.fin{color:var(--info);background:var(--info-bg)}
+.fin-names{color:var(--muted)}

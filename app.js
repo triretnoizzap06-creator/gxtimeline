@@ -409,6 +409,14 @@ function syncFinanceTasks(d, s) {
     if (t.autoFin && fById[t.autoFin] && !linked[t.id] && !t.pic && (!t.notes || String(t.notes).indexOf('Bagian dari') === 0)) return false;   // item moved into its vendor invoice's task; nothing was typed here
     return true;
   });
+  // A budget item's workstream (e.g. GX Access Point, GX Game Pass) is added to the task it is linked to, so the task shows up when filtering by that workstream (once per item, so manual edits stick)
+  d.finance.forEach(function (f) {
+    if (f.wsSynced || !f.workstream || !f.taskId) return;
+    var t = byId[f.taskId]; if (!t) return;
+    var cur = taskWorkstreams(t);
+    if (cur.indexOf(f.workstream) < 0) { t.workstreams = cur.concat([f.workstream]); t.updatedAt = now; }
+    f.wsSynced = true;
+  });
   d.finTasksV1 = true;
 }
 function normalizeDb(d) {
@@ -1509,7 +1517,7 @@ function filteredTasks(view) {
     if (ui.fStatus.length && ui.fStatus.indexOf(t.status) < 0) return false;
     if (ui.fSrc && t.source !== ui.fSrc) return false;
     if (!colFilterOk(t)) return false;
-    if (q && [t.name, taskWs.join(' '), t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
+    if (q && [t.name, taskWs.join(' '), t.workstream, t.category, t.pic, t.notes, t.blockers, t.dependencies, t.id, finForTask(t.id).map(function (f) { return f.item; }).join(' ')].concat(Object.keys(t.cf || {}).map(function (k) { return t.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false;
     if (view === 'operational' && t.category === 'Procurement') return false;
     if (view === 'procurement' && !(t.category === 'Procurement' || finForTask(t.id).length)) return false;
     if (view === 'pending') { var k = dueState(t).kind; var ty = sType(t.status); if (!(ty === 'pending' || ty === 'blocked' || k === 'overdue')) return false; }
@@ -1741,7 +1749,7 @@ function taskTable(list, compact, showBlockers) {
 }
 function taskCell(key, t) {
   switch (key) {
-    case 'name': var nfin = finForTask(t.id).length; return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (nfin ? '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' item</span> ' : '') + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
+    case 'name': var nfin = finForTask(t.id).length; return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + (nfin ? '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' item</span> ' + (nfin > 1 || finForTask(t.id)[0].item !== t.name ? '<span class="fin-names">' + esc(finForTask(t.id).slice(0, 4).map(function (f) { return f.item; }).join(', ')) + (nfin > 4 ? ' +' + (nfin - 4) : '') + '</span> · ' : '') : '') + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span></td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
     case 'start': return '<td>' + (t.start ? fmtDate(t.start, true) : '<span class="faint">—</span>') + '</td>';
