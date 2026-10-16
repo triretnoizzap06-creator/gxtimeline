@@ -678,6 +678,15 @@ function normalizeDb(d) {
     s.colBufV24 = true;
   }
   if (!s.efMoveV19) moveIntoEmergencyFund(d, s);
+  if (!s.doorEstV34) {   // v34: Doorprize budget = sum of its items (as in the sheet); what was paid above it is over budget, covered by the buffer
+    d.finance.forEach(function (f) {
+      if (f.kind !== 'vendor' || !/^doorprize/i.test(wsBase(f.workstream) || '') || f.estimated == null || f.estimated === '') return;
+      var kids = d.finance.filter(function (k) { return k.parentId === f.id; }); if (!kids.length) return;
+      var sum = kids.reduce(function (a, k) { var e = numOrNull(k.estimated); return a + (e != null ? e : (numOrNull(k.qty) || 0) * (numOrNull(k.unitCost) || 0)); }, 0);
+      if (+f.estimated > sum) { f.estimated = null; f.updatedAt = Date.now(); }
+    });
+    s.doorEstV34 = true;
+  }
   syncFinanceTasks(d, s);
   autoFinancePic(d, s);
   if (!s.offBudgetV30) { s.offBudget = Object.assign({ 'Tenants': 'Operational Marketing' }, s.offBudget || {}); s.offBudgetV30 = true; }
@@ -1017,7 +1026,7 @@ function sheetMergeDialog(P) {
     var sheetSide = c.diffs.some(function (d) { return d.on; });
     var html = '<div class="sync-row"><div class="sync-h"><b>' + esc(c.row.item) + '</b><span class="muted">' + esc(c.row.workstream || '—') + (c.note ? ' · ' + esc(c.note) : '') + '</span></div>' + c.diffs.map(function (d, di) {
       var show = function (v) { return d.f[2] === 'p' ? esc((finById(v) || {}).item || '—') : esc(syncShow(v, d.f[2])); };
-      return '<label class="sync-d"><input type="checkbox" data-sync="c' + ci + '_' + di + '" checked> <span>' + d.f[1] + '</span> <s>' + show(d.from) + '</s> → <b>' + show(d.to) + '</b></label>';
+      return '<label class="sync-d"><input type="checkbox" data-sync="c' + ci + '_' + di + '"' + (P.seed && !d.on && /^(estimated|qty|unitCost)$/.test(d.f[0]) && +d.from > +(d.to || 0) ? '' : ' checked') + '> <span>' + d.f[1] + '</span> <s>' + show(d.from) + '</s> → <b>' + show(d.to) + '</b></label>';
     }).join('') + '</div>';
     if (sheetSide || !P.seed) list += html; else other += html;
   });
@@ -1058,7 +1067,7 @@ function sheetMergeDialog(P) {
       db.finance.push(f); n++;
     });
     if (P.seed) { db.budgetSeedHash = budgetSeedHash(); db.meta = SHEET_SEED.meta; db.budgetUpdateAvailable = false; }
-    else db.meta = Object.assign({}, db.meta || {}, P.meta);
+    else db.meta = Object.assign({}, db.meta || {}, P.meta, { hash: null });
     closeModal(); commit('Finance di-update dari sheet · ' + n + ' perubahan');
   };
 }
@@ -1415,6 +1424,8 @@ function dueLabel(t) {
   else if (s.kind === 'soon') sub = s.days === 0 ? ' · today' : ' · in ' + s.days + 'd';
   return '<span class="due ' + s.kind + '">' + txt + sub + '</span>';
 }
+// v34: all transfer fees (event budget rows) — they are taken from the Emergency Fund pool
+function feesTotal() { return db.finance.reduce(function (a, f) { return a + (offBudgetRow(f) ? 0 : (numOrNull(f.fee) || 0)); }, 0); }
 function kidsOf(f) { return f && f.id ? db.finance.filter(function (c) { return c.parentId === f.id; }) : []; }
 function calc(f) {
   var qty = numOrNull(f.qty), unit = numOrNull(f.unitCost), estIn = numOrNull(f.estimated);
@@ -1426,9 +1437,10 @@ function calc(f) {
   if (estIn != null && qty != null && unit != null && Math.abs(qty * unit - estIn) > 0.5) flags.push({ lvl: 'warn', msg: 'Qty × harga (' + rp(qty * unit) + ') ≠ total di sheet (' + rp(estIn) + ')' });
   if (parent && parent.kind === 'vendor') return { qty: qty, est: est, inv: null, dp: null, base: est, paid: 0, fee: 0, outstanding: null, flags: flags, inherited: true, parent: parent };
   if (f.kind === 'allocation') {
-    var used = kids.reduce(function (s, k) { return s + (calc(k).base || 0); }, 0);
+    var used = kids.reduce(function (s, k) { return s + (calc(k).base || 0); }, 0), feeUsed = 0;
+    if (wsBase(f.workstream) === 'Emergency Fund' && f === efAlloc()) { feeUsed = feesTotal(); used += feeUsed; }
     if (est != null && used > est) flags.push({ lvl: 'crit', msg: 'Pemakaian (' + rp(used) + ') melebihi alokasi' });
-    return { qty: qty, est: est, inv: null, dp: null, base: est, paid: 0, fee: 0, outstanding: null, used: used, fundLeft: est == null ? null : est - used, flags: flags, allocation: true };
+    return { qty: qty, est: est, inv: null, dp: null, base: est, paid: 0, fee: 0, outstanding: null, used: used, feeUsed: feeUsed, fundLeft: est == null ? null : est - used, flags: flags, allocation: true };
   }
   var base = inv != null ? inv : est, paid = 0;
   if (paidAmt != null) paid = paidAmt;
@@ -1471,12 +1483,17 @@ function bufferBudget() {
     var actual = c.inv != null ? c.inv : (paidAmt != null && isPaid ? paidAmt : null);
     if (est == null || est <= 0 || actual == null) return;
     var submitted = f.invoiceStatus === 'Submitted';
-    var confirmed = (isPaid || submitted) && f.source !== 'verify';
+    var confirmed = true;   // v35: every amount under / over budget counts for the buffer right away
     var row = { f: f, est: est, actual: actual, diff: est - actual, basis: isPaid ? 'Paid' : submitted ? 'Invoice submitted' : f.source === 'verify' ? 'Needs verification' : 'Invoice not submitted' };
     if (!confirmed) { if (row.diff > 0) out.pending.push(row); return; }
     if (row.diff > 0) { out.items.push(row); out.savings += row.diff; }
     else if (row.diff < 0) { out.overItems.push(row); out.over += -row.diff; }
   });
+  var T = balanceTarget();
+  if (T.seed && T.est != null) {
+    var raw = totals(db.finance).est, M = raw > T.est ? balanceMatch() : null, left = M ? Math.min(M.overSum, raw - T.est) : 0;
+    if (M) M.over.forEach(function (r) { if (left <= 0.5) return; var u = Math.min(r.diff, left); left -= u; out.used += u; out.usedItems.push({ f: r.f, cost: u, est: r.web, inv: null, overSheet: r.sheet }); });
+  }
   out.items.sort(function (a, b) { return b.diff - a.diff; });
   out.overItems.sort(function (a, b) { return a.diff - b.diff; });
   out.net = out.savings - out.over;
@@ -1495,10 +1512,14 @@ function bufferDialog() {
   }
   openModal('<div class="modal-h"><h3>Buffer Budget</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
     '<div class="modal-b one">' +
-    '<div class="buf-sum buf-sum-4"><div><span>Confirmed Savings</span><b class="buf-pos">' + rp(b.savings) + '</b></div><div><span>Over Budget (confirmed)</span><b class="buf-neg">' + rp(b.over) + '</b></div><div><span>Used from Buffer</span><b>' + rp(b.used) + '</b></div><div><span>Available Buffer</span><b class="' + (b.available < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(b.available) + '</b></div></div>' +
+    '<div class="buf-sum buf-sum-4">' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-save" title="Show these items in the table"><span>Savings · ' + b.items.length + '</span><b class="buf-pos">' + rp(b.savings) + '</b><i>show items →</i></button>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-over" title="Show these items in the table"><span>Over Budget · ' + b.overItems.length + '</span><b class="buf-neg">' + rp(b.over) + '</b><i>show items →</i></button>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-used" title="Show these items in the table"><span>Used from Buffer · ' + b.usedItems.length + '</span><b>' + rp(b.used) + '</b><i>show items →</i></button>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-all" title="Show all buffer items in the table"><span>Available Buffer</span><b class="' + (b.available < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(b.available) + '</b><i>show all →</i></button></div>' +
     (b.usedItems.length ? '<h4 class="buf-h">Funded from Buffer · ' + b.usedItems.length + ' item' + (b.usedItems.length === 1 ? '' : 's') + '</h4><div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Cost</th></tr></thead><tbody>' +
-      b.usedItems.map(function (r) { return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + (r.inv != null ? 'invoice' : 'estimate') + '</span></td><td class="num r" data-l="Cost">' + rp(r.cost) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
-    '<p class="muted" style="margin:0;font-size:12.5px">Savings = original budget − actual cost, per item. Only confirmed costs count (invoice submitted or fully paid, and not marked Needs Verification). Line items inside a vendor invoice are compared once at invoice level; Emergency Fund allocations and transfer fees are excluded. Items marked "Funded from Buffer" (form → Funding) take their cost from this buffer instead of adding to Total Budget. Click a row to open the item.</p>' +
+      b.usedItems.map(function (r) { return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + (r.overSheet != null ? 'budget di atas sheet (' + rp(r.overSheet) + ' → ' + rp(r.est) + ')' : r.inv != null ? 'invoice' : 'estimate') + '</span></td><td class="num r" data-l="Cost">' + rp(r.cost) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
+    '<p class="muted" style="margin:0;font-size:12.5px">Savings = original budget − actual cost, per item. Every item that has an actual cost (invoice, or transfer when fully paid) counts right away. Click a box above to see those items in the table. Line items inside a vendor invoice are compared once at invoice level; Emergency Fund allocations and transfer fees are excluded. Items marked "Funded from Buffer" (form → Funding) take their cost from this buffer instead of adding to Total Budget. Click a row to open the item.</p>' +
     '<h4 class="buf-h">Savings · ' + b.items.length + ' item' + (b.items.length === 1 ? '' : 's') + '</h4>' + table(b.items, 'save') +
     (b.overItems.length ? '<h4 class="buf-h">Over Budget · ' + b.overItems.length + ' item' + (b.overItems.length === 1 ? '' : 's') + '</h4>' + table(b.overItems, 'over') : '') +
     (b.pending.length ? '<details class="buf-pending"><summary>Potential savings not counted yet · ' + b.pending.length + ' item' + (b.pending.length === 1 ? '' : 's') + ' (' + rp(b.pending.reduce(function (s, r) { return s + r.diff; }, 0)) + ')</summary>' + table(b.pending, 'save') + '</details>' : '') +
@@ -1547,34 +1568,82 @@ function reconRows(kind) {
   out.sort(function (a, b) { return Math.abs(b.diff) - Math.abs(a.diff); });
   return { rows: out, base: tb, now: tn };
 }
+/* v34: Budget & Paid vs the sheet, with a "Selisih" column and the items that make up the difference.
+   Target = the sheet totals (built-in snapshot, or the last uploaded sheet). Rows are matched to the sheet rows by
+   name / sheet row; the item differences always add up exactly to the total difference. */
+function balanceTarget() {
+  var m = db.meta || {}, sm = SHEET_SEED.meta || {};
+  return m.hash === null && m.sheetSubTotal != null ? { est: m.sheetSubTotal, tf: m.sheetTransferred || 0, seed: false } : { est: sm.sheetSubTotal, tf: sm.sheetTransferred || 0, seed: true };
+}
+function balanceMatch() {
+  var base = sheetBaseline(), now = db.finance.map(function (f) { return { f: f, c: calc(f) }; });
+  var pick = function (x) { return x.f.parentId || fromBuffer(x.f) || offBudgetRow(x.f) ? null : (x.c.est || 0); };
+  var B = base.map(function (x) { return { x: x, v: pick(x) }; }).filter(function (y) { return y.v != null; });
+  var N = now.map(function (x) { return { x: x, v: pick(x) }; }).filter(function (y) { return y.v != null; });
+  var nm = function (y) { return syncNorm(y.x.f.item); }, row = function (y) { return +y.x.f.sheetRow || 0; }, ws = function (y) { return wsBase(y.x.f.workstream); };
+  [function (a, b) { return row(a) && row(a) === row(b) && nm(a) === nm(b); },
+   function (a, b) { return nm(a) === nm(b); },
+   function (a, b) { return row(a) && Math.abs(row(a) - row(b)) <= 1 && ws(a) === ws(b) && nm(a) && nm(b) && (nm(a).indexOf(nm(b)) > -1 || nm(b).indexOf(nm(a)) > -1); },
+   function (a, b) { return row(a) && row(a) === row(b) && ws(a) === ws(b); }
+  ].forEach(function (t) { N.forEach(function (n) { if (n.m) return; var b = B.filter(function (b) { return !b.m && t(n, b); })[0]; if (b) { n.m = b; b.m = n; } }); });
+  var under = [], over = [];
+  N.forEach(function (n) {
+    var sv = n.m ? n.m.v : 0, d = n.v - sv; if (Math.abs(d) < 0.5) return;
+    (d < 0 ? under : over).push({ f: n.x.f, live: true, sheet: sv, web: n.v, diff: d, why: !n.m ? 'tidak ada di sheet' : d < 0 ? 'budget di web lebih kecil dari sheet' : 'lebih dari budget sheet' });
+  });
+  B.forEach(function (b) { if (!b.m && Math.abs(b.v) > 0.5) under.push({ f: b.x.f, live: false, sheet: b.v, web: 0, diff: -b.v, why: 'ada di sheet, belum ada di web' }); });
+  under.sort(function (a, b) { return a.diff - b.diff; }); over.sort(function (a, b) { return b.diff - a.diff; });
+  return { under: under, over: over, overSum: over.reduce(function (a, r) { return a + r.diff; }, 0), underSum: under.reduce(function (a, r) { return a + r.diff; }, 0) };
+}
+// paid per category; every transfer fee is counted under Emergency Fund
+function paidByCat(rows) {
+  var m = {}, fee = 0;
+  rows.forEach(function (x) { if (x.c.inherited || offBudgetRow(x.f)) return; var k = wsBase(x.f.workstream) || '—'; m[k] = (m[k] || 0) + (x.c.paid || 0); fee += x.c.fee || 0; });
+  m['Emergency Fund'] = (m['Emergency Fund'] || 0) + fee;
+  return m;
+}
+function balancePaidRows() {
+  var S = paidByCat(sheetBaseline()), W = paidByCat(db.finance.map(function (f) { return { f: f, c: calc(f) }; })), out = [];
+  Object.keys(S).concat(Object.keys(W)).forEach(function (k, i, all) { if (all.indexOf(k) !== i) return; var d = (W[k] || 0) - (S[k] || 0); if (Math.abs(d) > 0.5) out.push({ cat: k, sheet: S[k] || 0, web: W[k] || 0, diff: d }); });
+  out.sort(function (a, b) { return Math.abs(b.diff) - Math.abs(a.diff); });
+  return out;
+}
+function balanceBox(all) {
+  var T = balanceTarget(); if (T.est == null) return '';
+  if (all.rawEst != null) all = Object.assign({}, all, { est: all.rawEst });
+  var M = T.seed ? balanceMatch() : null, fromBuf = M && all.est > T.est ? Math.min(M.overSum, all.est - T.est) : 0;
+  var webEst = all.est - fromBuf, webTf = all.paid + all.fee;
+  var dEst = Math.round(webEst - T.est); if (dEst > 0) dEst = 0;          // more than the sheet budget = covered by the buffer, not a difference
+  var dTf = Math.round(webTf - T.tf);
+  var sd = function (x) { return x ? '<b class="bal-d">' + (x > 0 ? '+ ' : '− ') + rp(Math.abs(x)) + '</b>' : '<span class="bal-ok">✓ 0</span>'; };
+  var h = '<div class="bal-box' + (dEst || dTf ? ' bal-warn' : '') + '"><table class="bal-tbl"><thead><tr><th></th><th class="r">Sheet</th><th class="r">Web</th><th class="r">Selisih</th></tr></thead><tbody>' +
+    '<tr><th>Budget</th><td class="r money">' + rp(T.est) + '</td><td class="r money">' + rp(Math.min(webEst, T.est)) + '</td><td class="r money">' + sd(dEst) + '</td></tr>' +
+    '<tr><th>Paid <span class="muted">(incl. fee)</span></th><td class="r money">' + rp(T.tf) + '</td><td class="r money">' + rp(webTf) + '</td><td class="r money">' + sd(dTf) + '</td></tr></tbody></table>';
+  var li = function (name, sub, d, id) { return '<li' + (id ? ' data-act="edit-fin" data-id="' + id + '" class="bal-li"' : '') + '><span>' + esc(name) + (sub ? ' <span class="muted">· ' + sub + '</span>' : '') + '</span><b>' + (d > 0 ? '+ ' : '− ') + rp(Math.abs(d)) + '</b></li>'; };
+  var overAll = all.est - T.est;
+  if (overAll > 0.5 && M) h += '<div class="bal-note muted">Lebih ' + rp(overAll) + ' dari budget sheet → diambil dari Buffer' + (M.over.length ? ': ' + M.over.map(function (r) { return esc(r.f.item) + ' ' + rp(r.diff); }).join(' · ') : '') + '.</div>';
+  if (!dEst && !dTf) return h + '<p class="bal-note bal-ok">✓ Web sudah balance dengan sheet.</p></div>';
+  if (dEst) h += !M ? '<p class="bal-note">Budget web kurang ' + rp(-dEst) + ' dari sheet. Upload Sheet lagi untuk menyamakan.</p>' :
+    '<div class="bal-note"><b>Budget kurang ' + rp(-dEst) + ' ada di:</b><ul>' + M.under.map(function (r) { return li(r.f.item || '(no name)', esc(r.f.workstream || '—') + ' · ' + r.why + ' (sheet ' + rp(r.sheet) + ', web ' + rp(r.web) + ')', r.diff, r.live ? r.f.id : null); }).join('') + '</ul></div>';
+  if (dTf) h += !T.seed ? '<p class="bal-note">Paid web beda ' + rp(Math.abs(dTf)) + ' dari sheet. Upload Sheet lagi untuk menyamakan.</p>' :
+    '<div class="bal-note"><b>Paid ' + (dTf < 0 ? 'kurang ' : 'lebih ') + rp(Math.abs(dTf)) + ' ada di:</b><ul>' + balancePaidRows().map(function (r) {
+      return li(r.cat, (r.cat === 'Emergency Fund' ? 'termasuk semua fee transfer · ' : '') + (r.diff < 0 ? 'transfer di sheet belum dicatat di web' : 'web mencatat transfer lebih besar') + ' (sheet ' + rp(r.sheet) + ', web ' + rp(r.web) + ')', r.diff, null);
+    }).join('') + '</ul></div>';
+  return h + (canEdit() ? '<div><button type="button" class="btn sm primary" data-act="' + (db.budgetUpdateAvailable || T.seed ? 'budget-apply' : 'sheet-upload') + '">Samakan dengan sheet</button></div>' : '') + '</div>';
+}
 function reconDialog() {
-  var meta = db.meta || {}, E = reconRows('est'), T = reconRows('tf');
-  function rowsTable(rows, mode) {
-    return '<div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Sheet</th><th class="r">App</th><th class="r">Difference</th>' + (canEdit() && mode !== 'auto' ? '<th></th>' : '') + '</tr></thead><tbody>' + rows.map(function (r) {
-      var live = finById(r.f.id);
-      return '<tr' + (live ? ' data-act="edit-fin" data-id="' + r.f.id + '"' : '') + '><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + (r.f.sheetRow ? ' · sheet row ' + r.f.sheetRow : '') + ' · ' + esc(r.note) + '</span></td>' +
-        '<td class="num r" data-l="Sheet">' + rp(r.sheet) + '</td><td class="num r" data-l="App">' + rp(r.app) + '</td><td class="num r ' + (r.diff > 0 ? 'buf-neg' : r.diff < 0 ? 'buf-pos' : '') + '" data-l="Difference">' + (r.diff > 0 ? '+ ' : r.diff < 0 ? '− ' : '') + rp(Math.abs(r.diff)) + '</td>' +
-        (canEdit() && mode === 'review' ? '<td class="r"><button type="button" class="btn sm" data-act="recon-ok" data-key="' + esc(r.key) + '" data-val="' + r.app + '" title="Selisih ini sudah benar; tidak perlu direview lagi">✓ OK</button></td>' : '') +
-        (canEdit() && mode === 'ok' ? '<td class="r"><button type="button" class="btn sm ghost" data-act="recon-undo" data-key="' + esc(r.key) + '">Undo</button></td>' : '') + '</tr>';
+  var meta = db.meta || {};
+  function rowsOf(kind) { return reconRows(kind).rows.filter(function (r) { return r.note === 'Changed in app' && finById(r.f.id); }); }
+  function tbl(rows, label) {
+    if (!rows.length) return '<p class="faint" style="margin:0">Tidak ada item ' + label + ' yang beda dari sheet.</p>';
+    return '<div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Sheet</th><th class="r">Web</th><th class="r">Beda</th></tr></thead><tbody>' + rows.map(function (r) {
+      return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + '</span></td><td class="num r" data-l="Sheet">' + rp(r.sheet) + '</td><td class="num r" data-l="Web">' + rp(r.app) + '</td><td class="num r ' + (r.diff > 0 ? 'buf-neg' : 'buf-pos') + '" data-l="Beda">' + (r.diff > 0 ? '+ ' : '− ') + rp(Math.abs(r.diff)) + '</td></tr>';
     }).join('') + '</tbody></table></div>';
   }
-  function table(R, sheetTotal, label) {
-    var known = sheetTotal != null ? R.base - sheetTotal : 0;
-    var review = R.rows.filter(function (r) { return !r.auto && !r.accepted; }), ok = R.rows.filter(function (r) { return r.accepted; }), auto = R.rows.filter(function (r) { return r.auto; });
-    var sum = function (l) { return l.reduce(function (a, r) { return a + r.diff; }, 0); };
-    return '<div class="buf-sum"><div><span>Sheet</span><b>' + rp(sheetTotal != null ? sheetTotal : R.base) + '</b></div><div><span>App now</span><b>' + rp(R.now) + '</b></div><div><span>Difference</span><b class="' + (R.now - (sheetTotal != null ? sheetTotal : R.base) > 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(R.now - (sheetTotal != null ? sheetTotal : R.base)) + '</b></div></div>' +
-      (Math.abs(known) > 0.5 ? '<p class="muted" style="margin:0;font-size:12.5px">Of this, ' + rp(known) + ' was already different when the sheet was imported (rows flagged at import, e.g. Full Paid without the transfer in the sheet\'s DP Total). The rest comes from the rows below.</p>' : '') +
-      '<p class="recon-sub"><b>To review · ' + review.length + '</b>' + (review.length ? ' <span class="muted">(' + (sum(review) >= 0 ? '+ ' : '− ') + rp(Math.abs(sum(review))) + ')</span>' : '') + '</p>' +
-      (review.length ? rowsTable(review, 'review') : '<p class="faint" style="margin:0">✓ Nothing left to review for ' + label + '.</p>') +
-      (ok.length ? '<details class="buf-pending"><summary>Marked OK · ' + ok.length + ' (' + (sum(ok) >= 0 ? '+ ' : '− ') + rp(Math.abs(sum(ok))) + ')</summary>' + rowsTable(ok, 'ok') + '</details>' : '') +
-      (auto.length ? '<details class="buf-pending"><summary>Deleted / renamed — accepted automatically · ' + auto.length + ' (' + (sum(auto) >= 0 ? '+ ' : '− ') + rp(Math.abs(sum(auto))) + ')</summary>' + rowsTable(auto, 'auto') + '</details>' : '');
-  }
-  openModal('<div class="modal-h"><h3>Difference with the Budget Sheet</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
-    '<p class="muted" style="margin:0;font-size:12.5px">Compared with the budget sheet snapshot built into the app (' + esc(meta.file || 'sheet') + (meta.snapshot ? ' · ' + fmtDate(meta.snapshot) : '') + '). Rows are matched by sheet row and item name. Click a row to open it.</p>' +
-    (function () { var o = totals(db.finance).off; return o.count ? '<p class="muted" style="margin:0;font-size:12.5px">Not compared: ' + o.count + ' rows outside the event budget (' + esc(Object.keys(offBudgetMap()).map(function (k) { return k + ' → ' + offBudgetMap()[k]; }).join(', ')) + ') · budget ' + rp(o.est) + '.</p>' : ''; })() +
-    '<h4 class="buf-h">Total Budget</h4>' + table(E, meta.sheetSubTotal, 'budget') +
-    '<h4 class="buf-h">Total Transfer (Paid + transfer fees)</h4>' + table(T, meta.sheetTransferred, 'transfer') +
-    '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Close</button></div></div>', 'wide', { allowReadonly: true });
+  openModal('<div class="modal-h"><h3>Item yang beda dari sheet</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
+    '<p class="muted" style="margin:0;font-size:12.5px">Cara paling cepat supaya balance: download tab EDIT DISINI (.csv) lalu klik <b>Upload Sheet</b> — semua angka disamakan dengan sheet. Atau klik item di bawah untuk edit manual.</p>' +
+    '<h4 class="buf-h">Budget</h4>' + tbl(rowsOf('est'), 'budget') + '<h4 class="buf-h">Paid (termasuk fee transfer)</h4>' + tbl(rowsOf('tf'), 'paid') +
+    '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Close</button>' + (canEdit() ? '<button type="button" class="btn primary" data-act="sheet-upload">Upload Sheet</button>' : '') + '</div></div>', 'wide', { allowReadonly: true });
 }
 /* v26: "need checking" = rows with at least one warning (⚠) or marked Needs Verification. Listed with the reasons. */
 function checkDialog() {
@@ -2897,17 +2966,26 @@ function renderTimeline(list) {
 }
 
 /* ---------- Finance ---------- */
+var BUF_FILTERS = { 'buf-save': 'Savings (buffer) only', 'buf-over': 'Over budget only', 'buf-used': 'Used from buffer only', 'buf-all': 'Buffer items only' };
+function bufferIds(kind) {
+  var b = bufferBudget(), ids = {}, add = function (l) { l.forEach(function (r) { ids[r.f.id] = 1; }); };
+  if (kind === 'buf-save' || kind === 'buf-all') add(b.items);
+  if (kind === 'buf-over' || kind === 'buf-all') add(b.overItems);
+  if (kind === 'buf-used' || kind === 'buf-all') add(b.usedItems);
+  return ids;
+}
 function filteredFinance() {
-  var q = ui.finQ.trim().toLowerCase();
+  var q = ui.finQ.trim().toLowerCase(), bufIds = BUF_FILTERS[ui.finAmt] ? bufferIds(ui.finAmt) : null;
   var match = function (f) {
     if (ui.finWs && f.workstream !== ui.finWs) return false;
     if (ui.finPay && f.paymentStatus !== ui.finPay) return false;
     if (ui.finInv && f.invoiceStatus !== ui.finInv) return false;
     if (finDueActive() && !finDueMatch(f)) return false;
     if (ui.finAmt) {   // from the Paid / Outstanding Payment cards; line items inside a vendor invoice are counted on the invoice row
-      var ca = calc(f); if (ca.inherited || ca.allocation || offBudgetRow(f)) return false;
-      if (ui.finAmt === 'paid' && !(ca.paid > 0)) return false;
-      if (ui.finAmt === 'outstanding' && !(ca.outstanding > 0)) return false;
+      if (bufIds) { if (!bufIds[f.id]) return false; }
+      else { var ca = calc(f); if (ca.inherited || ca.allocation || offBudgetRow(f)) return false; }
+      if (!bufIds && ui.finAmt === 'paid' && !(ca.paid > 0)) return false;
+      if (!bufIds && ui.finAmt === 'outstanding' && !(ca.outstanding > 0)) return false;
     }
     if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.receipt2, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].concat(Object.keys(f.cf || {}).map(function (k) { return f.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false; }
     return true;
@@ -3109,24 +3187,19 @@ function renderFinance() {
     var on = !!amt && ui.finAmt === amt;
     return '<button type="button" class="kpi kpi-btn' + (hl ? ' hl' : '') + (on ? ' kpi-on' : '') + '" data-act="fin-amt" data-amt="' + amt + '" aria-pressed="' + on + '" title="' + title + '"><span class="k">' + k + '</span><span class="v money">' + v + '</span><span class="s">' + sub + (on ? ' · filter on ✕' : ' · show items →') + '</span></button>';
   };
+  var T0 = balanceTarget(), M0 = T0.seed && T0.est != null && all.est > T0.est ? balanceMatch() : null, ovr = M0 ? Math.min(M0.overSum, all.est - T0.est) : 0;
+  if (ovr > 0.5) { all = Object.assign({}, all, { est: all.est - ovr, fromBuffer: (all.fromBuffer || 0) + ovr, rawEst: all.est }); }
   h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.fromBuffer ? ' · + ' + rp(all.fromBuffer) + ' from buffer' : '') + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
-    kbtn('Paid', rp(all.paid), (all.fee ? '+ ' + rp(all.fee) + ' fees' : 'transfers made'), false, 'paid', 'Show items that already have a payment') +
+    kbtn('Paid', rp(all.paid + all.fee), (all.fee ? 'incl. ' + rp(all.fee) + ' transfer fees' : 'transfers made'), false, 'paid', 'Show items that already have a payment') +
     kbtn('Outstanding Payment', rp(all.outstanding), 'still to pay', all.outstanding > 0, 'outstanding', 'Show items that still have an amount to pay') +
     '<button type="button" class="kpi kpi-btn' + (buf.available < 0 ? ' hl' : '') + '" data-act="buffer-detail" aria-label="Buffer Budget details"><span class="k">Buffer Budget · Available</span><span class="v money' + (buf.available < 0 ? ' buf-neg' : '') + '">' + (buf.available < 0 ? '− ' + rp(-buf.available) : rp(buf.available)) + '</span>' +
     '<span class="s">saved ' + rp(buf.net) + (buf.used ? ' · used ' + rp(buf.used) : '') + ' · view details →</span></button></div>';
-  if (meta && meta.sheetSubTotal != null) {
-    var dEst = all.est - meta.sheetSubTotal, dTf = (all.paid + all.fee) - meta.sheetTransferred;
-    if (!dEst && !dTf) h += '<p class="fin-ok">✓ Total cocok dengan budget sheet (' + rp(meta.sheetSubTotal) + ')' + (all.flagged ? ' · <button type="button" class="btn sm ghost" data-act="check-list">Lihat ' + all.flagged + ' item yang perlu dicek</button>' : '') + '</p>';
-    else h += '<div class="banner warn"><div><b>Rekonsiliasi dengan sheet.</b> Sub Total sheet ' + rp(meta.sheetSubTotal) + ' · app ' + rp(all.est) + (dEst ? ' (selisih ' + rp(dEst) + ')' : ' ✓') +
-      '. Total transfer sheet (DP Total) ' + rp(meta.sheetTransferred) + ' · app ' + rp(all.paid + all.fee) + (dTf ? ' (selisih ' + rp(dTf) + ')' : ' ✓') + '.' +
-      '<div class="recon-btns"><button type="button" class="btn sm" data-act="recon-detail">Lihat rincian selisih' + (function () { var n = reconRows('est').rows.concat(reconRows('tf').rows).filter(function (r) { return !r.auto && !r.accepted; }).length; return n ? ' · ' + n + ' perlu direview' : ' · semua sudah direview ✓'; })() + '</button>' +
-      (all.flagged ? '<button type="button" class="btn sm" data-act="check-list">Lihat ' + all.flagged + ' item yang perlu dicek</button>' : '') + '</div></div></div>';
-  }
+  h += balanceBox(all);
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
     '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All Categories') + '</select>' +
     '<select class="select" id="finPay" aria-label="Payment Status">' + opts(payList(), ui.finPay, 'All Payment Status') + '</select>' +
     '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' + finDueControl() + colPickerBtn('finance') +
-    (ui.finAmt ? '<button type="button" class="chip-filter" data-act="fin-amt" data-amt="' + ui.finAmt + '" title="Remove this filter">' + (ui.finAmt === 'paid' ? 'Paid items only' : 'Outstanding items only') + ' ✕</button>' : '') +
+    (ui.finAmt ? '<button type="button" class="chip-filter" data-act="fin-amt" data-amt="' + ui.finAmt + '" title="Remove this filter">' + (BUF_FILTERS[ui.finAmt] || (ui.finAmt === 'paid' ? 'Paid items only' : 'Outstanding items only')) + ' ✕</button>' : '') +
     ((ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDue().m || ui.finAmt) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
   if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No Budget Items Yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Items Match', 'Try a different search or clear the filters.') + '</div>';
@@ -3153,7 +3226,7 @@ function renderFinance() {
     var sub = [];
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
     if (fromBuffer(f)) sub.push('<span class="from-buf">Funded from Buffer</span>');
-    if (f.kind === 'allocation') sub.push('Budget pool · ' + kidsOf(f).length + ' sub item' + (kidsOf(f).length === 1 ? '' : 's'));
+    if (f.kind === 'allocation') sub.push('Budget pool · ' + kidsOf(f).length + ' sub item' + (kidsOf(f).length === 1 ? '' : 's') + (c.feeUsed ? ' + transfer fees ' + rp(c.feeUsed) : ''));
     var qtyTxt = c.qty != null ? rpFmt.format(c.qty) + (f.unit ? ' <span class="faint">' + esc(f.unit) + '</span>' : '') : '<span class="faint">—</span>';
     var pay, paid, rem, dpc, inv, ivs, rec, pd, iref;
     if (c.inherited) {
@@ -3165,7 +3238,7 @@ function renderFinance() {
       paid = kp ? '<span title="Paid on the sub items">' + rp(kp) + '</span><span class="tsub">on sub items</span>' : '<span class="faint">—</span>';
       var usedPct = c.est ? Math.min(100, Math.round(c.used / c.est * 100)) : 0, over = c.est != null && c.used > c.est;
       rem = '<span class="pool-rem' + (over ? ' over' : '') + '" title="Budget ' + rp(c.est) + ' · used ' + rp(c.used) + '"><b>' + (over ? 'Over ' + rp(c.used - c.est) : rp(c.fundLeft)) + '</b>' +
-        '<span class="pool-bar"><i style="width:' + usedPct + '%"></i></span><span class="tsub">used ' + rp(c.used) + ' of ' + rp(c.est) + '</span></span>';
+        '<span class="pool-bar"><i style="width:' + usedPct + '%"></i></span><span class="tsub">used ' + rp(c.used) + ' of ' + rp(c.est) + (c.feeUsed ? ' · incl. transfer fees ' + rp(c.feeUsed) : '') + '</span></span>';
       ivs = pay = rec = '<span class="badge b-neutral nodot">Budget Pool</span>'; pd = '<span class="faint">—</span>';
       iref = fileCell(f.invoiceRef);
     } else {
@@ -3812,7 +3885,7 @@ function handleAct(el, e) {
     case 'ms-clear': ui[el.dataset.key] = []; render(); break;
     case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
     case 'fin-amt': {
-      var amt = el.dataset.amt || '';
+      var amt = el.dataset.amt || ''; if (el.closest('.modal')) closeModal();
       if (!amt) { ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; }   // Total Budget = show everything
       else ui.finAmt = ui.finAmt === amt ? '' : amt;                                                                   // click again to turn it off
       if (ui.page !== 'finance') go('finance'); else render();

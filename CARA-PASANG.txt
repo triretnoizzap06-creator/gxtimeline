@@ -1,12 +1,44 @@
-GX27 - Patch v29 (Web = Sheet: angka disamakan + Upload Sheet supaya selalu up to date)
+GX27 - Patch v33 (Buffer: semua sisa budget langsung masuk buffer + kotak buffer bisa diklik)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v28.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v32.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v29
+CHANGES v33
+1. Buffer Budget: semua item yang biaya aktualnya (invoice, atau transfer kalau Full Paid) di bawah budget langsung dihitung
+   sebagai buffer, tanpa perlu invoice Submitted / Paid dulu. Over budget juga langsung dihitung.
+   (Bagian "Potential savings not counted yet" tidak ada lagi.)
+2. Di popup Buffer Budget, 4 kotak bisa diklik -> popup tertutup dan tabel Finance langsung terfilter:
+   Savings -> item yang hemat · Over Budget -> item yang lewat budget · Used from Buffer -> item yang dibiayai buffer ·
+   Available Buffer -> semua item buffer. Klik chip "... only ✕" untuk menghapus filter.
+
+CHANGES v32 (included)
+1. Semua fee transfer dihitung sebagai pemakaian Emergency Fund (Lain-Lain):
+   "used ... · incl. transfer fees Rp ..." di baris Emergency Fund. Paid tetap = transfer + fee (sama dengan DP Total sheet).
+2. Budget yang lebih dari sheet = diambil dari Buffer, bukan selisih.
+   Doorprize: budget kembali ke total itemnya (Rp 8.654.639, sama dengan sheet); transfer Rp 8.880.000 -> lebih Rp 225.361 masuk Over Budget di Buffer.
+   Item lain yang budgetnya dinaikkan di app: kelebihannya tercatat "Used from Buffer", Total Budget tetap Rp 204.280.139.
+3. Kolom Selisih Budget hanya muncul kalau web KURANG dari sheet.
+   Selisih Paid dijelaskan per kategori (fee transfer dihitung di Emergency Fund), jadi pindah item di dalam Emergency Fund tidak dianggap selisih.
+
+CHANGES v31 (included)
+1. Banner "Rekonsiliasi dengan sheet ... Lihat rincian selisih · perlu direview" dihapus total.
+2. Gantinya kotak kecil di bawah kartu:   Sheet | Web | Selisih
+   Budget  Rp 204.280.139 | ... | selisih
+   Paid    Rp  82.638.870 | ... | selisih   (Paid = transfer + fee, sama seperti DP Total di sheet)
+   Kalau ada selisih, di bawahnya ditulis selisihnya ada di item mana (klik item untuk buka) + tombol "Samakan dengan sheet".
+   Kalau sudah sama: "✓ Web sudah balance dengan sheet".
+
+CHANGES v30 (included)
+1. Banner rekonsiliasi (rincian item dihapus / di-rename / "perlu direview") dihapus.
+   Gantinya satu baris di bawah kartu:  Budget sheet vs web  ·  Paid sheet vs web  -> "✓ Balance dengan sheet".
+   Kalau belum balance: muncul selisihnya + tombol "Samakan dengan sheet" (update dari data sheet di app, atau Upload Sheet).
+2. Kartu Paid sekarang = total uang yang sudah ditransfer termasuk fee transfer, jadi angkanya sama dengan DP Total di sheet
+   (Rp 82.638.870, termasuk fee Rp 27.500).
+
+CHANGES v29 (included)
 1. "Update dari Sheet": sheet sekarang jadi acuan. SEMUA perbedaan sudah dicentang, termasuk angka yang tadinya diedit di app
    (mis. estimasi Doorprize Rp 8.880.000 -> dikembalikan ke rincian sheet Rp 8.654.639), jadi Total Budget = Sub Total sheet
    Rp 204.280.139 dan transfer = Rp 82.638.870. Hapus centang kalau ada yang memang mau beda dari sheet.
