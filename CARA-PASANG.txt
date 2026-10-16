@@ -1,12 +1,33 @@
-GX27 - Patch v16 (Collapsible sidebar + Presentation dashboard)
+GX27 - Patch v18 (Presentation: Task Progress clickable ke filter Tasks)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v15.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v17.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v16
+CHANGES v18
+1. Presentation > Task Progress: legend, kartu, dan potongan donut bisa diklik, langsung buka Tasks dengan filter Status:
+   Completed -> status Done · In Progress -> status In Progress · Pending -> status Pending (+ Blocked) · Not Started -> status Not Started ·
+   Overdue -> task belum selesai yang deadline-nya sudah lewat. Jumlah task di Tasks = angka di Presentation.
+2. "Blocked" dihapus dari Presentation; task Blocked dihitung masuk Pending supaya total tetap sama.
+
+CHANGES v17 (included)
+1. Master Timeline shows every task that has a deadline, from all workstreams, by default.
+   Filters: All Tasks / Milestones Only (the previous view), workstream pills (Show All / Hide All),
+   Category, Status (Not done yet / Overdue / Done) and Search. "Clear Filters" resets everything.
+   Tasks without a deadline can't be placed on the timeline; the count is shown next to the filters.
+   The task form checkbox is now "Show as milestone" (used by Milestones Only).
+2. Need per Station: search bar (station, location, workstream, item, notes, any column).
+   A matching station shows all its items; otherwise only the matching items are shown.
+3. Finance & Procurement:
+   - English column headers: Item, Estimated Budget, Paid, Remaining, Due Date, Payment Status, Task
+     (hidden ones too: Unit Price, Invoice, Down Payment, Invoice Status, Transfer Receipt, Check).
+     Headers you renamed yourself are kept; Estimated Budget and Payment Status are switched on.
+   - All price inputs (budget form amounts and custom "Rupiah" columns) format while typing:
+     10000 -> "Rp 10.000". Values are still saved as plain numbers, so totals and calculations are unchanged.
+
+CHANGES v16 (included)
 1. Collapsible sidebar: ☰ button fixed at the top-left shows / hides the sidebar; the page content widens automatically.
    The choice is remembered in each browser. Works on desktop and mobile (on mobile it hides the top menu bar).
 2. Presentation dashboard: new menu item "Presentation" (#present), built live from the same Tasks & Finance data

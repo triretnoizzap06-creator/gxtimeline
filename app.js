@@ -51,10 +51,10 @@ var COL_BUILTIN = {
     { key: 'payment', label: 'Payment' }
   ],
   finance: [
-    { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Harga', num: true, hidden: true }, { key: 'est', label: 'Budget', num: true, total: 'est' },
-    { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'DP', num: true, hidden: true }, { key: 'paid', label: 'Dibayar', num: true, total: 'paid' }, { key: 'remaining', label: 'Sisa', num: true, total: 'outstanding' },
-    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Status Invoice', hidden: true }, { key: 'paymentStatus', label: 'Status Payment' }, { key: 'receipt', label: 'Bukti TF', hidden: true },
-    { key: 'task', label: 'Task' }, { key: 'check', label: 'Cek', hidden: true }
+    { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Unit Price', num: true, hidden: true }, { key: 'est', label: 'Estimated Budget', num: true, total: 'est' },
+    { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' },
+    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'receipt', label: 'Transfer Receipt', hidden: true },
+    { key: 'task', label: 'Task' }, { key: 'check', label: 'Check', hidden: true }
   ]
 };
 var COL_TYPES = [{ value: 'text', label: 'Teks' }, { value: 'number', label: 'Angka' }, { value: 'money', label: 'Rupiah' }, { value: 'date', label: 'Tanggal' }, { value: 'select', label: 'Pilihan (Dropdown)' }, { value: 'checkbox', label: 'Centang' }, { value: 'link', label: 'Link' }];
@@ -110,8 +110,8 @@ function cfCell(table, col, r) {
   if (col.type === 'checkbox') return '<td><input type="checkbox" class="cf-check"' + a + (v ? ' checked' : '') + '></td>';
   if (col.type === 'select') return '<td><select class="inline-select"' + a + '>' + opts(withCurrent(col.options, v || ''), v || '', '—') + '</select></td>';
   var type = col.type === 'date' ? 'date' : col.type === 'link' ? 'url' : 'text';
-  var val = col.type === 'money' && v != null && v !== '' ? rpFmt.format(v) : (v == null ? '' : v);
-  return '<td' + (col.type === 'number' || col.type === 'money' ? ' class="num r"' : '') + '><input class="cf-input' + (col.type === 'number' || col.type === 'money' ? ' r' : '') + '" type="' + type + '"' + a + ' value="' + esc(val) + '"' + (col.type === 'number' || col.type === 'money' ? ' inputmode="decimal"' : '') + '></td>';
+  var val = col.type === 'money' ? rpInputText(v) : (v == null ? '' : v);
+  return '<td' + (col.type === 'number' || col.type === 'money' ? ' class="num r"' : '') + '><input class="cf-input' + (col.type === 'number' || col.type === 'money' ? ' r' : '') + '" type="' + type + '"' + a + ' value="' + esc(val) + '"' + (col.type === 'money' ? ' inputmode="numeric" data-rp autocomplete="off"' : col.type === 'number' ? ' inputmode="decimal"' : '') + '></td>';
 }
 function parseCf(col, raw) {
   if (col.type === 'checkbox') return { ok: true, value: !!raw };
@@ -130,7 +130,7 @@ function cfFields(table, r) {
     var v = cfVal(r, col.key), name = 'cf__' + col.key, inputHtml;
     if (col.type === 'checkbox') inputHtml = '<label class="cf-cb"><input type="checkbox" id="f-' + name + '" name="' + name + '" value="1"' + (v ? ' checked' : '') + '> Ya</label>';
     else if (col.type === 'select') inputHtml = sel(name, withCurrent(col.options, v || ''), v || '', '—');
-    else inputHtml = inp(name, col.type === 'money' && v != null ? rpFmt.format(v) : v, col.type === 'date' ? 'date' : col.type === 'link' ? 'url' : 'text', col.type === 'number' || col.type === 'money' ? 'inputmode="decimal"' : 'maxlength="500"');
+    else inputHtml = inp(name, col.type === 'money' ? rpInputText(v) : v, col.type === 'date' ? 'date' : col.type === 'link' ? 'url' : 'text', col.type === 'money' ? 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"' : col.type === 'number' ? 'inputmode="decimal"' : 'maxlength="500"');
     return field(name, esc(col.label), inputHtml);
   }).join('');
 }
@@ -535,6 +535,16 @@ function normalizeDb(d) {
     });
     s.finMinimal = true;
   }
+  if (!s.colEnV17) {
+    var EN = { 'Harga': 'Unit Price', 'Budget': 'Estimated Budget', 'Est. total': 'Estimated Budget', 'DP': 'Down Payment', 'Dibayar': 'Paid', 'Sisa': 'Remaining',
+      'Status Invoice': 'Invoice Status', 'Status Payment': 'Payment Status', 'Bukti TF': 'Transfer Receipt', 'Cek': 'Check', 'Pay deadline': 'Due Date', 'Linked task': 'Task' };
+    s.columns.finance.forEach(function (c) {
+      if (c.custom) return;
+      if (EN[c.label]) c.label = EN[c.label];
+      if (c.key === 'est' || c.key === 'paymentStatus') c.visible = true;
+    });
+    s.colEnV17 = true;
+  }
   syncFinanceTasks(d, s);
   if (!s.wsOrigin || typeof s.wsOrigin !== 'object' || Array.isArray(s.wsOrigin)) s.wsOrigin = {};
   wsColorSlots(s);
@@ -855,6 +865,23 @@ function fmtDMY(s) { var d = parseISO(s); return d ? String(d.getDate()).padStar
 function fmtRange(t) { if (t.start && t.deadline && t.start !== t.deadline) return fmtDate(t.start, true) + ' – ' + fmtDate(t.deadline, true); return fmtDate(t.deadline, true); }
 var rpFmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 function rp(n) { return n == null ? '—' : 'Rp ' + rpFmt.format(n); }
+/* v17: every price input (data-rp) formats as Rupiah while typing: 10000 -> "Rp 10.000". Only digits are kept,
+   the caret stays after the same digit, and parseAmount() turns the text back into a plain number on save. */
+function rpInputText(v) { var n = numOrNull(v); return n == null ? '' : 'Rp ' + rpFmt.format(Math.round(n)); }
+function formatRpInput(el) {
+  var raw = el.value, pos = el.selectionStart == null ? raw.length : el.selectionStart;
+  var before = raw.slice(0, pos).replace(/\D/g, '').replace(/^0+(?=\d)/, '').length;
+  var digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  var out = digits ? 'Rp ' + rpFmt.format(Number(digits)) : '';
+  if (out === raw) return;
+  el.value = out;
+  var p = out.length;
+  if (before === 0) p = digits ? 3 : 0;
+  else for (var i = 0, seen = 0; i < out.length; i++) { if (/\d/.test(out[i])) { seen++; if (seen === before) { p = i + 1; break; } } }
+  try { el.setSelectionRange(p, p); } catch (e) {}
+}
+document.addEventListener('input', function (e) { var el = e.target; if (el && el.matches && el.matches('input[data-rp]')) formatRpInput(el); }, true);
+document.addEventListener('focusin', function (e) { var el = e.target; if (el && el.matches && el.matches('input[data-rp]') && !el.value) { el.placeholder = el.placeholder || 'Rp 0'; } });
 function numOrNull(v) { return (v === null || v === undefined || v === '' || isNaN(v)) ? null : Number(v); }
 function parseAmount(raw) {
   if (raw == null) return { ok: true, value: null };
@@ -1197,7 +1224,7 @@ function relTime(ms) {
 function pDonut(parts, total, center, sub) {
   var r = 52, C = 2 * Math.PI * r, off = 0;
   var segs = parts.filter(function (x) { return x.n > 0; }).map(function (x) {
-    var len = total ? x.n / total * C : 0, seg = '<circle r="' + r + '" cx="64" cy="64" fill="none" stroke="' + x.c + '" stroke-width="16" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 64 64)"><title>' + esc(x.k) + ': ' + x.n + '</title></circle>';
+    var len = total ? x.n / total * C : 0, seg = '<circle' + (x.ty ? ' data-act="task-stype" data-stype="' + x.ty + '" class="pd-seg"' : '') + ' r="' + r + '" cx="64" cy="64" fill="none" stroke="' + x.c + '" stroke-width="16" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 64 64)"><title>' + esc(x.k) + ': ' + x.n + '</title></circle>';
     off += len; return seg;
   }).join('');
   return '<svg class="pd-donut" viewBox="0 0 128 128" role="img" aria-label="' + esc(center + ' ' + sub) + '"><circle r="' + r + '" cx="64" cy="64" fill="none" stroke="var(--neutral-bg)" stroke-width="16"/>' + segs +
@@ -1205,11 +1232,12 @@ function pDonut(parts, total, center, sub) {
 }
 function renderPresent() {
   var today = todayISO(), st = taskStats(), ft = totals(db.finance), buf = bufferBudget();
-  var notStarted = Math.max(0, st.total - st.done - st.prog - st.appr - st.blocked);
+  // Blocked is not shown separately on the dashboard: blocked tasks are counted under Pending
+  var pendAll = st.appr + st.blocked, notStarted = Math.max(0, st.total - st.done - st.prog - pendAll);
   var pct = st.total ? Math.round(st.done / st.total * 100) : 0;
   var parts = [
-    { k: 'Completed', n: st.done, c: 'var(--ok)' }, { k: 'In Progress', n: st.prog, c: 'var(--info)' },
-    { k: 'Pending', n: st.appr, c: 'var(--warn)' }, { k: 'Blocked', n: st.blocked, c: 'var(--crit)' }, { k: 'Not Started', n: notStarted, c: 'var(--faint)' }
+    { k: 'Completed', n: st.done, c: 'var(--ok)', ty: 'done' }, { k: 'In Progress', n: st.prog, c: 'var(--info)', ty: 'progress' },
+    { k: 'Pending', n: pendAll, c: 'var(--warn)', ty: 'pending' }, { k: 'Not Started', n: notStarted, c: 'var(--faint)', ty: 'todo' }
   ];
   var dl = daysBetween(today, EVENT_DATE), now = new Date();
   var h = '<div class="pd">';
@@ -1219,13 +1247,13 @@ function renderPresent() {
     '<button class="btn" data-act="present-fs" type="button">' + (document.fullscreenElement ? 'Exit Full Screen' : 'Full Screen') + '</button></div></div>';
 
   // tasks + budget
-  var stat = function (k, n, c, sub, act, arg) { return '<button type="button" class="pd-stat" data-act="' + act + '" data-view="' + arg + '" style="--c:' + c + '"><span class="k">' + k + '</span><b>' + n + '</b>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>'; };
+  var stat = function (k, n, c, sub, act, arg) { return '<button type="button" class="pd-stat" data-act="' + act + '" data-stype="' + arg + '" title="Open in Tasks" style="--c:' + c + '"><span class="k">' + k + '</span><b>' + n + '</b>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>'; };
   h += '<div class="pd-row pd-row-2">';
   h += '<section class="pd-card"><div class="pd-card-h"><h2>Task Progress</h2><span class="muted">' + st.total + ' tasks</span></div><div class="pd-tasks">' +
     pDonut(parts, st.total, pct + '%', 'completed') +
-    '<div class="pd-legend">' + parts.map(function (x) { return '<div><i style="background:' + x.c + '"></i><span>' + x.k + '</span><b class="num">' + x.n + '</b></div>'; }).join('') + '</div></div>' +
-    '<div class="pd-stats">' + stat('Completed', st.done, 'var(--ok)', '', 'go-tasks', 'all') + stat('In Progress', st.prog, 'var(--info)', '', 'go-tasks', 'all') +
-    stat('Pending', st.appr, 'var(--warn)', '', 'go-tasks', 'pending') + stat('Overdue', st.overdue, 'var(--crit)', 'past deadline, not done', 'go-tasks', 'pending') + '</div></section>';
+    '<div class="pd-legend">' + parts.map(function (x) { return '<button type="button" data-act="task-stype" data-stype="' + x.ty + '" title="Show ' + x.k + ' tasks"><i style="background:' + x.c + '"></i><span>' + x.k + '</span><b class="num">' + x.n + '</b></button>'; }).join('') + '</div></div>' +
+    '<div class="pd-stats">' + stat('Completed', st.done, 'var(--ok)', '', 'task-stype', 'done') + stat('In Progress', st.prog, 'var(--info)', '', 'task-stype', 'progress') +
+    stat('Pending', pendAll, 'var(--warn)', '', 'task-stype', 'pending') + stat('Overdue', st.overdue, 'var(--crit)', 'past deadline, not done', 'task-overdue', '') + '</div></section>';
   var paidPct = ft.est ? Math.min(100, ft.paid / ft.est * 100) : 0, outPct = ft.est ? Math.min(100 - paidPct, ft.outstanding / ft.est * 100) : 0;
   h += '<section class="pd-card"><div class="pd-card-h"><h2>Budget Summary</h2><span class="muted">' + ft.count + ' budget items</span></div>' +
     '<div class="pd-money">' +
@@ -1307,7 +1335,7 @@ function mtWorkstreams(list) {
   var order = allWorkstreams().filter(function (w) { return wsBase(w) !== 'Event Day'; });
   PROGRAMS.forEach(function (p) { var cur = wsCurrent(p); if (order.indexOf(cur) < 0 && have[cur]) order.push(cur); });
   Object.keys(have).forEach(function (w) { if (order.indexOf(w) < 0 && wsBase(w) !== 'Event Day') order.push(w); });
-  return order.filter(function (w) { return have[w] || (isProgram(w) && db.settings.workstreams.indexOf(w) > -1); });
+  return order.filter(function (w) { return have[w]; });
 }
 function mtStyle(ws, kind) {
   if (wsClass(ws)) return '';
@@ -1316,9 +1344,37 @@ function mtStyle(ws, kind) {
   if (kind === 'dot') return ' style="background:' + c[0] + '"';
   return ' style="color:' + c[0] + '"';
 }
+/* v17: Master Timeline shows every task with a deadline (all workstreams) by default.
+   Filters: scope (All tasks / Milestones only = the old rule incl. "Show in Master Timeline"), workstream pills,
+   category, status and search. Filter choices are remembered per browser (ui.mt*). */
+function mtFiltered() {
+  var scope = ui.mtScope || 'all', cat = ui.mtCat || '', stF = ui.mtStatus || '', q = String(ui.mtQ || '').trim().toLowerCase();
+  return db.tasks.filter(function (t) {
+    if (!t.deadline) return false;
+    if (scope === 'milestones' && !onMaster(t)) return false;
+    if (cat && t.category !== cat) return false;
+    if (stF === 'open' && isDone(t)) return false;
+    if (stF === 'done' && !isDone(t)) return false;
+    if (stF === 'overdue' && dueState(t).kind !== 'overdue') return false;
+    if (q && [t.name, t.notes, t.pic, t.workstream, (t.workstreams || []).join(' '), t.category].join(' ').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+}
+function mtToolbar(shown, total) {
+  var scope = ui.mtScope || 'all', noDl = db.tasks.filter(function (t) { return !t.deadline; }).length;
+  var anyF = (ui.mtCat || ui.mtStatus || ui.mtQ || (ui.mtHide || []).length || scope !== 'all');
+  return '<div class="toolbar mt-toolbar"><div class="tabs mt-scope" role="tablist" aria-label="Timeline scope">' +
+    '<button role="tab" data-act="mt-scope" data-scope="all" aria-selected="' + (scope === 'all') + '">All Tasks</button>' +
+    '<button role="tab" data-act="mt-scope" data-scope="milestones" aria-selected="' + (scope === 'milestones') + '">Milestones Only</button></div>' +
+    '<input class="input search" id="mtSearch" type="search" placeholder="Search tasks, PIC, notes…" value="' + esc(ui.mtQ || '') + '" aria-label="Search timeline">' +
+    '<select class="select" id="mtCat" aria-label="Category">' + opts(taskCategories(), ui.mtCat || '', 'All Categories') + '</select>' +
+    '<select class="select" id="mtStatus" aria-label="Status">' + opts([{ value: 'open', label: 'Not done yet' }, { value: 'overdue', label: 'Overdue' }, { value: 'done', label: 'Done' }], ui.mtStatus || '', 'All Status') + '</select>' +
+    (anyF ? '<button class="btn ghost sm" data-act="mt-clear">Clear Filters</button>' : '') +
+    '<span class="muted mt-count">Showing ' + shown + ' of ' + total + ' tasks' + (noDl ? ' · ' + noDl + ' without deadline not on timeline' : '') + '</span></div>';
+}
 function renderMaster() {
   var hide = ui.mtHide || [];
-  var all = db.tasks.filter(function (t) { return t.deadline && onMaster(t); });
+  var all = mtFiltered(), totalDl = db.tasks.filter(function (t) { return t.deadline; }).length;
   var eventItems = all.filter(function (t) { return t.category === 'Event Day'; });
   var wsShown = mtWorkstreams(all.filter(function (t) { return t.category !== 'Event Day'; }));
   var pre = all.filter(function (t) { return t.category !== 'Event Day' && hide.indexOf(t.workstream) < 0; });
@@ -1327,13 +1383,14 @@ function renderMaster() {
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
     '<div class="mt-actions"><button class="btn primary" data-act="new-milestone">+ Add Milestone</button><div class="mt-legend" role="group" aria-label="Show workstreams">' +
     wsShown.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '"' + mtStyle(p, 'pill') + ' data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') +
-    (wsShown.length > 4 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Tampilkan semua workstream">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
-  h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> Milestones Done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Klik item untuk edit' : 'Klik item untuk detail') + '</span></div>';
+    (wsShown.length > 4 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Show or hide all workstreams">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
+  h += mtToolbar(all.filter(function (t) { return t.category === 'Event Day' || hide.indexOf(t.workstream) < 0; }).length, totalDl);
+  h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> ' + ((ui.mtScope || 'all') === 'milestones' ? 'Milestones' : 'Tasks') + ' Done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Click an item to edit' : 'Click an item for details') + '</span></div>';
   // group by month (of start date) then by date label
   var months = {};
   pre.forEach(function (t) { var key = (t.start || t.deadline).slice(0, 7); (months[key] = months[key] || []).push(t); });
   var monthKeys = Object.keys(months).sort();
-  if (!monthKeys.length && !eventItems.length) return h + '<div class="table-wrap">' + emptyBox('No Milestones to Show', 'Turn a program back on above, or add a milestone.') + '</div>';
+  if (!monthKeys.length && !eventItems.length) return h + '<div class="table-wrap">' + emptyBox('No Tasks to Show', 'Turn a workstream back on above, change the filters, or add a milestone.') + '</div>';
   var cards = monthKeys.map(function (m) {
     var groups = {}, order = [];
     months[m].sort(function (a, b) { var x = a.start || a.deadline, y = b.start || b.deadline; return x < y ? -1 : x > y ? 1 : (a.deadline < b.deadline ? -1 : 1); })
@@ -1346,7 +1403,7 @@ function renderMaster() {
         return '<button class="mt-item' + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(t.workstream) + '"' + mtStyle(t.workstream, 'prog') + '>' + esc(t.workstream) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '<span class="mt-st">' + statusBadge(t.status) + '</span></span></button>';
       }).join('') + '</div></div>';
     }).join('');
-    return '<div class="mt-card"><div class="mt-card-h"><b>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</b><span>' + order.length + ' MILESTONES</span></div><div class="mt-rows">' + rows + '</div></div>';
+    return '<div class="mt-card"><div class="mt-card-h"><b>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</b><span>' + months[m].length + ((ui.mtScope || 'all') === 'milestones' ? ' MILESTONES' : ' TASKS') + '</span></div><div class="mt-rows">' + rows + '</div></div>';
   });
   var ev = '';
   if (eventItems.length) {
@@ -2609,7 +2666,7 @@ function taskForm(t, preset) {
     field('status', 'Operational Status', sel('status', withCurrent(statusList(), t.status), t.status), { hint: canEdit() ? '<a href="#" data-act="manage-statuses">Kelola Status</a>' : '' }) +
     field('notes', 'Notes', ta('notes', t.notes), { full: true }) +
     field('source', 'Data Source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], t.source)) +
-    field('mt', 'Master Timeline', '<label class="pic-opt mt-check"><input type="checkbox" id="f-mt" name="mt"' + (onMaster(t) ? ' checked' : '') + '> Tampilkan di Master Timeline</label>', { hint: 'Semua workstream bisa masuk. Perlu deadline supaya muncul.' }) +
+    field('mt', 'Master Timeline', '<label class="pic-opt mt-check"><input type="checkbox" id="f-mt" name="mt"' + (onMaster(t) ? ' checked' : '') + '> Show as milestone</label>', { hint: 'All tasks with a deadline appear on the Master Timeline. Ticked = also shown in "Milestones Only".' }) +
     cfFields('tasks', t) + taskFinField(t, isNew) +
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-task" data-id="' + t.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Create task' : 'Save changes') + '</button></div></div></form>');
@@ -2685,7 +2742,7 @@ function finForm(f, presetTask, preset) {
   var parentOpts = db.finance.filter(function (x) { return !x.parentId && x.id !== f.id; }).sort(rowOrder).map(function (x) { return { value: x.id, label: x.workstream + ' · ' + x.item }; });
   var hasKids = !isNew && kidsOf(f).length > 0;
   var wsList = '<datalist id="wsList2">' + finCategories().concat(allWorkstreams()).filter(function (v, i, a) { return a.indexOf(v) === i; }).map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
-  function amt(v) { return v == null ? '' : rpFmt.format(v); }
+  function amt(v) { return rpInputText(v); }
   openModal('<form id="finForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New Budget Item' : 'Edit Budget Item') + (f.sheetRow ? ' <span class="muted" style="font:500 13px var(--f-body)">· sheet row ' + f.sheetRow + '</span>' : '') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('item', 'Item', inp('item', f.item, 'text', 'maxlength="200"'), { req: true, full: true }) +
     field('workstream', 'Budget Category', inp('workstream', f.workstream, 'text', 'list="wsList2"') + wsList, { req: true }) +
@@ -2694,12 +2751,12 @@ function finForm(f, presetTask, preset) {
     field('parentId', 'Part Of', sel('parentId', parentOpts, f.parentId || '', '— Standalone —'), { hint: hasKids ? 'Item ini punya baris di bawahnya, jadi tidak bisa jadi anak' : 'Pilih vendor invoice / alokasi kalau item ini rinciannya' }) +
     field('qty', 'Quantity', inp('qty', f.qty == null ? '' : f.qty, 'text', 'inputmode="decimal"')) +
     field('unit', 'Unit', inp('unit', f.unit, 'text', 'maxlength="20" placeholder="Pcs / Pack / Pax"')) +
-    field('unitCost', 'Harga Satuan (Rp)', inp('unitCost', amt(f.unitCost), 'text', 'inputmode="numeric"')) +
-    field('estimated', 'Total / Estimasi (Rp)', inp('estimated', amt(f.estimated), 'text', 'inputmode="numeric"'), { hint: 'Kosongkan untuk qty × harga' }) +
-    field('invoice', 'Invoice Amount (Rp)', inp('invoice', amt(f.invoice), 'text', 'inputmode="numeric"')) +
-    field('dp', 'DP Amount (Rp)', inp('dp', amt(f.dp), 'text', 'inputmode="numeric"')) +
-    field('paidAmount', 'Total Transferred (Rp)', inp('paidAmount', amt(f.paidAmount), 'text', 'inputmode="numeric"'), { hint: 'Opsional. Isi kalau nominal transfer beda dari DP/invoice' }) +
-    field('fee', 'Biaya Transfer (Rp)', inp('fee', amt(f.fee), 'text', 'inputmode="numeric"')) +
+    field('unitCost', 'Harga Satuan (Rp)', inp('unitCost', amt(f.unitCost), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
+    field('estimated', 'Total / Estimasi (Rp)', inp('estimated', amt(f.estimated), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"'), { hint: 'Kosongkan untuk qty × harga' }) +
+    field('invoice', 'Invoice Amount (Rp)', inp('invoice', amt(f.invoice), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
+    field('dp', 'DP Amount (Rp)', inp('dp', amt(f.dp), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
+    field('paidAmount', 'Total Transferred (Rp)', inp('paidAmount', amt(f.paidAmount), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"'), { hint: 'Opsional. Isi kalau nominal transfer beda dari DP/invoice' }) +
+    field('fee', 'Biaya Transfer (Rp)', inp('fee', amt(f.fee), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
     field('paymentDeadline', 'Payment Deadline', inp('paymentDeadline', f.paymentDeadline, 'date')) +
     field('invoiceStatus', 'Invoice Status', sel('invoiceStatus', INV_STATUS, f.invoiceStatus)) +
     field('paymentStatus', 'Payment Status', sel('paymentStatus', withCurrent(payList(), f.paymentStatus), f.paymentStatus), { hint: canEdit() ? '<a href="#" data-act="manage-pay">Kelola Status Payment</a>' : '' }) +
@@ -2978,7 +3035,9 @@ function handleAct(el, e) {
       if (to >= 0 && to < li.length) { var tmp = li[ix]; li[ix] = li[to]; li[to] = tmp; persist(db); render(); closeModal(); categoryManager(el.dataset.kind); }
       break;
     case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: '', mt: true }); break;
-    case 'mt-all': var wsAll = mtWorkstreams(db.tasks.filter(function (t) { return t.deadline && onMaster(t) && t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
+    case 'mt-all': var wsAll = mtWorkstreams(mtFiltered().filter(function (t) { return t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
+    case 'mt-scope': ui.mtScope = el.dataset.scope; render(); break;
+    case 'mt-clear': ui.mtScope = 'all'; ui.mtCat = ''; ui.mtStatus = ''; ui.mtQ = ''; ui.mtHide = []; render(); break;
     case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: wsCurrent('Event Day'), deadline: EVENT_DATE }); break;
     case 'mt-toggle': var w = el.dataset.ws, hd = ui.mtHide || []; ui.mtHide = hd.indexOf(w) > -1 ? hd.filter(function (x) { return x !== w; }) : hd.concat([w]); render(); break;
     case 'edit-task': closeModal(); if (taskById(id)) taskForm(taskById(id)); else toast('That task no longer exists', true); break;
@@ -2991,6 +3050,21 @@ function handleAct(el, e) {
     case 'edit-fin': e.preventDefault(); closeModal(); if (finById(id)) finForm(finById(id)); break;
     case 'link-fin': closeModal(); linkFinDialog(id); break;
     case 'buffer-detail': bufferDialog(); break;
+    case 'task-stype': case 'task-overdue': {
+      // open Tasks filtered by status type (Pending also covers Blocked); Overdue opens the Pending view (overdue tasks are listed there)
+      var stype = el.dataset.stype, names, dates = null;
+      if (act === 'task-stype') names = statusDefs().filter(function (x) { return x.type === stype || (stype === 'pending' && x.type === 'blocked'); }).map(function (x) { return x.name; });
+      else {
+        // Overdue = not done + deadline before today: status filter (every not-done status) + deadline filter (every past date)
+        names = statusDefs().filter(function (x) { return x.type !== 'done'; }).map(function (x) { return x.name; });
+        dates = []; db.tasks.forEach(function (t) { if (t.deadline && t.deadline < todayISO()) { var d = fmtDMY(t.deadline); if (dates.indexOf(d) < 0) dates.push(d); } });
+      }
+      ui.taskView = 'all'; ui.q = ''; ui.fSrc = ''; ui.expanded = null; ui.colF = {};
+      ui.colF.status = { t: 'set', v: names.length ? names : ['(none)'] };
+      if (dates) ui.colF.deadline = { t: 'set', v: dates.length ? dates : ['(none)'] };
+      colList('tasks').forEach(function (c) { if ((c.key === 'status' || (dates && c.key === 'deadline')) && !c.visible) c.visible = true; });   // filters only work on visible columns
+      go('tasks'); break;
+    }
     case 'present-fs':
       if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); }
       else { document.body.classList.add('present-fs'); applySidebar(); var de = document.documentElement; if (de.requestFullscreen) de.requestFullscreen().catch(function () { document.body.classList.remove('present-fs'); applySidebar(); }); }
@@ -3046,6 +3120,7 @@ main.addEventListener('input', function (e) {
   if (t.id === 'taskSearch') { ui.q = t.value; render(); }
   else if (t.id === 'rdSearch') { ui.rdQ = t.value; render(); }
   else if (t.id === 'finSearch') { ui.finQ = t.value; render(); }
+  else if (t.id === 'mtSearch') { ui.mtQ = t.value; render(); }
 });
 document.addEventListener('change', function (e) {
   var c = e.target.classList; if (!c) return;
@@ -3073,7 +3148,7 @@ main.addEventListener('change', function (e) {
     else if (t.id === 'finDueA') fd.a = t.value; else fd.b = t.value;
     ui.finDue = fd; render(); return;
   }
-  var map = { fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc' };
+  var map = { fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc', mtCat: 'mtCat', mtStatus: 'mtStatus' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
   if (t.dataset.inline === 'cf') {
     if (!canEdit()) return;

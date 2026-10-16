@@ -1215,3 +1215,19 @@ body.present-fs .admin-bar,body.present-fs .side-toggle{display:none}
   .pd-ws-r{grid-template-columns:minmax(0,120px) minmax(0,1fr) auto}
   .pd-item{grid-template-columns:78px minmax(0,1fr)}
 }
+
+/* v17: Master Timeline filters */
+.mt-toolbar{align-items:center;flex-wrap:wrap;gap:8px;margin:4px 0 16px}
+.mt-toolbar .mt-scope{margin:0}
+.mt-toolbar .search{flex:1 1 220px;max-width:320px}
+.mt-count{font-size:12.5px;margin-left:auto}
+@media (max-width:700px){.mt-toolbar .search{max-width:none;flex-basis:100%}.mt-count{margin-left:0;flex-basis:100%}}
+
+/* v18: Presentation task progress — legend, cards and donut open Tasks filtered by status */
+.pd-legend button{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;font:inherit;font-size:14px;color:inherit;background:none;border:0;padding:4px 6px;margin:0 -6px;border-radius:8px;cursor:pointer;text-align:left}
+.pd-legend button:hover{background:var(--hover)}
+.pd-legend button i{width:12px;height:12px;border-radius:4px}
+.pd-legend button b{font-size:15px}
+.pd-seg{cursor:pointer;transition:stroke-width .15s}
+.pd-seg:hover{stroke-width:19}
+.pd-donut text{pointer-events:none}

@@ -125,7 +125,21 @@
   }
 
   /* ---------- page ---------- */
-  function stationCard(t, C) {
+  /* v17: search — a station whose name / location / workstream / notes matches shows all its items;
+     otherwise only the matching items (any column) are shown. */
+  var nq = '';
+  function needText(x) { return Object.keys(x).filter(function (k) { return k !== 'id'; }).map(function (k) { var v = x[k]; return typeof v === 'boolean' ? '' : String(v == null ? '' : v); }).join(' ').toLowerCase(); }
+  function searchStations(list) {
+    var q = nq.trim().toLowerCase(); if (!q) return list.map(function (t) { return { t: t, rows: null }; });
+    var out = [];
+    list.forEach(function (t) {
+      if ([t.name, t.area, t.workstream, t.notes, t.pic].join(' ').toLowerCase().indexOf(q) > -1) { out.push({ t: t, rows: null }); return; }
+      var rows = (t.needs || []).filter(function (x) { return needText(x).indexOf(q) > -1; });
+      if (rows.length) out.push({ t: t, rows: rows });
+    });
+    return out;
+  }
+  function stationCard(t, C, rows) {
     var s = stats([t]), iid = esc(t.id);
     var h = '<section class="need-card"><div class="need-head"><div class="need-title"><h3>' + esc(t.name) + '</h3>' +
       '<span class="muted">' + (t.area ? esc(t.area) + ' · ' : '') + (t.deadline ? 'Deadline ' + App.fmtDate(t.deadline, true) + ' · ' : '') + statusBadge(t.status) + '</span>' +
@@ -138,12 +152,14 @@
       '<div class="table-wrap"><table class="need-tbl" data-rz="needs" style="min-width:' + (88 + C.reduce(function (a, c) { return a + colWidth(c); }, 0)) + 'px"><colgroup><col style="width:44px">' +
       C.map(function (c) { return '<col style="width:' + colWidth(c) + 'px">'; }).join('') + '<col style="width:44px"></colgroup>' +
       '<thead><tr><th data-ck="__no">No</th>' + C.map(function (c) { return '<th data-ck="' + esc(c.key) + '"' + (c.type === 'checkbox' ? ' class="c"' : '') + '>' + esc(c.label) + '</th>'; }).join('') + '<th data-ck="__del"></th></tr></thead><tbody>';
-    h += t.needs.length ? t.needs.map(function (x, i) {
+    var shown = rows || t.needs;
+    h += shown.length ? shown.map(function (x) {
       var b = 'data-id="' + iid + '" data-nid="' + esc(x.id) + '"', k = 'n-' + esc(x.id) + '-';
-      return '<tr class="' + (x.ready ? 'need-ok' : '') + '"><td class="faint">' + (i + 1) + '</td>' + C.map(function (c) { return cellHtml(c, x, b, k); }).join('') +
+      return '<tr class="' + (x.ready ? 'need-ok' : '') + '"><td class="faint">' + (t.needs.indexOf(x) + 1) + '</td>' + C.map(function (c) { return cellHtml(c, x, b, k); }).join('') +
         '<td><button class="btn sm ghost" data-nact="del" ' + b + ' aria-label="Hapus ' + esc(x.item) + '">✕</button></td></tr>';
     }).join('') : '<tr><td colspan="' + (C.length + 2) + '" class="faint" style="padding:12px">Belum ada need.</td></tr>';
-    return h + '</tbody></table></div><div class="need-foot"><button class="btn sm" data-nact="add" data-id="' + iid + '">+ Tambah Need</button></div></section>';
+    return h + '</tbody></table></div><div class="need-foot">' + (rows && rows.length < t.needs.length ? '<span class="muted need-hits">' + rows.length + ' of ' + t.needs.length + ' items match</span>' : '') +
+      '<button class="btn sm" data-nact="add" data-id="' + iid + '">+ Tambah Need</button></div></section>';
   }
   function pageHtml() {
     var list = db().tasks.filter(isStation), C = visCols(), cReady = colByKey('ready'), cDesign = colByKey('design');
@@ -153,18 +169,22 @@
       return h + '<div class="need-empty"><p>Belum ada station.</p><button class="btn primary" data-nact="seed">Isi dari Sheet Need per Station</button> ' +
         '<span class="muted">atau buat sendiri dengan “+ Station baru”, atau aktifkan checklist di task yang sudah ada (Tasks → buka baris → “+ Checklist need”).</span></div>';
     }
-    var all = stats(list);
+    var all = stats(list), found = searchStations(list), hitMap = {};
+    found.forEach(function (x) { hitMap[x.t.id] = x; });
+    h += '<div class="toolbar need-toolbar"><input class="input search" id="needSearch" type="search" placeholder="Search station, location, item, notes…" value="' + esc(nq) + '" aria-label="Search Need per Station">' +
+      (nq.trim() ? '<span class="muted">' + found.length + ' station' + (found.length === 1 ? '' : 's') + ' match</span><button class="btn ghost sm" data-nact="clear-search">Clear Search</button>' : '') + '</div>';
     h += '<div class="need-stats"><div><b>' + list.length + '</b><span>Station</span></div>' +
       (cReady && cReady.visible !== false ? '<div><b>' + all.ready + '/' + all.total + '</b><span>' + esc(statLabel(cReady.label, 'Siap')) + '</span></div>' : '') +
       (cDesign && cDesign.visible !== false ? '<div><b>' + all.design + '</b><span>' + esc(statLabel(cDesign.label, 'Belum Selesai')) + '</span></div>' : '') + '</div>';
     // kelompok per workstream, urutan mengikuti Manage Categories
     var groups = {}, order = wsList().slice();
-    list.forEach(function (t) { var w = wsName(t); (groups[w] = groups[w] || []).push(t); if (order.indexOf(w) < 0) order.push(w); });
+    list.filter(function (t) { return hitMap[t.id]; }).forEach(function (t) { var w = wsName(t); (groups[w] = groups[w] || []).push(t); if (order.indexOf(w) < 0) order.push(w); });
+    if (nq.trim() && !found.length) h += '<div class="need-empty"><p>No stations or items match “' + esc(nq.trim()) + '”.</p></div>';
     order.filter(function (w) { return groups[w]; }).forEach(function (w) {
       var g = groups[w].sort(function (a, b) { return String(a.area || '~').localeCompare(String(b.area || '~')) || String(a.name).localeCompare(String(b.name)); }), gs = stats(g);
       h += '<div class="need-ws"><h2>' + wsTag(w) + '</h2><span class="muted">' + g.length + ' station · ' + gs.ready + '/' + gs.total + ' siap</span>' +
         '<button class="btn sm ghost" data-nact="new-station" data-ws="' + esc(w === NO_NAME ? '' : w) + '">+ Station di ' + esc(w) + '</button></div>';
-      g.forEach(function (t) { h += stationCard(t, C); });
+      g.forEach(function (t) { h += stationCard(t, C, hitMap[t.id].rows); });
     });
     var areas = {}; db().tasks.forEach(function (t) { if (t.area) areas[t.area] = 1; });
     return h + '<datalist id="needAreaList">' + Object.keys(areas).map(function (a) { return '<option value="' + esc(a) + '">'; }).join('') + '</datalist>';
@@ -186,11 +206,11 @@
     while (head.nextSibling) main.removeChild(head.nextSibling);
     main.removeChild(head);
     main.insertAdjacentHTML('beforeend', pageHtml());
-    if (!canEdit()) main.querySelectorAll('[data-nf],[data-nact]:not([data-nact="manage-cols"])').forEach(function (el) { el.disabled = true; });
+    if (!canEdit()) main.querySelectorAll('[data-nf],[data-nact]:not([data-nact="manage-cols"]):not([data-nact="clear-search"])').forEach(function (el) { el.disabled = true; });
     try { if (App.rzApply) App.rzApply(main); } catch (e) {}
     markNav();
     if (keepY != null) { window.scrollTo(window.scrollX, keepY); keepY = null; }
-    if (fid && /^(n-|area-|ws-)/.test(fid)) { var el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (e) {} } }
+    if (fid && /^(n-|area-|ws-|needSearch)/.test(fid)) { var el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (e) {} } }
     obs.takeRecords(); painting = false;
   }
   function markNav() {
@@ -361,6 +381,7 @@
     var act = el.dataset.nact, t = taskById(el.dataset.id);
     if (act === 'open') { open(); return; }
     if (act === 'manage-cols') { colManager(); return; }
+    if (act === 'clear-search') { nq = ''; paint(); var si = document.getElementById('needSearch'); if (si) si.focus(); return; }
     if (!guard()) return;
     if (act === 'seed') seed();
     else if (act === 'new-station') stationForm(el.dataset.ws);
@@ -377,6 +398,9 @@
   var modalRoot = document.getElementById('modalRoot');
   if (modalRoot) modalRoot.addEventListener('click', onAct, true);
 
+  main.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'needSearch') { e.stopPropagation(); nq = e.target.value; paint(); }
+  }, true);
   main.addEventListener('change', function (e) {
     var el = e.target; if (!el.dataset || !el.dataset.nf) return;
     e.stopPropagation();
@@ -427,7 +451,10 @@
     '.need-tbl td.need-chk input{display:block;width:18px;height:18px;margin:8px auto 0;cursor:pointer;accent-color:var(--accent)}',
     '.need-ok td:first-child{box-shadow:inset 3px 0 0 var(--accent)}',
     '.need-tbl select.need-dsel{width:100%;min-width:0;box-sizing:border-box;padding:6px 8px;font-size:12.5px;font-weight:600;border-radius:8px;min-height:32px}',
-    '.need-foot{padding:8px 14px}',
+    '.need-foot{padding:8px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}',
+    '.need-hits{font-size:12.5px}',
+    '.need-toolbar{margin:0 20px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}',
+    '.need-toolbar .search{flex:1 1 260px;max-width:440px}',
     '.need-empty{margin:20px;padding:28px;border:1px dashed var(--line);border-radius:12px;text-align:center}',
     '.need-chip{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}',
     '.need-mini{list-style:none;margin:0;padding:0}.need-mini li{padding:2px 0;overflow-wrap:anywhere;display:flex;align-items:center;gap:6px}.need-mini li.ok{color:var(--muted)}',
