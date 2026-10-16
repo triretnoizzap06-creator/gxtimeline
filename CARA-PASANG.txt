@@ -1,12 +1,27 @@
-GX27 - Patch v19 (Kolom Invoice / Quotation File + 3 sub item Emergency Fund)
+GX27 - Patch v21 (Proof Transfer 2 link: DP + Pelunasan)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v18.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v20.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v19
+CHANGES v21
+1. Form item budget: Proof Transfer jadi 2 isian — "Proof Transfer — DP" dan "Proof Transfer — Settlement" (pelunasan).
+   Kalau isinya link, muncul "Open ↗" di bawahnya. Data lama (bukti transfer yang sudah ada) tetap di isian DP.
+2. Kolom tabel baru "Proof Transfer" (default tersembunyi; nyalakan lewat tombol Columns): tampil "DP ↗" dan "Settlement ↗".
+3. Pengingat: kalau status Full Paid, ada DP, dan baru ada bukti DP -> "Proof Transfer pelunasan belum dilampirkan".
+4. Search Finance juga mencari di kedua link.
+
+CHANGES v20 (included)
+1. Finance & Procurement: tombol "Columns" di toolbar (sebelah filter). Centang / hapus centang kolom -> tabel langsung berubah.
+   Show All dan Reset to Default. Pilihan ini per browser (tampilan masing-masing orang), bisa dipakai semua user.
+   Manage Columns tetap untuk admin: ganti nama, urutan, dan default untuk semua orang.
+2. Tabel lebar (Tasks, Finance, Need per Station, dll.): scrollbar kanan-kiri menempel di bawah layar selama tabelnya kelihatan,
+   jadi tidak perlu scroll sampai bawah tabel untuk geser kanan-kiri.
+3. "Bukti Transfer" diganti "Proof Transfer" (form item budget).
+
+CHANGES v19 (included)
 1. Finance & Procurement: kolom "Transfer Receipt" diganti "Invoice / Quotation File" (posisi & tampil/sembunyi sama).
    Isinya dari field "Invoice / Quotation File" di form item; kalau isinya link -> "Open file ↗" (buka di tab baru).
    Bukti transfer tetap tersimpan di form item (field Bukti Transfer), hanya tidak jadi kolom tabel lagi.

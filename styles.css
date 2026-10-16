@@ -1236,3 +1236,24 @@ body.present-fs .admin-bar,body.present-fs .side-toggle{display:none}
 .fin-table td.fin-file{max-width:200px}
 .fin-table .file-link{font-weight:600;white-space:nowrap}
 .fin-table .file-name{display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;font-size:12.5px}
+
+/* v20: personal "Columns" picker (Finance toolbar) */
+.col-pick-btn{display:inline-flex;align-items:center;gap:6px}
+.col-pick-btn .muted{font-size:11.5px}
+.col-pick-btn.on{border-color:var(--accent);color:var(--accent)}
+.col-pop{width:260px;max-width:calc(100vw - 16px)}
+.col-pop .cp-list{display:flex;flex-direction:column;max-height:min(52vh,420px);overflow:auto}
+.col-pop .hf-opt input:disabled+.hf-v{color:var(--muted)}
+.col-pop .cp-note{margin:6px 2px 0;font-size:11.5px;color:var(--muted);line-height:1.4}
+
+/* v20: floating horizontal scrollbar for wide tables */
+.hbar{position:fixed;bottom:0;height:16px;overflow-x:scroll;overflow-y:hidden;z-index:40;display:none;background:color-mix(in srgb,var(--surface) 92%,transparent);border-top:1px solid var(--line);box-shadow:0 -2px 8px rgba(0,0,0,.06);scrollbar-width:auto;scrollbar-color:var(--muted) transparent}
+.hbar.on{display:block}
+.hbar-in{height:1px}
+.hbar::-webkit-scrollbar{height:12px}
+.hbar::-webkit-scrollbar-thumb{background:var(--muted);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+.hbar::-webkit-scrollbar-thumb:hover{background-color:var(--fg)}
+@media print{.hbar{display:none!important}}
+
+/* v21: two Proof Transfer links (DP + settlement) */
+.fin-table .proof-cell{display:flex;flex-direction:column;gap:2px}

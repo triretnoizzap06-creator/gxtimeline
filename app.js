@@ -53,7 +53,7 @@ var COL_BUILTIN = {
   finance: [
     { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Unit Price', num: true, hidden: true }, { key: 'est', label: 'Estimated Budget', num: true, total: 'est' },
     { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' },
-    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'invoiceRef', label: 'Invoice / Quotation File', hidden: true },
+    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'invoiceRef', label: 'Invoice / Quotation File', hidden: true }, { key: 'proof', label: 'Proof Transfer', hidden: true },
     { key: 'task', label: 'Task' }, { key: 'check', label: 'Check', hidden: true }
   ]
 };
@@ -93,7 +93,91 @@ function normalizeColumns(s) {
   s.columns = out;
 }
 function colList(table) { return (db.settings.columns || {})[table] || []; }
-function visibleCols(table) { return colList(table).filter(function (c) { return c.visible; }); }
+/* v20: everyone can choose their own visible columns ("Columns" button in the toolbar). Stored per browser in ui.colView;
+   Manage Columns (admin) still sets names, order and the default for everyone. */
+function colShown(table, c) {
+  var b = builtinCol(table, c.key), o = ((ui && ui.colView) || {})[table];
+  if (b && b.locked) return true;
+  return o && typeof o[c.key] === 'boolean' ? o[c.key] : !!c.visible;
+}
+function visibleCols(table) { return colList(table).filter(function (c) { return colShown(table, c); }); }
+var colPop = null;
+/* v20: floating horizontal scrollbar. When a wide table (Tasks, Finance, Need per Station, …) is on screen but its own
+   scrollbar is below the bottom of the window, a scrollbar pinned to the bottom of the window scrolls it left/right. */
+var hbar = null, hbarWrap = null, hbarSync = false, hbarRaf = 0;
+function hbarEnsure() {
+  if (hbar) return hbar;
+  hbar = document.createElement('div'); hbar.className = 'hbar'; hbar.setAttribute('aria-hidden', 'true'); hbar.innerHTML = '<div class="hbar-in"></div>';
+  document.body.appendChild(hbar);
+  hbar.addEventListener('scroll', function () { if (hbarSync) { hbarSync = false; return; } if (hbarWrap) { hbarSync = true; hbarWrap.scrollLeft = hbar.scrollLeft; } });
+  return hbar;
+}
+function hbarUpdate() {
+  hbarRaf = 0;
+  var bar = hbarEnsure(), vh = window.innerHeight, pick = null;
+  document.querySelectorAll('#main .table-wrap').forEach(function (w) {
+    if (pick || w.scrollWidth <= w.clientWidth + 2) return;
+    var r = w.getBoundingClientRect();
+    if (r.top < vh - 80 && r.bottom > vh + 2 && r.height > 0) pick = w;   // visible, but its own scrollbar is off-screen
+  });
+  if (pick !== hbarWrap) {
+    if (hbarWrap) hbarWrap.removeEventListener('scroll', hbarFromWrap);
+    hbarWrap = pick;
+    if (pick) pick.addEventListener('scroll', hbarFromWrap, { passive: true });
+  }
+  if (!pick) { bar.classList.remove('on'); return; }
+  var r2 = pick.getBoundingClientRect();
+  bar.style.left = Math.max(0, r2.left) + 'px'; bar.style.width = Math.min(r2.width, window.innerWidth - Math.max(0, r2.left)) + 'px';
+  bar.firstChild.style.width = pick.scrollWidth + 'px';
+  bar.classList.add('on');
+  if (Math.abs(bar.scrollLeft - pick.scrollLeft) > 1) { hbarSync = true; bar.scrollLeft = pick.scrollLeft; }
+}
+function hbarFromWrap() { if (hbarSync) { hbarSync = false; return; } if (hbar && hbarWrap) { hbarSync = true; hbar.scrollLeft = hbarWrap.scrollLeft; } }
+function hbarSchedule() { if (!hbarRaf) hbarRaf = requestAnimationFrame(hbarUpdate); }
+window.addEventListener('scroll', hbarSchedule, { passive: true });
+window.addEventListener('resize', hbarSchedule);
+new MutationObserver(hbarSchedule).observe(document.getElementById('main'), { childList: true, subtree: true });
+function closeColPicker() { if (colPop) { colPop.remove(); colPop = null; } }
+function colPickerBtn(table) {
+  var all = colList(table), n = all.filter(function (c) { return colShown(table, c); }).length, own = Object.keys(((ui.colView || {})[table]) || {}).length;
+  return '<button type="button" class="btn sm col-pick-btn' + (own ? ' on' : '') + '" data-act="col-picker" data-table="' + table + '" aria-haspopup="dialog" title="Choose which columns you see">' +
+    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1"/><path d="M6 2.5v11M10.5 2.5v11"/></svg>Columns <span class="muted">' + n + '/' + all.length + '</span></button>';
+}
+function drawColPicker(table) {
+  if (!colPop) return;
+  var own = ((ui.colView || {})[table]) || {};
+  colPop.innerHTML = '<div class="hf-t">Show Columns</div><div class="cp-list">' + colList(table).map(function (c) {
+    var b = builtinCol(table, c.key), locked = b && b.locked;
+    return '<label class="hf-opt"><input type="checkbox" data-cp="' + esc(c.key) + '"' + (colShown(table, c) ? ' checked' : '') + (locked ? ' disabled' : '') + '> <span class="hf-v">' + esc(c.label) + '</span>' + (locked ? '<span class="hf-n">always</span>' : '') + '</label>';
+  }).join('') + '</div><div class="hf-foot"><button type="button" class="btn sm ghost" data-cp-all="1">Show All</button><button type="button" class="btn sm ghost" data-cp-reset="1"' + (Object.keys(own).length ? '' : ' disabled') + '>Reset to Default</button></div>' +
+    '<p class="cp-note">Only changes your view.' + (canEdit() ? ' Use Manage Columns to change the default, names and order for everyone.' : '') + '</p>';
+}
+function openColPicker(table, btn) {
+  if (colPop) { closeColPicker(); return; }
+  colPop = document.createElement('div'); colPop.className = 'hf-pop col-pop'; colPop.setAttribute('role', 'dialog'); colPop.setAttribute('aria-label', 'Show columns');
+  document.body.appendChild(colPop); drawColPicker(table);
+  var setVis = function (key, on) {
+    var c = colList(table).filter(function (x) { return x.key === key; })[0]; if (!c) return;
+    ui.colView = ui.colView || {}; var o = ui.colView[table] = ui.colView[table] || {};
+    if (on === !!c.visible) delete o[key]; else o[key] = on;   // only store differences from the shared default
+    if (!Object.keys(o).length) delete ui.colView[table];
+  };
+  colPop.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  colPop.addEventListener('change', function (e) { var k = e.target.getAttribute('data-cp'); if (!k) return; setVis(k, e.target.checked); saveUI(); render(); drawColPicker(table); });
+  colPop.addEventListener('click', function (e) {
+    e.stopPropagation();   // the popup redraws itself; the click must not count as "outside"
+    if (e.target.closest('[data-cp-all]')) { colList(table).forEach(function (c) { setVis(c.key, true); }); }
+    else if (e.target.closest('[data-cp-reset]')) { if (ui.colView) delete ui.colView[table]; }
+    else return;
+    saveUI(); render(); drawColPicker(table);
+  });
+  var r = btn.getBoundingClientRect(), w = colPop.offsetWidth, hgt = colPop.offsetHeight;
+  colPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  colPop.style.top = (r.bottom + 6 + hgt > window.innerHeight - 8 ? Math.max(8, r.top - hgt - 6) : r.bottom + 6) + 'px';
+}
+document.addEventListener('click', function (e) { if (colPop && !e.target.closest('.col-pop') && !e.target.closest('[data-act="col-picker"]')) closeColPicker(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeColPicker(); });
+window.addEventListener('resize', closeColPicker);
 function customCols(table) { return colList(table).filter(function (c) { return c.custom; }); }
 function cfVal(r, key) { return r && r.cf ? r.cf[key] : undefined; }
 function cfDisplay(col, v) {
@@ -1100,7 +1184,8 @@ function calc(f) {
   if (base != null && paid > base) flags.push({ lvl: 'crit', msg: 'Transfer (' + rp(paid) + ') melebihi invoice ' + rp(base) });
   if (pt === 'paid' && base != null && paid < base) flags.push({ lvl: 'crit', msg: f.paymentStatus + ' tapi transfer kurang ' + rp(base - paid) });
   if (inv != null && est != null && inv > est * 1.1) flags.push({ lvl: 'warn', msg: 'Invoice ' + Math.round((inv / est - 1) * 100) + '% di atas estimasi' });
-  if (pt !== 'unpaid' && !f.receipt) flags.push({ lvl: 'warn', msg: 'Bukti transfer belum dilampirkan' });
+  if (pt !== 'unpaid' && !f.receipt && !f.receipt2) flags.push({ lvl: 'warn', msg: 'Proof Transfer belum dilampirkan' });
+  else if (pt === 'paid' && dp != null && dp > 0 && f.receipt && !f.receipt2 && (inv == null || dp < inv)) flags.push({ lvl: 'warn', msg: 'Proof Transfer pelunasan belum dilampirkan' });
   if (pt !== 'unpaid' && f.invoiceStatus === 'Unsubmitted') flags.push({ lvl: 'warn', msg: 'Sudah dibayar tapi invoice masih Unsubmitted' });
   if (f.paymentDeadline && f.paymentDeadline < todayISO() && pt !== 'paid') flags.push({ lvl: 'crit', msg: 'Lewat payment deadline (' + fmtDate(f.paymentDeadline, true) + ')' });
   if (base == null) flags.push({ lvl: 'warn', msg: 'Nominal belum diisi' });
@@ -2428,7 +2513,7 @@ function filteredFinance() {
     if (ui.finPay && f.paymentStatus !== ui.finPay) return false;
     if (ui.finInv && f.invoiceStatus !== ui.finInv) return false;
     if (finDueActive() && !finDueMatch(f)) return false;
-    if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].concat(Object.keys(f.cf || {}).map(function (k) { return f.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false; }
+    if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.receipt2, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].concat(Object.keys(f.cf || {}).map(function (k) { return f.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false; }
     return true;
   };
   var hit = {}; db.finance.forEach(function (f) { if (match(f)) hit[f.id] = 1; });
@@ -2460,6 +2545,21 @@ function finDueControl() {
     '</span>';
 }
 // Invoice / Quotation File cell: a link opens in a new tab (without opening the row), anything else is shown as the file name
+// small "Open ↗" under a proof field when it holds a link
+function proofHint(v, txt) {
+  v = String(v || '').trim();
+  return txt + (/^https?:\/\//i.test(v) ? ' · <a href="' + esc(v) + '" target="_blank" rel="noopener">Open ↗</a>' : '');
+}
+// Proof Transfer column: DP and settlement links side by side
+function proofCell(f) {
+  var one = function (v, lbl) {
+    v = String(v || '').trim(); if (!v) return '';
+    return /^https?:\/\//i.test(v) ? '<a class="file-link" href="' + esc(v) + '" target="_blank" rel="noopener" title="' + esc(v) + '" onclick="event.stopPropagation()">' + lbl + ' ↗</a>'
+      : '<span class="file-name" title="' + esc(v) + '">' + lbl + ': ' + esc(v) + '</span>';
+  };
+  var a = one(f.receipt, 'DP'), b = one(f.receipt2, 'Settlement');
+  return a || b ? '<span class="proof-cell">' + a + b + '</span>' : '<span class="faint">—</span>';
+}
 function fileCell(v) {
   v = String(v || '').trim();
   if (!v) return '<span class="faint">—</span>';
@@ -2504,7 +2604,7 @@ function renderFinance() {
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
     '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All Categories') + '</select>' +
     '<select class="select" id="finPay" aria-label="Payment Status">' + opts(payList(), ui.finPay, 'All Payment Status') + '</select>' +
-    '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' + finDueControl() +
+    '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' + finDueControl() + colPickerBtn('finance') +
     ((ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDue().m) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
   if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No Budget Items Yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Items Match', 'Try a different search or clear the filters.') + '</div>';
@@ -2523,7 +2623,7 @@ function renderFinance() {
   }
   var body = '';
   // vendor invoices: payment cells are merged (rowspan) over the vendor row and its line items
-  var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1, invoiceRef: 1 };
+  var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1, invoiceRef: 1, proof: 1 };
   function row(f, child, span, underParent) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
     var flagHtml = (f.source === 'verify' ? '<span class="src verify" title="' + esc(f.verifyNote || 'Needs Verification') + '">Verify</span> ' : '') +
@@ -2557,7 +2657,7 @@ function renderFinance() {
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
-      paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>', invoiceRef: '<td class="fin-file">' + iref + '</td>',
+      paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>', invoiceRef: '<td class="fin-file">' + iref + '</td>', proof: '<td class="fin-file">' + (c.inherited ? '<span class="faint" style="font-size:12px">via vendor</span>' : c.allocation ? '<span class="faint">—</span>' : proofCell(f)) + '</td>',
       task: '<td class="fin-task">' + (t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" title="' + esc(t.name) + '">' + esc(t.name) + '</a>' : '<span class="faint">—</span>') + '</td>',
       check: '<td>' + flagHtml + '</td>'
     };
@@ -2739,7 +2839,7 @@ function taskForm(t, preset) {
     if (efA && wsBase(v.workstream) === 'Emergency Fund') {
       var at = efA.taskId ? taskById(efA.taskId) : null, now = Date.now();
       var nf = { id: nextId('F'), createdAt: now, updatedAt: now, item: v.name, workstream: efA.workstream, parentId: efA.id, kind: '', qty: null, unit: '', unitCost: null, estimated: null,
-        invoice: null, dp: null, fee: null, paidAmount: null, paymentDeadline: v.deadline || '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', invoiceRef: '',
+        invoice: null, dp: null, fee: null, paidAmount: null, paymentDeadline: v.deadline || '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', receipt2: '', invoiceRef: '',
         notes: [v.notes, v.pic ? 'PIC: ' + v.pic : ''].filter(Boolean).join('\n'), source: v.source || 'confirmed', verifyNote: '', taskId: at ? at.id : null, taskSynced: !!at };
       db.finance.push(nf);
       if (at) { ui.expanded = at.id; ui.tfOpen = ui.tfOpen || {}; ui.tfOpen[at.id] = true; }
@@ -2769,7 +2869,7 @@ function taskFinField(t, isNew) {
 function finForm(f, presetTask, preset) {
   var isNew = !f;
   f = f || Object.assign({ item: '', workstream: presetTask ? (taskById(presetTask) || {}).workstream || '' : '', qty: null, unit: '', unitCost: null, estimated: null, invoice: null, dp: null, fee: null, paidAmount: null,
-    paymentDeadline: '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', invoiceRef: '', taskId: presetTask || '', notes: '', kind: '', parentId: null, source: 'confirmed', verifyNote: '' }, preset || {});
+    paymentDeadline: '', invoiceStatus: 'Unsubmitted', paymentStatus: payFirst('unpaid'), receipt: '', receipt2: '', invoiceRef: '', taskId: presetTask || '', notes: '', kind: '', parentId: null, source: 'confirmed', verifyNote: '' }, preset || {});
   var taskOpts = db.tasks.slice().sort(function (a, b) { return (a.workstream + a.name).localeCompare(b.workstream + b.name); }).map(function (t) { return { value: t.id, label: t.workstream + ' · ' + t.name }; });
   var parentOpts = db.finance.filter(function (x) { return !x.parentId && x.id !== f.id; }).sort(rowOrder).map(function (x) { return { value: x.id, label: x.workstream + ' · ' + x.item }; });
   var hasKids = !isNew && kidsOf(f).length > 0;
@@ -2793,7 +2893,8 @@ function finForm(f, presetTask, preset) {
     field('invoiceStatus', 'Invoice Status', sel('invoiceStatus', INV_STATUS, f.invoiceStatus)) +
     field('paymentStatus', 'Payment Status', sel('paymentStatus', withCurrent(payList(), f.paymentStatus), f.paymentStatus), { hint: canEdit() ? '<a href="#" data-act="manage-pay">Kelola Status Payment</a>' : '' }) +
     field('invoiceRef', 'Invoice / Quotation File', inp('invoiceRef', f.invoiceRef, 'text', 'maxlength="300"')) +
-    field('receipt', 'Bukti Transfer', inp('receipt', f.receipt, 'text', 'maxlength="300" placeholder="Link Drive / nama file / no. referensi"')) +
+    field('receipt', 'Proof Transfer — DP', inp('receipt', f.receipt, 'text', 'maxlength="300" placeholder="Drive link / file name / reference no."'), { hint: proofHint(f.receipt, 'Transfer DP / pembayaran pertama') }) +
+    field('receipt2', 'Proof Transfer — Settlement', inp('receipt2', f.receipt2 || '', 'text', 'maxlength="300" placeholder="Drive link / file name / reference no."'), { hint: proofHint(f.receipt2, 'Transfer pelunasan') }) +
     '<div class="calc-preview" id="calcPreview"></div><div class="calc-flags" id="calcFlags"></div>' +
     field('notes', 'Notes', ta('notes', f.notes), { full: true }) +
     field('source', 'Data Source', sel('source', [{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], f.source)) +
@@ -2923,7 +3024,7 @@ var HEADER_MAP = {
   paymentDeadline: ['payment deadline','deadline','deadline pembayaran','jatuh tempo','due date','tenggat'],
   invoiceStatus: ['invoice status','status invoice'],
   paymentStatus: ['payment status','status pembayaran','status bayar','status','pembayaran'],
-  receipt: ['bukti tf','receipt','transfer receipt','bukti transfer','bukti','bukti tf'],
+  receipt: ['bukti tf','receipt','transfer receipt','bukti transfer','bukti','proof transfer','proof of transfer'],
   notes: ['notes','note','catatan','keterangan','remarks']
 };
 function parseDelimited(text) {
@@ -3094,7 +3195,8 @@ function handleAct(el, e) {
       ui.taskView = 'all'; ui.q = ''; ui.fSrc = ''; ui.expanded = null; ui.colF = {};
       ui.colF.status = { t: 'set', v: names.length ? names : ['(none)'] };
       if (dates) ui.colF.deadline = { t: 'set', v: dates.length ? dates : ['(none)'] };
-      colList('tasks').forEach(function (c) { if ((c.key === 'status' || (dates && c.key === 'deadline')) && !c.visible) c.visible = true; });   // filters only work on visible columns
+      colList('tasks').forEach(function (c) { if ((c.key === 'status' || (dates && c.key === 'deadline')) && !c.visible) c.visible = true; });
+      if (ui.colView && ui.colView.tasks) { delete ui.colView.tasks.status; if (dates) delete ui.colView.tasks.deadline; }   // filters only work on visible columns
       go('tasks'); break;
     }
     case 'present-fs':
@@ -3127,6 +3229,7 @@ function handleAct(el, e) {
 }
     case 'clear-filters': ui.q = ui.fSrc = ''; ui.fWs = []; ui.fStatus = []; ui.colF = {}; ui.msOpen = ''; closeColFilter(); render(); break;
     case 'col-filter': openColFilter(el.dataset.key, el); break;
+    case 'col-picker': e.stopPropagation(); openColPicker(el.dataset.table, el); break;
     case 'ms-clear': ui[el.dataset.key] = []; render(); break;
     case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
     case 'import-csv': importCsvDialog(); break;
