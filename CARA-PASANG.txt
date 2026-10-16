@@ -1,12 +1,24 @@
-GX27 - Patch v18 (Presentation: Task Progress clickable ke filter Tasks)
+GX27 - Patch v19 (Kolom Invoice / Quotation File + 3 sub item Emergency Fund)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v17.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v18.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v18
+CHANGES v19
+1. Finance & Procurement: kolom "Transfer Receipt" diganti "Invoice / Quotation File" (posisi & tampil/sembunyi sama).
+   Isinya dari field "Invoice / Quotation File" di form item; kalau isinya link -> "Open file ↗" (buka di tab baru).
+   Bukti transfer tetap tersimpan di form item (field Bukti Transfer), hanya tidak jadi kolom tabel lagi.
+2. Emergency Fund (sekali jalan, otomatis saat data dimuat): 3 item ini dipindah jadi sub item di bawah
+   "Emergency Fund — Lain-Lain":
+   - Mobil Legends - Gift Tebak Hero (sebelumnya Alokasi Dana, sekarang line item biasa)
+   - Dana Laminating A4 — Rules Games (12 Games)
+   - Dana Laminating A6 — QR Code Voting Frame (20 Tim)
+   Kategori ikut jadi Emergency Fund dan item-item ini tampil di bawah task "Alokasi Emergency Fund".
+   Setelah pindah, klik Save (mode admin) supaya tersimpan ke database.
+
+CHANGES v18 (included)
 1. Presentation > Task Progress: legend, kartu, dan potongan donut bisa diklik, langsung buka Tasks dengan filter Status:
    Completed -> status Done · In Progress -> status In Progress · Pending -> status Pending (+ Blocked) · Not Started -> status Not Started ·
    Overdue -> task belum selesai yang deadline-nya sudah lewat. Jumlah task di Tasks = angka di Presentation.

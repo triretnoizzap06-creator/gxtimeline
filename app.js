@@ -53,7 +53,7 @@ var COL_BUILTIN = {
   finance: [
     { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Unit Price', num: true, hidden: true }, { key: 'est', label: 'Estimated Budget', num: true, total: 'est' },
     { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' },
-    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'receipt', label: 'Transfer Receipt', hidden: true },
+    { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'invoiceRef', label: 'Invoice / Quotation File', hidden: true },
     { key: 'task', label: 'Task' }, { key: 'check', label: 'Check', hidden: true }
   ]
 };
@@ -67,6 +67,8 @@ function normalizeColumns(s) {
   Object.keys(COL_BUILTIN).forEach(function (table) {
     var seen = {}, list = [];
     (Array.isArray(c[table]) ? c[table] : []).forEach(function (col) {
+      // v19: the old "Transfer Receipt" column is replaced by "Invoice / Quotation File" (same spot, same visibility)
+      if (table === 'finance' && col && col.key === 'receipt' && !col.custom) col = { key: 'invoiceRef', label: 'Invoice / Quotation File', visible: col.visible };
       if (!col || !col.key || seen[col.key]) return;
       var b = builtinCol(table, col.key);
       if (!b && !col.custom) return;
@@ -365,6 +367,26 @@ function applyTodoV1(d) {
 // Every purchasable budget item gets its own task (category Procurement), so Finance and Tasks list the same items.
 // Line items inside a vendor invoice get a task too (payment status and due date follow the vendor row). Only fund allocation rows are skipped (their usage rows get tasks). Tasks made here have id TF-<finance id>.
 var FIN_PLACEHOLDER = 'Task dibuat untuk menampung baris budget';
+/* v19 (one-time): these budget rows become usage rows (sub items) of the Emergency Fund allocation.
+   Matched by name (case, dashes and punctuation ignored). An allocation row that has no usage rows of its own becomes a line item.
+   The row joins the Emergency Fund category and is listed under the "Alokasi Emergency Fund" task. */
+var EF_MOVE_V19 = ['mobil legends gift tebak hero', 'dana laminating a4 rules games 12 games', 'dana laminating a6 qr code voting frame 20 tim'];
+function efNorm(x) { return String(x || '').toLowerCase().replace(/mobile/g, 'mobil').replace(/[^a-z0-9]+/g, ' ').trim(); }
+function moveIntoEmergencyFund(d, s) {
+  var org = s.wsOrigin || {}, base = function (w) { return org[w] || w; };
+  var ef = d.finance.filter(function (f) { return f.kind === 'allocation' && base(f.workstream) === 'Emergency Fund'; })[0];
+  if (!ef) return;
+  var now = Date.now(), moved = 0, found = 0;
+  d.finance.forEach(function (f) {
+    if (f.id === ef.id || EF_MOVE_V19.indexOf(efNorm(f.item)) < 0) return;
+    found++;
+    if (f.parentId === ef.id) return;
+    if (d.finance.some(function (k) { return k.parentId === f.id; })) return;   // still holds rows of its own: leave it
+    f.kind = ''; f.parentId = ef.id; f.workstream = ef.workstream;
+    f.taskId = ef.taskId || null; f.taskSynced = !!ef.taskId; f.wsSynced = true; f.updatedAt = now; moved++;
+  });
+  if (found) s.efMoveV19 = true;   // only marked done once the rows exist in this data
+}
 function syncFinanceTasks(d, s) {
   var byId = {}, fById = {}, links0 = {}, used = {};
   d.tasks.forEach(function (t) { byId[t.id] = t; used[t.id] = 1; });
@@ -545,6 +567,7 @@ function normalizeDb(d) {
     });
     s.colEnV17 = true;
   }
+  if (!s.efMoveV19) moveIntoEmergencyFund(d, s);
   syncFinanceTasks(d, s);
   if (!s.wsOrigin || typeof s.wsOrigin !== 'object' || Array.isArray(s.wsOrigin)) s.wsOrigin = {};
   wsColorSlots(s);
@@ -2436,6 +2459,13 @@ function finDueControl() {
     (d.m === 'range' ? '<input class="input" type="date" id="finDueA" value="' + esc(d.a || '') + '" aria-label="Due from"><span class="muted fin-due-to">to</span><input class="input" type="date" id="finDueB" value="' + esc(d.b || '') + '" aria-label="Due until">' : '') +
     '</span>';
 }
+// Invoice / Quotation File cell: a link opens in a new tab (without opening the row), anything else is shown as the file name
+function fileCell(v) {
+  v = String(v || '').trim();
+  if (!v) return '<span class="faint">—</span>';
+  if (/^https?:\/\//i.test(v)) return '<a class="file-link" href="' + esc(v) + '" target="_blank" rel="noopener" title="' + esc(v) + '" onclick="event.stopPropagation()">Open file ↗</a>';
+  return '<span class="file-name" title="' + esc(v) + '">' + esc(v) + '</span>';
+}
 function finCategories() {
   var order = {}, seq = 0;
   db.finance.slice().sort(rowOrder).forEach(function (f) { if (!(f.workstream in order)) order[f.workstream] = seq++; });
@@ -2493,7 +2523,7 @@ function renderFinance() {
   }
   var body = '';
   // vendor invoices: payment cells are merged (rowspan) over the vendor row and its line items
-  var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1 };
+  var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1, invoiceRef: 1 };
   function row(f, child, span, underParent) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
     var flagHtml = (f.source === 'verify' ? '<span class="src verify" title="' + esc(f.verifyNote || 'Needs Verification') + '">Verify</span> ' : '') +
@@ -2502,14 +2532,15 @@ function renderFinance() {
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
     if (f.kind === 'allocation') sub.push('Alokasi dana');
     var qtyTxt = c.qty != null ? rpFmt.format(c.qty) + (f.unit ? ' <span class="faint">' + esc(f.unit) + '</span>' : '') : '<span class="faint">—</span>';
-    var pay, paid, rem, dpc, inv, ivs, rec, pd;
+    var pay, paid, rem, dpc, inv, ivs, rec, pd, iref;
     if (c.inherited) {
       var via = '<span class="faint" style="font-size:12px">via vendor</span>';
-      inv = dpc = paid = rem = '<span class="faint">·</span>'; ivs = pay = rec = pd = via;
+      inv = dpc = paid = rem = '<span class="faint">·</span>'; ivs = pay = rec = pd = iref = via;
     } else if (c.allocation) {
       inv = dpc = paid = '<span class="faint">—</span>';
       rem = '<span title="Terpakai ' + rp(c.used) + '">sisa ' + rp(c.fundLeft) + '</span><span class="tsub">terpakai ' + rp(c.used) + '</span>';
       ivs = pay = rec = pd = '<span class="badge b-neutral nodot">Allocation</span>';
+      iref = fileCell(f.invoiceRef);
     } else {
       inv = rp(c.inv); dpc = rp(c.dp);
       paid = rp(c.base == null && !c.paid ? null : c.paid) + (c.fee ? '<span class="tsub">+ fee ' + rp(c.fee) + '</span>' : '');
@@ -2518,6 +2549,7 @@ function renderFinance() {
       ivs = invBadge(f.invoiceStatus);
       pay = canEdit() ? '<select class="inline-select st-' + esc(payDef(f.paymentStatus).color) + '" data-inline="paystatus" data-id="' + f.id + '" aria-label="Payment status ' + esc(f.item) + '">' + opts(withCurrent(payList(), f.paymentStatus), f.paymentStatus) + '</select>' : payBadge(f.paymentStatus);
       rec = f.receipt ? '<span class="badge b-ok nodot" title="' + esc(f.receipt) + '" style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + esc(f.receipt) + '</span>' : '<span class="faint">—</span>';
+      iref = fileCell(f.invoiceRef);
     }
     var cell = {
       item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') +
@@ -2525,7 +2557,7 @@ function renderFinance() {
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
-      paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>',
+      paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>', invoiceRef: '<td class="fin-file">' + iref + '</td>',
       task: '<td class="fin-task">' + (t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" title="' + esc(t.name) + '">' + esc(t.name) + '</a>' : '<span class="faint">—</span>') + '</td>',
       check: '<td>' + flagHtml + '</td>'
     };

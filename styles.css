@@ -1231,3 +1231,8 @@ body.present-fs .admin-bar,body.present-fs .side-toggle{display:none}
 .pd-seg{cursor:pointer;transition:stroke-width .15s}
 .pd-seg:hover{stroke-width:19}
 .pd-donut text{pointer-events:none}
+
+/* v19: Invoice / Quotation File column */
+.fin-table td.fin-file{max-width:200px}
+.fin-table .file-link{font-weight:600;white-space:nowrap}
+.fin-table .file-name{display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;font-size:12.5px}
