@@ -1,12 +1,21 @@
-GX27 - Patch v33 (Buffer: semua sisa budget langsung masuk buffer + kotak buffer bisa diklik)
+GX27 - Patch v34 (Buffer tanpa "Used from Buffer" palsu, Paid 82.638.870 di total tabel)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v32.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v33.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v33
+CHANGES v34
+1. Used from Buffer = Rp 0. Rider NSK + MC + Spectrum + DJ (Rp 2.800.000) dicatat "Dari sisa Cetak Card" (sesuai catatan sheet),
+   jadi bukan pemakaian buffer: savings Cetak Card langsung dikurangi Rp 2.800.000. Available Buffer tidak berubah.
+   Perhitungan otomatis "budget di atas sheet = used from buffer" (v32) dihapus.
+2. Kolom Buffer Budget di tabel sekarang sama persis dengan popup Buffer Budget (total kolom = Available Buffer).
+   Emergency Fund / budget pool tidak dihitung sebagai buffer (sisanya ada di kolom Remaining).
+3. Baris total di bawah tabel: Paid = transfer + fee (Grand Total Paid Rp 82.638.870, incl. fee Rp 27.500), juga di subtotal kategori.
+   Kalau difilter Payment Status, baris paling bawah jadi "Total · <status>" dengan total Budget, Paid, Remaining, Buffer untuk filter itu.
+
+CHANGES v33 (included)
 1. Buffer Budget: semua item yang biaya aktualnya (invoice, atau transfer kalau Full Paid) di bawah budget langsung dihitung
    sebagai buffer, tanpa perlu invoice Submitted / Paid dulu. Over budget juga langsung dihitung.
    (Bagian "Potential savings not counted yet" tidak ada lagi.)

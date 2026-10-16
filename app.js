@@ -678,6 +678,10 @@ function normalizeDb(d) {
     s.colBufV24 = true;
   }
   if (!s.efMoveV19) moveIntoEmergencyFund(d, s);
+  {   // v36: Rider is paid from the Cetak Card leftover (as written in the sheet), not from the general buffer
+    var cc = d.finance.filter(function (f) { return /^cetak card/i.test(f.item || ''); })[0];
+    if (cc) d.finance.forEach(function (f) { if (f.fundSource === 'buffer' && !f.parentId && /^rider not so koplo/i.test(f.item || '') && !f.fundFrom) f.fundFrom = cc.id; });
+  }
   if (!s.doorEstV34) {   // v34: Doorprize budget = sum of its items (as in the sheet); what was paid above it is over budget, covered by the buffer
     d.finance.forEach(function (f) {
       if (f.kind !== 'vendor' || !/^doorprize/i.test(wsBase(f.workstream) || '') || f.estimated == null || f.estimated === '') return;
@@ -1473,11 +1477,12 @@ function calc(f) {
 function fromBuffer(f) { return f && f.fundSource === 'buffer' && !f.parentId; }
 function bufferCost(f, c) { c = c || calc(f); return c.base != null ? c.base : (c.est || 0); }
 function bufferBudget() {
-  var out = { items: [], overItems: [], pending: [], savings: 0, over: 0, used: 0, usedItems: [] };
+  var out = { items: [], overItems: [], pending: [], savings: 0, over: 0, used: 0, usedItems: [] }, take = {};
+  db.finance.forEach(function (f) { if (fromBuffer(f) && f.fundFrom && finById(f.fundFrom) && !offBudgetRow(f)) (take[f.fundFrom] = take[f.fundFrom] || []).push({ f: f, cost: bufferCost(f) }); });
   db.finance.forEach(function (f) {
     if (offBudgetRow(f)) return;
     var c = calc(f), par = f.parentId ? finById(f.parentId) : null;
-    if (fromBuffer(f)) { var u = bufferCost(f, c); out.used += u; out.usedItems.push({ f: f, cost: u, est: c.est, inv: c.inv }); return; }
+    if (fromBuffer(f)) { var u = bufferCost(f, c), src = f.fundFrom ? finById(f.fundFrom) : null; if (src) return; out.used += u; out.usedItems.push({ f: f, cost: u, est: c.est, inv: c.inv }); return; }
     if (c.inherited || c.allocation || (par && par.kind === 'allocation')) return;
     var est = c.est, paidAmt = numOrNull(f.paidAmount), isPaid = payType(f.paymentStatus) === 'paid';
     var actual = c.inv != null ? c.inv : (paidAmt != null && isPaid ? paidAmt : null);
@@ -1486,14 +1491,11 @@ function bufferBudget() {
     var confirmed = true;   // v35: every amount under / over budget counts for the buffer right away
     var row = { f: f, est: est, actual: actual, diff: est - actual, basis: isPaid ? 'Paid' : submitted ? 'Invoice submitted' : f.source === 'verify' ? 'Needs verification' : 'Invoice not submitted' };
     if (!confirmed) { if (row.diff > 0) out.pending.push(row); return; }
-    if (row.diff > 0) { out.items.push(row); out.savings += row.diff; }
+    if (take[f.id]) { row.takenBy = take[f.id]; row.taken = take[f.id].reduce(function (a, x) { return a + x.cost; }, 0); row.diff -= row.taken; delete take[f.id]; }
+    if (row.diff > 0 || row.taken) { out.items.push(row); out.savings += row.diff; }
     else if (row.diff < 0) { out.overItems.push(row); out.over += -row.diff; }
   });
-  var T = balanceTarget();
-  if (T.seed && T.est != null) {
-    var raw = totals(db.finance).est, M = raw > T.est ? balanceMatch() : null, left = M ? Math.min(M.overSum, raw - T.est) : 0;
-    if (M) M.over.forEach(function (r) { if (left <= 0.5) return; var u = Math.min(r.diff, left); left -= u; out.used += u; out.usedItems.push({ f: r.f, cost: u, est: r.web, inv: null, overSheet: r.sheet }); });
-  }
+  Object.keys(take).forEach(function (k) { take[k].forEach(function (x) { out.used += x.cost; out.usedItems.push({ f: x.f, cost: x.cost, est: null, inv: null }); }); });   // source has no leftover: falls back to the buffer
   out.items.sort(function (a, b) { return b.diff - a.diff; });
   out.overItems.sort(function (a, b) { return a.diff - b.diff; });
   out.net = out.savings - out.over;
@@ -1507,7 +1509,7 @@ function bufferDialog() {
     return '<div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Original Budget</th><th class="r">Actual Cost</th><th class="r">' + (kind === 'over' ? 'Over Budget' : 'Savings') + '</th></tr></thead><tbody>' +
       rows.map(function (r) {
         return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + esc(r.basis) + '</span></td>' +
-          '<td class="num r" data-l="Original">' + rp(r.est) + '</td><td class="num r" data-l="Actual">' + rp(r.actual) + '</td><td class="num r ' + (r.diff >= 0 ? 'buf-pos' : 'buf-neg') + '" data-l="' + (kind === 'over' ? 'Over' : 'Savings') + '">' + rp(Math.abs(r.diff)) + '</td></tr>';
+          '<td class="num r" data-l="Original">' + rp(r.est) + '</td><td class="num r" data-l="Actual">' + rp(r.actual) + (r.taken ? '<span class="tsub">+ ' + rp(r.taken) + ' dipakai ' + esc(r.takenBy.map(function (x) { return x.f.item; }).join(', ')) + '</span>' : '') + '</td><td class="num r ' + (r.diff >= 0 ? 'buf-pos' : 'buf-neg') + '" data-l="' + (kind === 'over' ? 'Over' : 'Savings') + '">' + rp(Math.abs(r.diff)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   openModal('<div class="modal-h"><h3>Buffer Budget</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
@@ -1720,7 +1722,7 @@ function taskStats() {
 /* ================= Rendering ================= */
 var main = document.getElementById('main');
 function render() {
-  db = normalizeDb(db);
+  db = normalizeDb(db); _bufMap = null;
   var focusId = document.activeElement && document.activeElement.id, selStart = null;
   try { selStart = document.activeElement.selectionStart; } catch (e) {}
   applySettings();
@@ -2969,7 +2971,7 @@ function renderTimeline(list) {
 var BUF_FILTERS = { 'buf-save': 'Savings (buffer) only', 'buf-over': 'Over budget only', 'buf-used': 'Used from buffer only', 'buf-all': 'Buffer items only' };
 function bufferIds(kind) {
   var b = bufferBudget(), ids = {}, add = function (l) { l.forEach(function (r) { ids[r.f.id] = 1; }); };
-  if (kind === 'buf-save' || kind === 'buf-all') add(b.items);
+  if (kind === 'buf-save' || kind === 'buf-all') { add(b.items); b.items.forEach(function (r) { (r.takenBy || []).forEach(function (x) { ids[x.f.id] = 1; }); }); }
   if (kind === 'buf-over' || kind === 'buf-all') add(b.overItems);
   if (kind === 'buf-used' || kind === 'buf-all') add(b.usedItems);
   return ids;
@@ -3054,29 +3056,22 @@ function budgetInfo(f, c) {
    Plain item: estimate vs invoice (or amount transferred when fully paid). Row with sub items: Budget − Realization (see budgetInfo).
    Sub items return null: their figures are already inside the parent's buffer, so nothing is counted twice.
    "confirmed" = the cost is final (invoice Submitted or fully paid; a Budget Pool's buffer is always current). */
+/* v36: the Buffer column shows exactly what the Buffer Budget counts (savings / over budget per item), so its total = Available Buffer.
+   Budget pools (Emergency Fund, DIY Totebag) are not buffer: their remaining is shown in the Remaining column. */
+var _bufMap = null;
 function bufferOf(f, c) {
-  c = c || calc(f);
-  if (fromBuffer(f)) return null;   // paid out of the buffer itself
-  var par = f.parentId ? finById(f.parentId) : null;
-  if (c.inherited || (par && par.kind)) return null;
-  if (f.kind && kidsOf(f).length) {
-    var bi = budgetInfo(f, c); if (!bi || bi.left == null) return null;
-    return { v: bi.left, confirmed: c.allocation || payType(f.paymentStatus) === 'paid' || f.invoiceStatus === 'Submitted' };
-  }
-  if (c.allocation) return c.est == null ? null : { v: c.est - (c.used || 0), confirmed: true };
-  var paidAmt = numOrNull(f.paidAmount), isPaid = payType(f.paymentStatus) === 'paid';
-  var actual = c.inv != null ? c.inv : (paidAmt != null && isPaid ? paidAmt : null);
-  if (c.est == null || actual == null) return null;
-  return { v: c.est - actual, confirmed: isPaid || f.invoiceStatus === 'Submitted' };
+  if (!_bufMap) { var b = bufferBudget(); _bufMap = {}; b.items.concat(b.overItems).forEach(function (r) { _bufMap[r.f.id] = { v: r.diff, confirmed: true, taken: r.taken || 0 }; }); b.usedItems.forEach(function (r) { _bufMap[r.f.id] = { v: -r.cost, confirmed: true }; }); }
+  return _bufMap[f.id] || null;
 }
 function bufferCellHtml(f, c) {
   var par = f.parentId ? finById(f.parentId) : null;
+  if (fromBuffer(f) && f.fundFrom && finById(f.fundFrom)) return '<span class="faint" title="Dibiayai dari sisa ' + esc(finById(f.fundFrom).item) + '">dari sisa ' + esc(finById(f.fundFrom).item) + '</span>';
   if (fromBuffer(f)) return '<span class="from-buf" title="Cost taken from the Buffer Budget">− ' + rp(bufferCost(f, c)) + '</span>';
   if (c.inherited || (par && par.kind)) return '<span class="faint" title="Included in the buffer of ' + esc((par || {}).item || 'the parent row') + '">·</span>';
   var b = bufferOf(f, c);
   if (!b) return '<span class="faint" title="Needs both an estimated budget and an actual cost (invoice)">—</span>';
   var cls = b.v > 0 ? 'buf-pos' : b.v < 0 ? 'buf-neg' : '';
-  return '<span class="' + cls + '">' + (b.v < 0 ? '− ' : '') + rp(Math.abs(b.v)) + '</span>' + (b.confirmed ? '' : '<span class="tsub" title="Invoice not submitted / not paid yet">pending</span>');
+  return '<span class="' + cls + '">' + (b.v < 0 ? '− ' : '') + rp(Math.abs(b.v)) + '</span>' + (b.taken ? '<span class="tsub">setelah − ' + rp(b.taken) + ' dipakai</span>' : '');
 }
 function budgetStrip(f, c) {
   var b = budgetInfo(f, c); if (!b) return '';
@@ -3187,9 +3182,7 @@ function renderFinance() {
     var on = !!amt && ui.finAmt === amt;
     return '<button type="button" class="kpi kpi-btn' + (hl ? ' hl' : '') + (on ? ' kpi-on' : '') + '" data-act="fin-amt" data-amt="' + amt + '" aria-pressed="' + on + '" title="' + title + '"><span class="k">' + k + '</span><span class="v money">' + v + '</span><span class="s">' + sub + (on ? ' · filter on ✕' : ' · show items →') + '</span></button>';
   };
-  var T0 = balanceTarget(), M0 = T0.seed && T0.est != null && all.est > T0.est ? balanceMatch() : null, ovr = M0 ? Math.min(M0.overSum, all.est - T0.est) : 0;
-  if (ovr > 0.5) { all = Object.assign({}, all, { est: all.est - ovr, fromBuffer: (all.fromBuffer || 0) + ovr, rawEst: all.est }); }
-  h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.fromBuffer ? ' · + ' + rp(all.fromBuffer) + ' from buffer' : '') + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
+  h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.fromBuffer ? ' · + ' + rp(all.fromBuffer) + ' dari sisa budget' : '') + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
     kbtn('Paid', rp(all.paid + all.fee), (all.fee ? 'incl. ' + rp(all.fee) + ' transfer fees' : 'transfers made'), false, 'paid', 'Show items that already have a payment') +
     kbtn('Outstanding Payment', rp(all.outstanding), 'still to pay', all.outstanding > 0, 'outstanding', 'Show items that still have an amount to pay') +
     '<button type="button" class="kpi kpi-btn' + (buf.available < 0 ? ' hl' : '') + '" data-act="buffer-detail" aria-label="Buffer Budget details"><span class="k">Buffer Budget · Available</span><span class="v money' + (buf.available < 0 ? ' buf-neg' : '') + '">' + (buf.available < 0 ? '− ' + rp(-buf.available) : rp(buf.available)) + '</span>' +
@@ -3210,7 +3203,7 @@ function renderFinance() {
   // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
   function sumRow(cls, label, tot, tail) {
     return '<tr class="' + cls + '">' + FC.map(function (c, i) {
-      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : rp(tot[b.total])) + '</span>' : '';
+      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') : '';
       if (i === 0) return '<td>' + label + (v ? ' · ' + v : '') + '</td>';
       if (i === FC.length - 1 && tail && !v) return '<td class="muted">' + tail + '</td>';
       return '<td' + (v ? ' class="num r"' : '') + '>' + v + '</td>';
@@ -3225,7 +3218,7 @@ function renderFinance() {
       (c.flags.length ? '<span class="flag' + (c.flags.some(function (x) { return x.lvl === 'crit'; }) ? ' crit' : '') + '" title="' + esc(c.flags.map(function (x) { return x.msg; }).join('\n')) + '">⚠ ' + c.flags.length + '</span>' : (f.source === 'verify' ? '' : '<span class="flag" style="color:var(--ok)">✓</span>'));
     var sub = [];
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
-    if (fromBuffer(f)) sub.push('<span class="from-buf">Funded from Buffer</span>');
+    if (fromBuffer(f)) sub.push('<span class="from-buf">' + (f.fundFrom && finById(f.fundFrom) ? 'Dari sisa ' + esc(finById(f.fundFrom).item) : 'Funded from Buffer') + '</span>');
     if (f.kind === 'allocation') sub.push('Budget pool · ' + kidsOf(f).length + ' sub item' + (kidsOf(f).length === 1 ? '' : 's') + (c.feeUsed ? ' + transfer fees ' + rp(c.feeUsed) : ''));
     var qtyTxt = c.qty != null ? rpFmt.format(c.qty) + (f.unit ? ' <span class="faint">' + esc(f.unit) + '</span>' : '') : '<span class="faint">—</span>';
     var pay, paid, rem, dpc, inv, ivs, rec, pd, iref;
@@ -3288,7 +3281,7 @@ function renderFinance() {
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(' + (ob ? esc(ob) + ', not in event total' : 'auto') + ')</span>', st);
   });
   var gt = totals(list);
-  body += sumRow('grand', (list.length === db.finance.length ? 'Grand Total' : 'Total (Filtered)') + (gt.off.count ? ' <span class="muted" style="font-weight:400">(event budget)</span>' : ''), gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
+  body += sumRow('grand', (list.length === db.finance.length ? 'Grand Total' : 'Total' + (ui.finPay ? ' · ' + esc(ui.finPay) : ' (Filtered)')) + (gt.off.count ? ' <span class="muted" style="font-weight:400">(event budget)</span>' : ''), gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
   if (gt.off.count) body += '<tr class="subtotal off-total"><td colspan="' + FC.length + '">Outside event budget: ' + gt.off.count + ' rows · budget ' + rp(gt.off.est) + ' · paid ' + rp(gt.off.paid) + ' · outstanding ' + rp(gt.off.outstanding) + ' <span class="muted">(not included in the totals above)</span></td></tr>';
   h += '<div class="table-wrap"><table class="fin-table" data-rz="finance"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
   h += '<details class="fin-note"><summary>Cara Hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
