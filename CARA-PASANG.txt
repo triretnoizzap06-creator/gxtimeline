@@ -1,12 +1,44 @@
-GX27 - Patch v27 (PIC Finance otomatis untuk task Finance & Procurement)
+GX27 - Patch v29 (Web = Sheet: angka disamakan + Upload Sheet supaya selalu up to date)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v26.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v28.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v27
+CHANGES v29
+1. "Update dari Sheet": sheet sekarang jadi acuan. SEMUA perbedaan sudah dicentang, termasuk angka yang tadinya diedit di app
+   (mis. estimasi Doorprize Rp 8.880.000 -> dikembalikan ke rincian sheet Rp 8.654.639), jadi Total Budget = Sub Total sheet
+   Rp 204.280.139 dan transfer = Rp 82.638.870. Hapus centang kalau ada yang memang mau beda dari sheet.
+2. Tombol baru di Finance: "Upload Sheet". Setiap sheet berubah:
+   Google Sheet -> buka tab EDIT DISINI -> File -> Download -> Comma-separated values (.csv) -> Upload Sheet -> pilih file.
+   (File export semua tab juga bisa.) App membaca divisi Acara saja, lalu menampilkan daftar perubahan:
+   Qty, Price, Total Price, INV Total, DP Total (transfer + fee), Payment Status, file invoice & bukti transfer, item baru,
+   dan Sub Total / total transfer di baris rekap sheet. Klik Update -> Save.
+   Baris rincian yang hanya ditulis di kolom Note (mis. "Totebag 100 pcs : Rp2.965.000") tidak dibaca otomatis;
+   daftarnya ditampilkan di dialog supaya bisa dicek manual.
+   Item yang hanya ada di app (section, item dari buffer, Tenants/di luar budget) tidak disentuh.
+3. Catatan: web tidak bisa membaca Google Sheet secara live tanpa membuat sheet-nya publik, jadi update lewat Upload Sheet.
+
+CHANGES v28 (included)
+1. Data budget sheet di app diperbarui ke "EDIT DISINI" divisi Acara (snapshot 16 Okt 2026):
+   Sub Total Rp 204.280.139 · total transfer Rp 82.638.870.
+   Perubahan dari sheet: DIY Totebag jadi Budget Pool berisi Mini Heat Press (Rp 326.069), Totebag 100 pcs (Rp 2.965.000),
+   Sticker DTF 39 lembar (Rp 2.025.000) · Acrylic A4 4 pcs Rp 107.996 · Air Honk 2 pcs Rp 102.000 ·
+   Mobile Legend transfer Rp 5.000.000 + fee Rp 2.500 · baru: Rider NSK + MC + Spectrum + DJ Rp 2.800.000 (diambil dari sisa Cetak Card → Funded from Buffer).
+   Angka sheet diambil dari daftar realisasi di samping tabel (mis. Sticker DTF 39 lembar Rp 2.025.000, bukan catatan 44 lembar Rp 1.672.000).
+2. Setelah deploy, Finance menampilkan banner "Data budget dari sheet terbaru tersedia" -> klik "Update dari Sheet":
+   daftar perubahan per item (dicentang = diterapkan). Perubahan yang kamu buat di app (mis. estimasi Doorprize) tidak dicentang dan
+   dilipat di bagian terpisah. Item yang hanya ada di app (section, item buffer, Tenants, dll.) tidak disentuh. Lalu klik Save (admin).
+   (Tombol lama yang mengganti seluruh Finance sudah tidak dipakai.)
+3. Kategori Tenants = di luar budget event, masuk budget "Operational Marketing":
+   tetap tampil di Finance (ditandai), tapi tidak dihitung di Total Budget, Paid, Outstanding, Buffer, rekonsiliasi, dan item yang perlu dicek.
+   Totalnya ditulis terpisah di bawah tabel. Tombol "Budget: ..." di judul kategori untuk mengatur kategori mana pun.
+4. Rincian selisih dengan sheet: item yang dihapus / diganti nama otomatis dianggap sesuai (dilipat), selisih lain bisa ditandai "✓ OK".
+   Banner menulis berapa yang masih perlu direview.
+5. Items to Check: tombol "✓ Mark verified" untuk menghapus tanda Needs Verification.
+
+CHANGES v27 (included)
 1. Semua task di tab "Finance & Procurement" otomatis punya PIC "Finance" (ditambahkan di samping PIC lain, tidak mengganti).
    Berlaku untuk task yang punya item budget ter-link, atau kategori Procurement
    (checklist Need per Station tidak ikut kecuali punya item budget). Task baru otomatis ikut.
