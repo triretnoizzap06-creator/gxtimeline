@@ -1371,8 +1371,8 @@ function renderPresent() {
   h += '<section class="pd-card"><div class="pd-card-h"><h2>Budget Summary</h2><span class="muted">' + ft.count + ' budget items</span></div>' +
     '<div class="pd-money">' +
     '<div><span>Total Budget</span><b>' + rpShort(ft.est) + '</b><em>' + rp(ft.est) + '</em></div>' +
-    '<div style="--c:var(--ok)"><span>Paid</span><b>' + rpShort(ft.paid) + '</b><em>' + Math.round(paidPct) + '% of budget</em></div>' +
-    '<div style="--c:var(--warn)"><span>Outstanding Payment</span><b>' + rpShort(ft.outstanding) + '</b><em>' + rp(ft.outstanding) + '</em></div>' +
+    '<button type="button" data-act="fin-amt" data-amt="paid" title="Open Finance: items with a payment" style="--c:var(--ok)"><span>Paid</span><b>' + rpShort(ft.paid) + '</b><em>' + Math.round(paidPct) + '% of budget</em></button>' +
+    '<button type="button" data-act="fin-amt" data-amt="outstanding" title="Open Finance: items still to pay" style="--c:var(--warn)"><span>Outstanding Payment</span><b>' + rpShort(ft.outstanding) + '</b><em>' + rp(ft.outstanding) + '</em></button>' +
     '<button type="button" data-act="buffer-detail" style="--c:var(--info)"><span>Buffer Budget</span><b>' + rpShort(buf.savings) + '</b><em>' + buf.items.length + ' confirmed saving' + (buf.items.length === 1 ? '' : 's') + (buf.over ? ' · net ' + rpShort(buf.savings - buf.over) : '') + '</em></button></div>' +
     '<div class="pd-budgetbar" role="img" aria-label="Paid ' + Math.round(paidPct) + '%, outstanding ' + Math.round(outPct) + '%"><i class="paid" style="width:' + paidPct.toFixed(1) + '%"></i><i class="out" style="width:' + outPct.toFixed(1) + '%"></i></div>' +
     '<div class="pd-budgetkey"><span><i class="paid"></i>Paid</span><span><i class="out"></i>Outstanding</span><span><i class="rest"></i>Not yet invoiced / no amount</span></div></section>';
@@ -2518,13 +2518,18 @@ function filteredFinance() {
     if (ui.finPay && f.paymentStatus !== ui.finPay) return false;
     if (ui.finInv && f.invoiceStatus !== ui.finInv) return false;
     if (finDueActive() && !finDueMatch(f)) return false;
+    if (ui.finAmt) {   // from the Paid / Outstanding Payment cards; line items inside a vendor invoice are counted on the invoice row
+      var ca = calc(f); if (ca.inherited || ca.allocation) return false;
+      if (ui.finAmt === 'paid' && !(ca.paid > 0)) return false;
+      if (ui.finAmt === 'outstanding' && !(ca.outstanding > 0)) return false;
+    }
     if (q) { var t = taskById(f.taskId); if ([f.item, f.workstream, f.notes, f.receipt, f.receipt2, f.invoiceRef, f.id, f.sheetRow, t ? t.name : ''].concat(Object.keys(f.cf || {}).map(function (k) { return f.cf[k]; })).join(' ').toLowerCase().indexOf(q) < 0) return false; }
     return true;
   };
   var hit = {}; db.finance.forEach(function (f) { if (match(f)) hit[f.id] = 1; });
   // keep vendor groups together: a matching line item brings its vendor row, a matching vendor row brings its line items
   db.finance.forEach(function (f) { if (hit[f.id] && f.parentId) hit[f.parentId] = hit[f.parentId] || 2; });
-  db.finance.forEach(function (f) { if (f.parentId && hit[f.parentId] === 1 && !ui.finPay && !ui.finInv && !finDueActive()) hit[f.id] = hit[f.id] || 1; });
+  db.finance.forEach(function (f) { if (f.parentId && hit[f.parentId] === 1 && !ui.finPay && !ui.finInv && !finDueActive() && !ui.finAmt) hit[f.id] = hit[f.id] || 1; });
   return db.finance.filter(function (f) { return hit[f.id]; });
 }
 /* v15: Due Date filter (Finance). ui.finDue = { m: '' | 'on' | 'range' | 'overdue' | 'none', a: on/from date, b: to date }.
@@ -2630,7 +2635,7 @@ function finCategories() {
 function rowOrder(a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); }
 // a vendor invoice with line items: the Doorprize group starts folded (the prizes are included in the invoice row), other groups start open
 function finCollapsed(f) {
-  if (ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDueActive()) return false;      // while searching/filtering, show everything
+  if (ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDueActive() || ui.finAmt) return false;      // while searching/filtering, show everything
   var o = (ui.finOpen || {})[f.id];
   return o === undefined ? f.workstream === 'Doorprize' : !o;
 }
@@ -2646,9 +2651,13 @@ function renderFinance() {
       '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Terapkan Data Sheet Terbaru</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
   }
   var buf = bufferBudget();
-  h += '<div class="kpis fin-kpis">' + kpi('Total Budget', rp(all.est), all.count + ' items' + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, true) +
-    kpi('Paid', rp(all.paid), all.fee ? '+ ' + rp(all.fee) + ' transfer fees' : 'transfers made', false, true) +
-    kpi('Outstanding Payment', rp(all.outstanding), 'invoice (or estimate) minus paid', all.outstanding > 0, true) +
+  var kbtn = function (k, v, sub, hl, amt, title) {
+    var on = (ui.finAmt || '') === amt;
+    return '<button type="button" class="kpi kpi-btn' + (hl ? ' hl' : '') + (on ? ' kpi-on' : '') + '" data-act="fin-amt" data-amt="' + amt + '" aria-pressed="' + on + '" title="' + title + '"><span class="k">' + k + '</span><span class="v money">' + v + '</span><span class="s">' + sub + (on ? ' · filter on ✕' : ' · show items →') + '</span></button>';
+  };
+  h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
+    kbtn('Paid', rp(all.paid), (all.fee ? '+ ' + rp(all.fee) + ' fees' : 'transfers made'), false, 'paid', 'Show items that already have a payment') +
+    kbtn('Outstanding Payment', rp(all.outstanding), 'still to pay', all.outstanding > 0, 'outstanding', 'Show items that still have an amount to pay') +
     '<button type="button" class="kpi kpi-btn" data-act="buffer-detail" aria-label="Buffer Budget details"><span class="k">Buffer Budget</span><span class="v money">' + rp(buf.savings) + '</span>' +
     '<span class="s">' + buf.items.length + ' confirmed saving' + (buf.items.length === 1 ? '' : 's') + (buf.over ? ' · net ' + rp(buf.savings - buf.over) : '') + ' · view details →</span></button></div>';
   if (meta && meta.sheetSubTotal != null) {
@@ -2661,7 +2670,8 @@ function renderFinance() {
     '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All Categories') + '</select>' +
     '<select class="select" id="finPay" aria-label="Payment Status">' + opts(payList(), ui.finPay, 'All Payment Status') + '</select>' +
     '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' + finDueControl() + colPickerBtn('finance') +
-    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDue().m) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
+    (ui.finAmt ? '<button type="button" class="chip-filter" data-act="fin-amt" data-amt="' + ui.finAmt + '" title="Remove this filter">' + (ui.finAmt === 'paid' ? 'Paid items only' : 'Outstanding items only') + ' ✕</button>' : '') +
+    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDue().m || ui.finAmt) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
   if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No Budget Items Yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Items Match', 'Try a different search or clear the filters.') + '</div>';
   var groups = {};
@@ -3307,7 +3317,15 @@ function handleAct(el, e) {
     case 'col-filter': openColFilter(el.dataset.key, el); break;
     case 'col-picker': e.stopPropagation(); openColPicker(el.dataset.table, el); break;
     case 'ms-clear': ui[el.dataset.key] = []; render(); break;
-    case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
+    case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
+    case 'fin-amt': {
+      var amt = el.dataset.amt || '';
+      if (!amt) { ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; }   // Total Budget = show everything
+      else ui.finAmt = ui.finAmt === amt ? '' : amt;                                                                   // click again to turn it off
+      if (ui.page !== 'finance') go('finance'); else render();
+      setTimeout(function () { var tw = main.querySelector('.fin-table'); if (tw && amt) tw.closest('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+      break;
+    }
     case 'import-csv': importCsvDialog(); break;
     case 'cal-prev': case 'cal-next':
       var p = ui.calMonth.split('-'), d = new Date(+p[0], +p[1] - 1 + (act === 'cal-next' ? 1 : -1), 1); ui.calMonth = toISO(d).slice(0, 7); render(); break;

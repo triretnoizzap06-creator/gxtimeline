@@ -1,12 +1,21 @@
-GX27 - Patch v23 (Budget vs Realisasi untuk semua induk + kolom Buffer Budget)
+GX27 - Patch v24 (Kartu Paid & Outstanding bisa diklik jadi filter)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v22.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v23.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v23
+CHANGES v24
+1. Finance & Procurement: kartu di atas bisa diklik.
+   - Paid -> tabel hanya menampilkan item yang sudah ada pembayarannya.
+   - Outstanding Payment -> hanya item yang masih ada sisa tagihan.
+   - Total Budget -> tampilkan semua (hapus semua filter).
+   Klik kartu yang sama lagi / klik chip "... only ✕" untuk mematikan. Bisa digabung dengan filter lain (kategori, status, due date, search).
+   Baris "Total (Filtered)" di bawah tabel = angka di kartu.
+2. Presentation: kotak Paid dan Outstanding Payment membuka Finance dengan filter yang sama.
+
+CHANGES v23 (included)
 1. Semua baris yang punya sub item (Budget Pool dan Vendor Invoice: Doorprize, OJISAN, Bali Games, BUMI, Emergency Fund, dll.)
    menampilkan di bawah nama item: Budget · Realization · Remaining (atau Over, merah) + bar.
    Budget = estimasi baris induk (atau total estimasi sub item kalau induk kosong).
