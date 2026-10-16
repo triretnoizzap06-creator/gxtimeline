@@ -1,12 +1,21 @@
-GX27 - Patch v21 (Proof Transfer 2 link: DP + Pelunasan)
+GX27 - Patch v22 (Budget Pool: budget dengan sub item + sisa budget)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v20.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v21.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v21
+CHANGES v22
+1. Budget Pool (contoh GX Create budget Rp 5.000.000 berisi Totebag, Sticker, Mini Heat Press):
+   - Klik "+ Sub Item" di item GX Create -> isi nama, qty, harga satuan. Untuk sub item pertama ada pilihan "Parent Becomes":
+     Budget Pool (default kalau item belum punya invoice) atau Vendor Invoice.
+   - Baris GX Create menampilkan sisa budget (hijau), bar pemakaian, dan "used Rp X of Rp 5.000.000".
+     Kalau total sub item melebihi budget -> "Over Rp ..." merah.
+   - Tiap sub item punya harga & status payment sendiri. Total Budget tidak dihitung dobel (yang dihitung tetap budget pool-nya).
+   - Row Type di form: "Budget Pool" (dulu "Alokasi Dana") dan "Vendor Invoice". Item lama bisa diubah lewat Row Type.
+
+CHANGES v21 (included)
 1. Form item budget: Proof Transfer jadi 2 isian — "Proof Transfer — DP" dan "Proof Transfer — Settlement" (pelunasan).
    Kalau isinya link, muncul "Open ↗" di bawahnya. Data lama (bukti transfer yang sudah ada) tetap di isian DP.
 2. Kolom tabel baru "Proof Transfer" (default tersembunyi; nyalakan lewat tombol Columns): tampil "DP ↗" dan "Settlement ↗".

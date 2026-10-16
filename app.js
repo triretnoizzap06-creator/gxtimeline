@@ -2630,16 +2630,20 @@ function renderFinance() {
       (c.flags.length ? '<span class="flag' + (c.flags.some(function (x) { return x.lvl === 'crit'; }) ? ' crit' : '') + '" title="' + esc(c.flags.map(function (x) { return x.msg; }).join('\n')) + '">⚠ ' + c.flags.length + '</span>' : (f.source === 'verify' ? '' : '<span class="flag" style="color:var(--ok)">✓</span>'));
     var sub = [];
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
-    if (f.kind === 'allocation') sub.push('Alokasi dana');
+    if (f.kind === 'allocation') sub.push('Budget pool · ' + kidsOf(f).length + ' sub item' + (kidsOf(f).length === 1 ? '' : 's'));
     var qtyTxt = c.qty != null ? rpFmt.format(c.qty) + (f.unit ? ' <span class="faint">' + esc(f.unit) + '</span>' : '') : '<span class="faint">—</span>';
     var pay, paid, rem, dpc, inv, ivs, rec, pd, iref;
     if (c.inherited) {
       var via = '<span class="faint" style="font-size:12px">via vendor</span>';
       inv = dpc = paid = rem = '<span class="faint">·</span>'; ivs = pay = rec = pd = iref = via;
     } else if (c.allocation) {
-      inv = dpc = paid = '<span class="faint">—</span>';
-      rem = '<span title="Terpakai ' + rp(c.used) + '">sisa ' + rp(c.fundLeft) + '</span><span class="tsub">terpakai ' + rp(c.used) + '</span>';
-      ivs = pay = rec = pd = '<span class="badge b-neutral nodot">Allocation</span>';
+      inv = dpc = '<span class="faint">—</span>';
+      var kp = kidsOf(f).reduce(function (a, k) { return a + (calc(k).paid || 0); }, 0);
+      paid = kp ? '<span title="Paid on the sub items">' + rp(kp) + '</span><span class="tsub">on sub items</span>' : '<span class="faint">—</span>';
+      var usedPct = c.est ? Math.min(100, Math.round(c.used / c.est * 100)) : 0, over = c.est != null && c.used > c.est;
+      rem = '<span class="pool-rem' + (over ? ' over' : '') + '" title="Budget ' + rp(c.est) + ' · used ' + rp(c.used) + '"><b>' + (over ? 'Over ' + rp(c.used - c.est) : rp(c.fundLeft)) + '</b>' +
+        '<span class="pool-bar"><i style="width:' + usedPct + '%"></i></span><span class="tsub">used ' + rp(c.used) + ' of ' + rp(c.est) + '</span></span>';
+      ivs = pay = rec = '<span class="badge b-neutral nodot">Budget Pool</span>'; pd = '<span class="faint">—</span>';
       iref = fileCell(f.invoiceRef);
     } else {
       inv = rp(c.inv); dpc = rp(c.dp);
@@ -2879,8 +2883,12 @@ function finForm(f, presetTask, preset) {
     field('item', 'Item', inp('item', f.item, 'text', 'maxlength="200"'), { req: true, full: true }) +
     field('workstream', 'Budget Category', inp('workstream', f.workstream, 'text', 'list="wsList2"') + wsList, { req: true }) +
     field('taskId', 'Linked Operational Task', sel('taskId', taskOpts, f.taskId, '— Not linked —'), { hint: 'Status task tidak ikut berubah saat dibayar' }) +
-    field('kind', 'Row Type', sel('kind', [{ value: '', label: 'Line Item' }, { value: 'vendor', label: 'Vendor Invoice (Punya Line Item)' }, { value: 'allocation', label: 'Alokasi Dana (Punya Pemakaian)' }], f.kind || '')) +
-    field('parentId', 'Part Of', sel('parentId', parentOpts, f.parentId || '', '— Standalone —'), { hint: hasKids ? 'Item ini punya baris di bawahnya, jadi tidak bisa jadi anak' : 'Pilih vendor invoice / alokasi kalau item ini rinciannya' }) +
+    field('kind', 'Row Type', sel('kind', [{ value: '', label: 'Line Item' }, { value: 'allocation', label: 'Budget Pool — budget with sub items, shows remaining budget' }, { value: 'vendor', label: 'Vendor Invoice — one invoice, sub items are its details' }], f.kind || ''),
+      { hint: 'Budget Pool: isi Total / Estimasi = budget-nya (mis. Rp 5.000.000), lalu tambah sub item dengan harga masing-masing. Sisa budget dihitung otomatis.' }) +
+    field('parentId', 'Part Of', sel('parentId', parentOpts, f.parentId || '', '— Standalone —'), { hint: hasKids ? 'Item ini punya baris di bawahnya, jadi tidak bisa jadi anak' : 'Pilih budget pool / vendor invoice kalau item ini rinciannya' }) +
+    '<div class="field" data-field="subMode" id="subModeWrap" hidden><label for="f-subMode">Parent Becomes</label>' +
+      '<select class="select" id="f-subMode" name="subMode"><option value="allocation">Budget Pool — show remaining budget</option><option value="vendor">Vendor Invoice — one invoice</option></select>' +
+      '<span class="hint">The item you picked in Part Of is a plain line item; choose how it should hold its sub items.</span></div>' +
     field('qty', 'Quantity', inp('qty', f.qty == null ? '' : f.qty, 'text', 'inputmode="decimal"')) +
     field('unit', 'Unit', inp('unit', f.unit, 'text', 'maxlength="20" placeholder="Pcs / Pack / Pax"')) +
     field('unitCost', 'Harga Satuan (Rp)', inp('unitCost', amt(f.unitCost), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
@@ -2903,6 +2911,17 @@ function finForm(f, presetTask, preset) {
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-fin" data-id="' + f.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Add item' : 'Save changes') + '</button></div></div></form>', 'wide');
   var form = document.getElementById('finForm');
+  (function () {
+    var ps = document.getElementById('f-parentId'), wrap = document.getElementById('subModeWrap'), sm = document.getElementById('f-subMode');
+    if (!ps || !wrap) return;
+    var sync = function () {
+      var par = ps.value ? finById(ps.value) : null, plain = !!(par && !par.kind);
+      wrap.hidden = !plain;
+      if (plain && !sm.dataset.touched) sm.value = (numOrNull(par.invoice) != null || payType(par.paymentStatus) !== 'unpaid') ? 'vendor' : 'allocation';
+    };
+    sm.addEventListener('change', function () { sm.dataset.touched = '1'; });
+    ps.addEventListener('change', sync); sync();
+  })();
   function read() {
     var fd = new FormData(form), v = {}, errs = {};
     fd.forEach(function (val, k) { v[k] = String(val).trim(); });
@@ -2927,6 +2946,7 @@ function finForm(f, presetTask, preset) {
     e.preventDefault();
     var r = read(), v = r.v, errs = r.errs;
     delete v.id;
+    var subMode = v.subMode; delete v.subMode;
     if (!v.item) errs.item = 'Item name is required.';
     if (!v.workstream) errs.workstream = 'Pick or type a category.';
     if (v.taskId && !taskById(v.taskId)) errs.taskId = 'That task no longer exists.';
@@ -2938,7 +2958,7 @@ function finForm(f, presetTask, preset) {
     v.item = titleCase(v.item);
     // adding a sub item under a plain item turns that item into a group (vendor invoice) that holds the payment
     var par = v.parentId ? finById(v.parentId) : null;
-    if (par && !par.kind) { par.kind = 'vendor'; par.updatedAt = Date.now(); }
+    if (par && !par.kind) { par.kind = subMode === 'vendor' ? 'vendor' : 'allocation'; par.updatedAt = Date.now(); }
     if (isNew) { db.finance.push(Object.assign({ id: nextId('F'), createdAt: Date.now(), taskSynced: !!v.taskId }, v, { updatedAt: Date.now() })); closeModal(); commit('Budget item added'); }
     else { Object.assign(f, v, { updatedAt: Date.now() }); closeModal(); commit('Budget item saved'); }
   };

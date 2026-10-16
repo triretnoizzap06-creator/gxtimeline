@@ -1257,3 +1257,11 @@ body.present-fs .admin-bar,body.present-fs .side-toggle{display:none}
 
 /* v21: two Proof Transfer links (DP + settlement) */
 .fin-table .proof-cell{display:flex;flex-direction:column;gap:2px}
+
+/* v22: Budget Pool — remaining budget with usage bar */
+.pool-rem{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:120px}
+.pool-rem b{font-weight:700;color:var(--ok)}
+.pool-rem.over b{color:var(--crit)}
+.pool-bar{display:block;width:100%;max-width:140px;height:5px;border-radius:99px;background:var(--neutral-bg);overflow:hidden}
+.pool-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.pool-rem.over .pool-bar i{background:var(--crit)}
