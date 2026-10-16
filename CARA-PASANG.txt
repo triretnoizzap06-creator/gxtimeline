@@ -1,12 +1,45 @@
-GX27 - Patch v24 (Kartu Paid & Outstanding bisa diklik jadi filter)
+GX27 - Patch v27 (PIC Finance otomatis untuk task Finance & Procurement)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v23.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v26.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v24
+CHANGES v27
+1. Semua task di tab "Finance & Procurement" otomatis punya PIC "Finance" (ditambahkan di samping PIC lain, tidak mengganti).
+   Berlaku untuk task yang punya item budget ter-link, atau kategori Procurement
+   (checklist Need per Station tidak ikut kecuali punya item budget). Task baru otomatis ikut.
+   "Finance" otomatis masuk daftar PIC (Manage Categories > PIC); kalau namanya diganti di sana, auto-assign ikut nama baru.
+2. Kalau Finance sengaja dihapus dari PIC sebuah task (lewat edit PIC / form task), app mengingatnya dan tidak menambahkannya lagi.
+   Tambahkan Finance lagi kapan saja untuk menyalakan kembali.
+
+CHANGES v26 (included)
+1. Form item budget: field baru "Funding":
+   - New budget (default) -> menambah Total Budget seperti biasa.
+   - From Buffer Budget -> TIDAK menambah Total Budget; biayanya diambil dari Buffer Budget.
+   Di bawah field tampil "Available buffer: Rp ...". Kalau biaya > buffer yang tersedia, muncul peringatan (tetap bisa disimpan).
+   Hanya untuk baris utama (sub item ikut budget induknya).
+2. Kartu "Buffer Budget · Available" = penghematan confirmed − over budget − biaya item yang diambil dari buffer.
+   Detail: Confirmed Savings, Over Budget, Used from Buffer, Available Buffer + daftar item "Funded from Buffer".
+3. Item yang diambil dari buffer ditandai "Funded from Buffer"; biayanya = invoice kalau sudah ada, kalau belum = estimasi.
+   Pembayarannya tetap masuk Paid / Outstanding Payment. Kartu Total Budget menulis "+ Rp ... from buffer".
+4. Fix: kartu Total Budget tidak lagi menulis "filter on ✕" padahal tidak ada filter.
+5. Section di dalam Budget Pool (mis. Emergency Fund): tombol "Sections" di baris Emergency Fund.
+   Tambah / ganti nama / urutkan / hapus section sendiri (mis. Reimbursement, Konsumsi, Transport).
+   Budget tetap satu di Emergency Fund; sub item dikelompokkan per section dengan "N item · used Rp ...".
+   Tombol "+ Item" di tiap section langsung mengisi section-nya; di form item ada pilihan Section.
+   Ganti nama section -> sub item ikut. Hapus section -> sub item jadi "No section" (tidak terhapus).
+
+CHANGES v25 (included)
+1. Banner "Rekonsiliasi dengan sheet" di Finance punya tombol "Lihat rincian selisih":
+   daftar baris yang membuat Total Budget dan Total Transfer beda dari budget sheet (Sheet vs App vs Difference),
+   dengan keterangan: Changed in app / Added in app / No longer a main row (dipindah jadi sub item, dihapus, atau diganti nama).
+   Jumlah baris-baris itu = selisih total. Untuk transfer, selisih yang sudah ada sejak import (Rp 5.000.000) ditulis terpisah.
+2. Tombol "Lihat N item yang perlu dicek": daftar item yang di-flag beserta alasannya
+   (Needs Verification, nominal belum diisi, qty × harga ≠ total, lewat payment deadline, Proof Transfer belum ada, dll.).
+
+CHANGES v24 (included)
 1. Finance & Procurement: kartu di atas bisa diklik.
    - Paid -> tabel hanya menampilkan item yang sudah ada pembayarannya.
    - Outstanding Payment -> hanya item yang masih ada sisa tagihan.

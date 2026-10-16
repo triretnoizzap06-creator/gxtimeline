@@ -1281,3 +1281,23 @@ body.present-fs .admin-bar,body.present-fs .side-toggle{display:none}
 .chip-filter{border:0;font:600 12.5px var(--f-body);color:var(--accent);background:var(--accent-soft,rgba(0,122,255,.1));border-radius:99px;padding:6px 12px;cursor:pointer;white-space:nowrap}
 .chip-filter:hover{filter:brightness(.95)}
 .pd-money>button{cursor:pointer}
+
+/* v26: reconciliation + items-to-check dialogs */
+.recon-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chk-reasons{display:flex;flex-wrap:wrap;gap:6px}
+.chk-reasons span{font-size:12px;background:var(--neutral-bg);border-radius:99px;padding:3px 10px}
+.buf-tbl td.chk-why{white-space:normal}
+.chk-why .flag{display:block;margin:0 0 3px;white-space:normal}
+
+/* v27: items funded from the Buffer Budget */
+.from-buf{display:inline-block;font-size:11px;font-weight:600;color:var(--info);background:var(--info-bg);border-radius:99px;padding:1px 8px;white-space:nowrap}
+.buf-sum.buf-sum-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:700px){.buf-sum.buf-sum-4{grid-template-columns:1fr 1fr}}
+@media (max-width:420px){.buf-sum.buf-sum-4{grid-template-columns:1fr}}
+
+/* v28: sections inside a budget pool (Emergency Fund → Reimbursement, …) */
+.fin-table tr.pool-sec td{background:var(--surface-2,rgba(120,120,128,.05));padding:6px 12px 6px 30px;border-top:1px solid var(--line)}
+.fin-table tr.pool-sec td>*{vertical-align:middle}
+.pool-sec-n{font-weight:700;font-size:12.5px;margin-right:10px;text-transform:uppercase;letter-spacing:.04em}
+.fin-table tr.pool-sec .muted{font-size:12px;margin-right:10px}
+.sec-row{grid-template-columns:minmax(0,1fr) auto auto auto auto}
