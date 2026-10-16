@@ -52,7 +52,7 @@ var COL_BUILTIN = {
   ],
   finance: [
     { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Unit Price', num: true, hidden: true }, { key: 'est', label: 'Estimated Budget', num: true, total: 'est' },
-    { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' },
+    { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' }, { key: 'buffer', label: 'Buffer Budget', num: true, total: 'buffer' },
     { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'invoiceRef', label: 'Invoice / Quotation File', hidden: true }, { key: 'proof', label: 'Proof Transfer', hidden: true },
     { key: 'task', label: 'Task' }, { key: 'check', label: 'Check', hidden: true }
   ]
@@ -632,7 +632,7 @@ function normalizeDb(d) {
   normalizeColumns(s);
   if (!s.finMinimal) {
     // simpler Finance table by default; hidden columns can be shown again via Kelola kolom
-    var SHOW = { item: 1, est: 1, paid: 1, remaining: 1, paymentDeadline: 1, paymentStatus: 1, task: 1 };
+    var SHOW = { item: 1, est: 1, paid: 1, remaining: 1, buffer: 1, paymentDeadline: 1, paymentStatus: 1, task: 1 };
     var OLD = { est: 'Est. total', paid: 'Paid', remaining: 'Remaining', paymentDeadline: 'Pay deadline', task: 'Linked task', check: 'Check' };
     s.columns.finance.forEach(function (c) {
       if (c.custom) return;
@@ -650,6 +650,10 @@ function normalizeDb(d) {
       if (c.key === 'est' || c.key === 'paymentStatus') c.visible = true;
     });
     s.colEnV17 = true;
+  }
+  if (!s.colBufV24) {   // v24: the new Buffer Budget column is shown once for everyone (can be hidden again via Columns / Manage Columns)
+    s.columns.finance.forEach(function (c) { if (c.key === 'buffer') c.visible = true; });
+    s.colBufV24 = true;
   }
   if (!s.efMoveV19) moveIntoEmergencyFund(d, s);
   syncFinanceTasks(d, s);
@@ -1238,13 +1242,14 @@ function bufferDialog() {
 }
 function totals(list) {
   var inList = {}; list.forEach(function (f) { inList[f.id] = 1; });
-  var t = { est: 0, inv: 0, paid: 0, fee: 0, outstanding: 0, missing: 0, flagged: 0, count: list.length };
+  var t = { est: 0, inv: 0, paid: 0, fee: 0, outstanding: 0, missing: 0, flagged: 0, count: list.length, buffer: 0 };
   list.forEach(function (f) {
     var c = calc(f), p = f.parentId ? finById(f.parentId) : null;
     // budget: count each figure once — vendor parents carry their line items; allocation children sit inside the allocation
     if (!p || (p.kind === 'vendor' && !inList[p.id])) t.est += c.est || 0;
     if (!c.inherited) { t.inv += c.inv || 0; t.paid += c.paid; t.fee += c.fee || 0; t.outstanding += c.outstanding || 0; if (c.base == null) t.missing++; }
     if (c.flags.length || f.source === 'verify') t.flagged++;
+    var bf = bufferOf(f, c); if (bf) t.buffer += bf.v;
   });
   return t;
 }
@@ -2560,6 +2565,57 @@ function proofCell(f) {
   var a = one(f.receipt, 'DP'), b = one(f.receipt2, 'Settlement');
   return a || b ? '<span class="proof-cell">' + a + b + '</span>' : '<span class="faint">—</span>';
 }
+/* v23: every row that has sub items (Budget Pool or Vendor Invoice) shows Budget · Realization · Remaining.
+   Budget = the row's own estimate, or the total of its sub items' estimates when it has none.
+   Realization = Budget Pool: total cost of its sub items · Vendor Invoice: the invoice (or amount transferred);
+   with no invoice yet, a vendor row with its own budget uses its sub items' total. */
+function budgetInfo(f, c) {
+  var kids = kidsOf(f); if (!kids.length || !f.kind) return null;
+  c = c || calc(f);
+  var budget = c.est, real;
+  if (c.allocation) real = c.used;
+  else {
+    var paidAmt = numOrNull(f.paidAmount), estIn = numOrNull(f.estimated);
+    real = c.inv != null ? c.inv : paidAmt != null ? paidAmt : (estIn != null ? kids.reduce(function (a, k) { return a + (calc(k).est || 0); }, 0) : null);
+  }
+  if (budget == null) return null;
+  return { budget: budget, real: real, left: real == null ? null : budget - real };
+}
+/* v24: Buffer Budget per row = Estimated Budget − realization (actual cost).
+   Plain item: estimate vs invoice (or amount transferred when fully paid). Row with sub items: Budget − Realization (see budgetInfo).
+   Sub items return null: their figures are already inside the parent's buffer, so nothing is counted twice.
+   "confirmed" = the cost is final (invoice Submitted or fully paid; a Budget Pool's buffer is always current). */
+function bufferOf(f, c) {
+  c = c || calc(f);
+  var par = f.parentId ? finById(f.parentId) : null;
+  if (c.inherited || (par && par.kind)) return null;
+  if (f.kind && kidsOf(f).length) {
+    var bi = budgetInfo(f, c); if (!bi || bi.left == null) return null;
+    return { v: bi.left, confirmed: c.allocation || payType(f.paymentStatus) === 'paid' || f.invoiceStatus === 'Submitted' };
+  }
+  if (c.allocation) return c.est == null ? null : { v: c.est - (c.used || 0), confirmed: true };
+  var paidAmt = numOrNull(f.paidAmount), isPaid = payType(f.paymentStatus) === 'paid';
+  var actual = c.inv != null ? c.inv : (paidAmt != null && isPaid ? paidAmt : null);
+  if (c.est == null || actual == null) return null;
+  return { v: c.est - actual, confirmed: isPaid || f.invoiceStatus === 'Submitted' };
+}
+function bufferCellHtml(f, c) {
+  var par = f.parentId ? finById(f.parentId) : null;
+  if (c.inherited || (par && par.kind)) return '<span class="faint" title="Included in the buffer of ' + esc((par || {}).item || 'the parent row') + '">·</span>';
+  var b = bufferOf(f, c);
+  if (!b) return '<span class="faint" title="Needs both an estimated budget and an actual cost (invoice)">—</span>';
+  var cls = b.v > 0 ? 'buf-pos' : b.v < 0 ? 'buf-neg' : '';
+  return '<span class="' + cls + '">' + (b.v < 0 ? '− ' : '') + rp(Math.abs(b.v)) + '</span>' + (b.confirmed ? '' : '<span class="tsub" title="Invoice not submitted / not paid yet">pending</span>');
+}
+function budgetStrip(f, c) {
+  var b = budgetInfo(f, c); if (!b) return '';
+  var over = b.left != null && b.left < 0, pct = b.real == null || !b.budget ? 0 : Math.min(100, Math.round(b.real / b.budget * 100));
+  return '<span class="bud-strip' + (over ? ' over' : '') + '">' +
+    '<span>Budget <b>' + rp(b.budget) + '</b></span>' +
+    '<span>Realization <b>' + (b.real == null ? '—' : rp(b.real)) + '</b></span>' +
+    '<span class="bud-left">' + (b.left == null ? 'Remaining <b>—</b>' : over ? 'Over <b>' + rp(-b.left) + '</b>' : 'Remaining <b>' + rp(b.left) + '</b>') + '</span>' +
+    '<span class="pool-bar"><i style="width:' + pct + '%"></i></span></span>';
+}
 function fileCell(v) {
   v = String(v || '').trim();
   if (!v) return '<span class="faint">—</span>';
@@ -2615,7 +2671,7 @@ function renderFinance() {
   // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
   function sumRow(cls, label, tot, tail) {
     return '<tr class="' + cls + '">' + FC.map(function (c, i) {
-      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num">' + rp(tot[b.total]) + '</span>' : '';
+      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : rp(tot[b.total])) + '</span>' : '';
       if (i === 0) return '<td>' + label + (v ? ' · ' + v : '') + '</td>';
       if (i === FC.length - 1 && tail && !v) return '<td class="muted">' + tail + '</td>';
       return '<td' + (v ? ' class="num r"' : '') + '>' + v + '</td>';
@@ -2656,11 +2712,11 @@ function renderFinance() {
       iref = fileCell(f.invoiceRef);
     }
     var cell = {
-      item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') +
+      item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
-      invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>',
+      invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>', buffer: '<td class="num r">' + bufferCellHtml(f, c) + '</td>',
       paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>', invoiceRef: '<td class="fin-file">' + iref + '</td>', proof: '<td class="fin-file">' + (c.inherited ? '<span class="faint" style="font-size:12px">via vendor</span>' : c.allocation ? '<span class="faint">—</span>' : proofCell(f)) + '</td>',
       task: '<td class="fin-task">' + (t ? '<a href="#tasks" data-act="open-task" data-id="' + t.id + '" title="' + esc(t.name) + '">' + esc(t.name) + '</a>' : '<span class="faint">—</span>') + '</td>',
       check: '<td>' + flagHtml + '</td>'

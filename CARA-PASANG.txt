@@ -1,12 +1,23 @@
-GX27 - Patch v22 (Budget Pool: budget dengan sub item + sisa budget)
+GX27 - Patch v23 (Budget vs Realisasi untuk semua induk + kolom Buffer Budget)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v21.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v22.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v22
+CHANGES v23
+1. Semua baris yang punya sub item (Budget Pool dan Vendor Invoice: Doorprize, OJISAN, Bali Games, BUMI, Emergency Fund, dll.)
+   menampilkan di bawah nama item: Budget · Realization · Remaining (atau Over, merah) + bar.
+   Budget = estimasi baris induk (atau total estimasi sub item kalau induk kosong).
+   Realization = invoice / nominal transfer (Vendor Invoice) atau total harga sub item (Budget Pool).
+2. Kolom baru "Buffer Budget" (tampil otomatis; bisa disembunyikan lewat Columns):
+   Estimated Budget − realisasi, untuk setiap item yang punya estimasi + invoice/nominal. Hijau = sisa, merah = over.
+   "pending" = invoice belum submitted / belum lunas. Sub item ditandai "·" karena sudah dihitung di induknya (tidak dobel).
+   Subtotal per kategori dan Grand Total ikut menjumlah Buffer Budget.
+   (Kartu "Buffer Budget" di atas tetap hanya menghitung penghematan yang sudah confirmed.)
+
+CHANGES v22 (included)
 1. Budget Pool (contoh GX Create budget Rp 5.000.000 berisi Totebag, Sticker, Mini Heat Press):
    - Klik "+ Sub Item" di item GX Create -> isi nama, qty, harga satuan. Untuk sub item pertama ada pilihan "Parent Becomes":
      Budget Pool (default kalau item belum punya invoice) atau Vendor Invoice.
