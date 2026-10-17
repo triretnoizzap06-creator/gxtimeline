@@ -1,12 +1,22 @@
-GX27 - Patch v34 (Buffer tanpa "Used from Buffer" palsu, Paid 82.638.870 di total tabel)
+GX27 - Patch v35 (Kotak sheet vs web dihapus, Outstanding = Budget − Paid, filter Payment Status bisa pilih banyak)
 
 File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v33.
+Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v34.
 
 1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
 2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
 
-CHANGES v34
+CHANGES v35
+1. Kotak "Sheet | Web | Selisih" di bawah kartu Finance dihapus.
+2. Doorprize: transfer dicatat Rp 8.880.000 (sesuai sheet). Budget-nya tetap Rp 8.654.639; lebih Rp 225.361 = Over Budget di Buffer
+   (bukan selisih). Otomatis sekali saat dibuka, hanya kalau transfer Doorprize di web masih di bawah Rp 8.880.000.
+   -> Paid = Rp 82.638.870 (incl. fee Rp 27.500).
+3. Outstanding Payment = Total Budget − Paid = Rp 121.641.269 (sama dengan total Pelunasan di sheet).
+   Baris Subtotal / Grand Total kolom Remaining pakai rumus yang sama.
+4. Filter Payment Status sekarang checklist: bisa pilih lebih dari 1 (mis. Pending Payment + DP Paid).
+   Baris paling bawah tabel jadi "Total · Pending Payment + DP Paid" dengan total Budget, Paid, Remaining, Buffer untuk pilihan itu.
+
+CHANGES v34 (included)
 1. Used from Buffer = Rp 0. Rider NSK + MC + Spectrum + DJ (Rp 2.800.000) dicatat "Dari sisa Cetak Card" (sesuai catatan sheet),
    jadi bukan pemakaian buffer: savings Cetak Card langsung dikurangi Rp 2.800.000. Available Buffer tidak berubah.
    Perhitungan otomatis "budget di atas sheet = used from buffer" (v32) dihapus.

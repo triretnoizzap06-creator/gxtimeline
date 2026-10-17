@@ -682,6 +682,15 @@ function normalizeDb(d) {
     var cc = d.finance.filter(function (f) { return /^cetak card/i.test(f.item || ''); })[0];
     if (cc) d.finance.forEach(function (f) { if (f.fundSource === 'buffer' && !f.parentId && /^rider not so koplo/i.test(f.item || '') && !f.fundFrom) f.fundFrom = cc.id; });
   }
+  if (!s.doorPaidV37) {   // v37: Doorprize transfer as in the sheet (8.880.000); 225.361 above its budget is covered by the buffer
+    var sd = ((SHEET_SEED.items || []).filter(function (x) { return x.key === 'door'; })[0]) || null;
+    if (sd) d.finance.forEach(function (f) {
+      if (f.kind !== 'vendor' || !/^doorprize/i.test(f.item || '')) return;
+      var paidNow = numOrNull(f.paidAmount);
+      if (payType(f.paymentStatus) === 'paid' && (paidNow == null || paidNow < sd.paidAmount) && (numOrNull(f.invoice) == null || +f.invoice <= sd.invoice)) { f.invoice = sd.invoice; f.paidAmount = sd.paidAmount; f.updatedAt = Date.now(); }
+    });
+    s.doorPaidV37 = true;
+  }
   if (!s.doorEstV34) {   // v34: Doorprize budget = sum of its items (as in the sheet); what was paid above it is over budget, covered by the buffer
     d.finance.forEach(function (f) {
       if (f.kind !== 'vendor' || !/^doorprize/i.test(wsBase(f.workstream) || '') || f.estimated == null || f.estimated === '') return;
@@ -1398,11 +1407,11 @@ function allWorkstreams() {
 var ui = loadUI();
 function loadUI() {
   var d = { page: 'timeline', mtHide: [], rdLoc: '', rdQ: '', taskView: 'all', q: '', fWs: [], fStatus: [], fSrc: '', sort: { key: 'deadline', dir: 1 }, expanded: null,
-    finQ: '', finWs: '', finPay: '', finInv: '', calMonth: '2026-10', colF: {} };
+    finQ: '', finWs: '', finPay: '', finPays: [], finInv: '', calMonth: '2026-10', colF: {} };
   try { var raw = localStorage.getItem(UI_KEY); if (raw) { var p = JSON.parse(raw); for (var k in p) d[k] = p[k]; } } catch (e) {}
   d.fWs = []; d.fStatus = [];   // toolbar filters removed: column-header filters replace them
   if (d.colF) Object.keys(d.colF).forEach(function (k) { if (!d.colF[k] || !Array.isArray(d.colF[k].v)) delete d.colF[k]; });
-  d.msOpen = '';
+  d.msOpen = ''; d.payOpen = false; if (!Array.isArray(d.finPays)) d.finPays = [];
   if (!d.colF || typeof d.colF !== 'object' || Array.isArray(d.colF)) d.colF = {};
   if (d.sortV !== 3) { d.sort = { key: 'deadline', dir: -1 }; d.sortV = 3; }   // everyone starts on deadline order, newest first
   var h = (location.hash || '').replace('#', '');
@@ -2235,7 +2244,7 @@ function payManager() {
       if (nm !== list[i].name) {
         var from = list[i].name;
         db.finance.forEach(function (f) { if (f.paymentStatus === from) { f.paymentStatus = nm; f.updatedAt = Date.now(); moved++; } });
-        if (ui.finPay === from) ui.finPay = nm;
+        ui.finPays = ui.finPays.map(function (x) { return x === from ? nm : x; });
       }
     }
     db.settings.payStatuses = next; closeModal();
@@ -2350,7 +2359,7 @@ function catDelete(kind, idx) {
     document.getElementById('payDelForm').onsubmit = function (e) {
       e.preventDefault(); var to = e.target.moveTo.value, n = 0;
       db.finance.forEach(function (f) { if (f.paymentStatus === ps.name) { f.paymentStatus = to; f.updatedAt = Date.now(); n++; } });
-      if (ui.finPay === ps.name) ui.finPay = '';
+      ui.finPays = ui.finPays.filter(function (x) { return x !== ps.name; });
       db.settings.payStatuses = prest; closeModal(); commit('Status "' + ps.name + '" dihapus · ' + n + ' item dipindah ke "' + to + '"'); payManager();
     };
     return;
@@ -2976,11 +2985,19 @@ function bufferIds(kind) {
   if (kind === 'buf-used' || kind === 'buf-all') add(b.usedItems);
   return ids;
 }
+// v37: Payment Status filter with checkboxes (more than one status at a time)
+function payFilterHtml() {
+  var sel = ui.finPays, label = !sel.length ? 'All Payment Status' : sel.length === 1 ? sel[0] : sel.length + ' Payment Status';
+  return '<details class="pay-filter' + (sel.length ? ' on' : '') + '"' + (ui.payOpen ? ' open' : '') + '><summary class="select" aria-label="Payment Status">' + esc(label) + '</summary><div class="pay-pop">' +
+    '<label class="hf-opt"><input type="checkbox" data-payf="*"' + (sel.length ? '' : ' checked') + '> <span class="hf-v">All Payment Status</span></label>' +
+    payList().map(function (n) { var c = db.finance.filter(function (f) { return f.paymentStatus === n && !calc(f).inherited; }).length; return '<label class="hf-opt"><input type="checkbox" data-payf="' + esc(n) + '"' + (sel.indexOf(n) > -1 ? ' checked' : '') + '> <span class="hf-v">' + esc(n) + '</span><span class="hf-n">' + c + '</span></label>'; }).join('') +
+    '</div></details>';
+}
 function filteredFinance() {
   var q = ui.finQ.trim().toLowerCase(), bufIds = BUF_FILTERS[ui.finAmt] ? bufferIds(ui.finAmt) : null;
   var match = function (f) {
     if (ui.finWs && f.workstream !== ui.finWs) return false;
-    if (ui.finPay && f.paymentStatus !== ui.finPay) return false;
+    if (ui.finPays.length && ui.finPays.indexOf(f.paymentStatus) < 0) return false;
     if (ui.finInv && f.invoiceStatus !== ui.finInv) return false;
     if (finDueActive() && !finDueMatch(f)) return false;
     if (ui.finAmt) {   // from the Paid / Outstanding Payment cards; line items inside a vendor invoice are counted on the invoice row
@@ -2995,7 +3012,7 @@ function filteredFinance() {
   var hit = {}; db.finance.forEach(function (f) { if (match(f)) hit[f.id] = 1; });
   // keep vendor groups together: a matching line item brings its vendor row, a matching vendor row brings its line items
   db.finance.forEach(function (f) { if (hit[f.id] && f.parentId) hit[f.parentId] = hit[f.parentId] || 2; });
-  db.finance.forEach(function (f) { if (f.parentId && hit[f.parentId] === 1 && !ui.finPay && !ui.finInv && !finDueActive() && !ui.finAmt) hit[f.id] = hit[f.id] || 1; });
+  db.finance.forEach(function (f) { if (f.parentId && hit[f.parentId] === 1 && !ui.finPays.length && !ui.finInv && !finDueActive() && !ui.finAmt) hit[f.id] = hit[f.id] || 1; });
   return db.finance.filter(function (f) { return hit[f.id]; });
 }
 /* v15: Due Date filter (Finance). ui.finDue = { m: '' | 'on' | 'range' | 'overdue' | 'none', a: on/from date, b: to date }.
@@ -3162,7 +3179,7 @@ function finCategories() {
 function rowOrder(a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); }
 // a vendor invoice with line items: the Doorprize group starts folded (the prizes are included in the invoice row), other groups start open
 function finCollapsed(f) {
-  if (ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDueActive() || ui.finAmt) return false;      // while searching/filtering, show everything
+  if (ui.finQ || ui.finWs || ui.finPays.length || ui.finInv || finDueActive() || ui.finAmt) return false;      // while searching/filtering, show everything
   var o = (ui.finOpen || {})[f.id];
   return o === undefined ? f.workstream === 'Doorprize' : !o;
 }
@@ -3184,16 +3201,15 @@ function renderFinance() {
   };
   h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.fromBuffer ? ' · + ' + rp(all.fromBuffer) + ' dari sisa budget' : '') + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
     kbtn('Paid', rp(all.paid + all.fee), (all.fee ? 'incl. ' + rp(all.fee) + ' transfer fees' : 'transfers made'), false, 'paid', 'Show items that already have a payment') +
-    kbtn('Outstanding Payment', rp(all.outstanding), 'still to pay', all.outstanding > 0, 'outstanding', 'Show items that still have an amount to pay') +
+    kbtn('Outstanding Payment', rp(all.est - all.paid - all.fee), 'Total Budget − Paid', all.est - all.paid - all.fee > 0, 'outstanding', 'Show items that still have an amount to pay') +
     '<button type="button" class="kpi kpi-btn' + (buf.available < 0 ? ' hl' : '') + '" data-act="buffer-detail" aria-label="Buffer Budget details"><span class="k">Buffer Budget · Available</span><span class="v money' + (buf.available < 0 ? ' buf-neg' : '') + '">' + (buf.available < 0 ? '− ' + rp(-buf.available) : rp(buf.available)) + '</span>' +
     '<span class="s">saved ' + rp(buf.net) + (buf.used ? ' · used ' + rp(buf.used) : '') + ' · view details →</span></button></div>';
-  h += balanceBox(all);
   h += '<div class="toolbar"><input class="input search" id="finSearch" type="search" placeholder="Search item, vendor, invoice, row…" value="' + esc(ui.finQ) + '" aria-label="Search budget items">' +
     '<select class="select" id="finWs" aria-label="Category">' + opts(finCategories(), ui.finWs, 'All Categories') + '</select>' +
-    '<select class="select" id="finPay" aria-label="Payment Status">' + opts(payList(), ui.finPay, 'All Payment Status') + '</select>' +
+    payFilterHtml() +
     '<select class="select" id="finInv" aria-label="Invoice Status">' + opts(INV_STATUS, ui.finInv, 'All Invoice Status') + '</select>' + finDueControl() + colPickerBtn('finance') +
     (ui.finAmt ? '<button type="button" class="chip-filter" data-act="fin-amt" data-amt="' + ui.finAmt + '" title="Remove this filter">' + (BUF_FILTERS[ui.finAmt] || (ui.finAmt === 'paid' ? 'Paid items only' : 'Outstanding items only')) + ' ✕</button>' : '') +
-    ((ui.finQ || ui.finWs || ui.finPay || ui.finInv || finDue().m || ui.finAmt) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
+    ((ui.finQ || ui.finWs || ui.finPays.length || ui.finInv || finDue().m || ui.finAmt) ? '<button class="btn ghost sm" data-act="clear-fin-filters">Clear Filters</button>' : '') + '</div>';
   if (!db.finance.length) return h + '<div class="table-wrap">' + emptyBox('No Budget Items Yet', 'Add an item or import your budget sheet (paste from Excel / Google Sheets).') + '</div>';
   if (!list.length) return h + '<div class="table-wrap">' + emptyBox('No Items Match', 'Try a different search or clear the filters.') + '</div>';
   var groups = {};
@@ -3203,7 +3219,7 @@ function renderFinance() {
   // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
   function sumRow(cls, label, tot, tail) {
     return '<tr class="' + cls + '">' + FC.map(function (c, i) {
-      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') : '';
+      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : b.total === 'outstanding' ? rp(tot.est - tot.paid - tot.fee) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') : '';
       if (i === 0) return '<td>' + label + (v ? ' · ' + v : '') + '</td>';
       if (i === FC.length - 1 && tail && !v) return '<td class="muted">' + tail + '</td>';
       return '<td' + (v ? ' class="num r"' : '') + '>' + v + '</td>';
@@ -3281,7 +3297,7 @@ function renderFinance() {
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(' + (ob ? esc(ob) + ', not in event total' : 'auto') + ')</span>', st);
   });
   var gt = totals(list);
-  body += sumRow('grand', (list.length === db.finance.length ? 'Grand Total' : 'Total' + (ui.finPay ? ' · ' + esc(ui.finPay) : ' (Filtered)')) + (gt.off.count ? ' <span class="muted" style="font-weight:400">(event budget)</span>' : ''), gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
+  body += sumRow('grand', (list.length === db.finance.length ? 'Grand Total' : 'Total' + (ui.finPays.length ? ' · ' + esc(ui.finPays.join(' + ')) : ' (Filtered)')) + (gt.off.count ? ' <span class="muted" style="font-weight:400">(event budget)</span>' : ''), gt, gt.count + ' rows · biaya transfer ' + rp(gt.fee) + ' · ' + gt.missing + ' tanpa nominal');
   if (gt.off.count) body += '<tr class="subtotal off-total"><td colspan="' + FC.length + '">Outside event budget: ' + gt.off.count + ' rows · budget ' + rp(gt.off.est) + ' · paid ' + rp(gt.off.paid) + ' · outstanding ' + rp(gt.off.outstanding) + ' <span class="muted">(not included in the totals above)</span></td></tr>';
   h += '<div class="table-wrap"><table class="fin-table" data-rz="finance"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
   h += '<details class="fin-note"><summary>Cara Hitung</summary><p>Est. total = kolom Total Price sheet (atau qty × harga). Vendor invoice (Bali Games, BUMI, OJISAN, Doorprize) memegang invoice &amp; pembayaran; line item di bawahnya hanya rincian estimasi. Emergency Fund adalah alokasi; baris di bawahnya adalah pemakaian dana. Paid = DP / nominal transfer tanpa biaya transfer Rp2.500 (dari formula sheet). Status pembayaran tidak mengubah status operasional task.</p></details>';
@@ -3876,10 +3892,10 @@ function handleAct(el, e) {
     case 'col-filter': openColFilter(el.dataset.key, el); break;
     case 'col-picker': e.stopPropagation(); openColPicker(el.dataset.table, el); break;
     case 'ms-clear': ui[el.dataset.key] = []; render(); break;
-    case 'clear-fin-filters': ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
+    case 'clear-fin-filters': ui.finPays = []; ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; render(); break;
     case 'fin-amt': {
       var amt = el.dataset.amt || ''; if (el.closest('.modal')) closeModal();
-      if (!amt) { ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; }   // Total Budget = show everything
+      if (!amt) { ui.finPays = []; ui.finQ = ui.finWs = ui.finPay = ui.finInv = ui.finAmt = ''; ui.finDue = { m: '', a: '', b: '' }; }   // Total Budget = show everything
       else ui.finAmt = ui.finAmt === amt ? '' : amt;                                                                   // click again to turn it off
       if (ui.page !== 'finance') go('finance'); else render();
       setTimeout(function () { var tw = main.querySelector('.fin-table'); if (tw && amt) tw.closest('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
@@ -3916,6 +3932,8 @@ document.addEventListener('change', function (e) {
   if (c.contains('ws-cb')) wsSync();
 });
 // multi-select dropdowns: remember which one is open across re-renders, close when clicking elsewhere
+document.addEventListener('toggle', function (e) { if (e.target.classList && e.target.classList.contains('pay-filter')) ui.payOpen = e.target.open; }, true);
+document.addEventListener('click', function (e) { var pf = document.querySelector('details.pay-filter[open]'); if (pf && !pf.contains(e.target)) { pf.open = false; ui.payOpen = false; } });
 document.addEventListener('toggle', function (e) { var b = e.target; if (b.dataset && b.dataset.msBox) { if (b.open) ui.msOpen = b.dataset.msBox; else if (ui.msOpen === b.dataset.msBox) ui.msOpen = ''; } }, true);
 document.addEventListener('click', function (e) { document.querySelectorAll('details.msel[open]').forEach(function (d) { if (!d.contains(e.target)) { d.open = false; ui.msOpen = ''; } }); });
 document.addEventListener('keydown', function (e) {
@@ -3935,6 +3953,12 @@ main.addEventListener('change', function (e) {
     if (t.id === 'finDueMode') { fd.m = t.value; if (!fd.m) { fd.a = ''; fd.b = ''; } }
     else if (t.id === 'finDueA') fd.a = t.value; else fd.b = t.value;
     ui.finDue = fd; render(); return;
+  }
+  if (t.dataset.payf != null) {
+    var v = t.dataset.payf;
+    if (v === '*') ui.finPays = [];
+    else { ui.finPays = ui.finPays.filter(function (x) { return x !== v; }); if (t.checked) ui.finPays.push(v); }
+    ui.payOpen = true; render(); return;
   }
   var map = { fSrc: 'fSrc', finWs: 'finWs', finPay: 'finPay', finInv: 'finInv', rdLoc: 'rdLoc', mtCat: 'mtCat', mtStatus: 'mtStatus' };
   if (map[t.id]) { ui[map[t.id]] = t.value; render(); return; }
