@@ -1950,6 +1950,64 @@ function mtToolbar(shown, total) {
     (anyF ? '<button class="btn ghost sm" data-act="mt-clear">Clear Filters</button>' : '') +
     '<span class="muted mt-count">Showing ' + shown + ' of ' + total + ' tasks' + (noDl ? ' · ' + noDl + ' without deadline not on timeline' : '') + '</span></div>';
 }
+/* v39: Customize Master Timeline. Pick exactly which tasks show as milestones (the "Milestones Only" view).
+   Saved per task in t.mt (only stored when it differs from the default rule), same field as the checkbox in the task form. */
+function mtCustomize() {
+  if (!canEdit()) return;
+  var tasks = db.tasks.filter(function (t) { return t.deadline; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : a.deadline > b.deadline ? 1 : String(a.name).localeCompare(String(b.name)); });
+  var noDl = db.tasks.length - tasks.length, sel = {}, f = { q: '', ws: '', cat: '', show: '' };
+  tasks.forEach(function (t) { sel[t.id] = onMaster(t); });
+  function visible() {
+    var q = f.q.trim().toLowerCase();
+    return tasks.filter(function (t) {
+      if (f.ws && taskWorkstreams(t).indexOf(f.ws) < 0) return false;
+      if (f.cat && t.category !== f.cat) return false;
+      if (f.show === 'on' && !sel[t.id]) return false;
+      if (f.show === 'off' && sel[t.id]) return false;
+      if (q && [t.name, t.notes, t.pic, t.workstream, t.category].join(' ').toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function countText() { var n = tasks.filter(function (t) { return sel[t.id]; }).length; return '<b>' + n + '</b> of ' + tasks.length + ' tasks selected as milestones' + (noDl ? ' · ' + noDl + ' without deadline can’t be on the timeline' : ''); }
+  function listHtml() {
+    var v = visible();
+    if (!v.length) return '<p class="muted" style="padding:18px;text-align:center">No tasks match these filters.</p>';
+    return v.map(function (t) {
+      return '<label class="mtc-row"><input type="checkbox" data-mtid="' + esc(t.id) + '"' + (sel[t.id] ? ' checked' : '') + '><span class="mtc-name">' + esc(t.name) + '</span>' +
+        '<span class="prog ' + wsClass(t.workstream) + '"' + mtStyle(t.workstream, 'prog') + '>' + esc(t.workstream) + '</span>' +
+        '<span class="muted mtc-meta">' + esc(t.category || '') + ' · ' + esc(fmtRange(t)) + '</span></label>';
+    }).join('');
+  }
+  openModal('<div class="modal-h"><h3>Customize Master Timeline</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+    '<div class="modal-b one"><p class="muted" style="margin:0 0 10px">Tick the tasks that should appear as milestones. They show up under <b>Milestones Only</b> on the Master Timeline.</p>' +
+    '<div class="toolbar mtc-tools"><input class="input search" id="mtcQ" type="search" placeholder="Search tasks, PIC, notes…" aria-label="Search tasks">' +
+    '<select class="select" id="mtcWs" aria-label="Workstream">' + opts(allWorkstreams(), '', 'All Workstreams') + '</select>' +
+    '<select class="select" id="mtcCat" aria-label="Category">' + opts(taskCategories(), '', 'All Categories') + '</select>' +
+    '<select class="select" id="mtcShow" aria-label="Selection">' + opts([{ value: 'on', label: 'Selected only' }, { value: 'off', label: 'Not selected only' }], '', 'All') + '</select></div>' +
+    '<div class="mtc-bulk"><button type="button" class="btn sm" id="mtcAll">Select All Shown</button><button type="button" class="btn sm" id="mtcNone">Clear All Shown</button><button type="button" class="btn sm ghost" id="mtcReset">Reset to Default</button><span class="muted" id="mtcCount">' + countText() + '</span></div>' +
+    '<div class="mtc-list" id="mtcList">' + listHtml() + '</div></div>' +
+    '<div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="button" class="btn primary" id="mtcSave">Save &amp; Show Milestones</button></div></div>', 'wide');
+  var root = modalRoot;
+  function refresh() { root.querySelector('#mtcList').innerHTML = listHtml(); root.querySelector('#mtcCount').innerHTML = countText(); }
+  root.querySelector('#mtcQ').addEventListener('input', function (e) { f.q = e.target.value; refresh(); });
+  root.querySelector('#mtcWs').addEventListener('change', function (e) { f.ws = e.target.value; refresh(); });
+  root.querySelector('#mtcCat').addEventListener('change', function (e) { f.cat = e.target.value; refresh(); });
+  root.querySelector('#mtcShow').addEventListener('change', function (e) { f.show = e.target.value; refresh(); });
+  root.querySelector('#mtcList').addEventListener('change', function (e) { var id = e.target.dataset && e.target.dataset.mtid; if (!id) return; sel[id] = e.target.checked; root.querySelector('#mtcCount').innerHTML = countText(); if (f.show) refresh(); });
+  root.querySelector('#mtcAll').addEventListener('click', function () { visible().forEach(function (t) { sel[t.id] = true; }); refresh(); });
+  root.querySelector('#mtcNone').addEventListener('click', function () { visible().forEach(function (t) { sel[t.id] = false; }); refresh(); });
+  root.querySelector('#mtcReset').addEventListener('click', function () { tasks.forEach(function (t) { var d = mtDefault(t); sel[t.id] = d; }); refresh(); });
+  root.querySelector('#mtcSave').addEventListener('click', function () {
+    var changed = 0;
+    tasks.forEach(function (t) {
+      var want = !!sel[t.id], before = onMaster(t);
+      delete t.mt; if (want !== mtDefault(t)) t.mt = want;
+      if (want !== before) { t.updatedAt = Date.now(); changed++; }
+    });
+    ui.mtScope = 'milestones'; ui.mtCat = ''; ui.mtStatus = ''; ui.mtQ = ''; ui.mtHide = [];
+    closeModal(); commit(changed ? 'Master Timeline milestones updated (' + changed + ' changed)' : 'Master Timeline unchanged');
+  });
+}
 function renderMaster() {
   var hide = ui.mtHide || [];
   var all = mtFiltered(), totalDl = db.tasks.filter(function (t) { return t.deadline; }).length;
@@ -1959,7 +2017,7 @@ function renderMaster() {
   var doneN = all.filter(isDone).length;
   var nextT = all.filter(function (t) { return !isDone(t) && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
-    '<div class="mt-actions"><button class="btn primary" data-act="new-milestone">+ Add Milestone</button><div class="mt-legend" role="group" aria-label="Show workstreams">' +
+    '<div class="mt-actions"><div class="mt-btns">' + (canEdit() ? '<button class="btn" data-act="mt-customize" title="Choose which tasks show as milestones">⚙ Customize</button>' : '') + '<button class="btn primary" data-act="new-milestone">+ Add Milestone</button></div><div class="mt-legend" role="group" aria-label="Show workstreams">' +
     wsShown.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '"' + mtStyle(p, 'pill') + ' data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') +
     (wsShown.length > 4 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Show or hide all workstreams">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
   h += mtToolbar(all.filter(function (t) { return t.category === 'Event Day' || hide.indexOf(t.workstream) < 0; }).length, totalDl);
@@ -3823,6 +3881,7 @@ function handleAct(el, e) {
       break;
     case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: '', mt: true }); break;
     case 'mt-all': var wsAll = mtWorkstreams(mtFiltered().filter(function (t) { return t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
+    case 'mt-customize': mtCustomize(); break;
     case 'mt-scope': ui.mtScope = el.dataset.scope; render(); break;
     case 'mt-clear': ui.mtScope = 'all'; ui.mtCat = ''; ui.mtStatus = ''; ui.mtQ = ''; ui.mtHide = []; render(); break;
     case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: wsCurrent('Event Day'), deadline: EVENT_DATE }); break;

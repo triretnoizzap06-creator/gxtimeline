@@ -141,7 +141,7 @@
   }
   function stationCard(t, C, rows) {
     var s = stats([t]), iid = esc(t.id);
-    var h = '<section class="need-card"><div class="need-head"><div class="need-title"><h3>' + esc(t.name) + '</h3>' +
+    var h = '<section class="need-card" id="station-' + iid + '" data-station="' + iid + '"><div class="need-head"><div class="need-title"><h3>' + esc(t.name) + '</h3>' +
       '<span class="muted">' + (t.area ? esc(t.area) + ' · ' : '') + (t.deadline ? 'Deadline ' + App.fmtDate(t.deadline, true) + ' · ' : '') + statusBadge(t.status) + '</span>' +
       (t.notes ? '<span class="muted need-note">' + esc(t.notes) + '</span>' : '') + '</div>' +
       '<div class="need-prog" aria-label="' + s.ready + ' dari ' + s.total + ' siap"><b>' + s.ready + '/' + s.total + '</b><div class="need-bar"><i style="width:' + s.pct + '%"></i></div></div>' +
@@ -212,6 +212,7 @@
     if (keepY != null) { window.scrollTo(window.scrollX, keepY); keepY = null; }
     if (fid && /^(n-|area-|ws-|needSearch)/.test(fid)) { var el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (e) {} } }
     obs.takeRecords(); painting = false;
+    focusStation();
   }
   function markNav() {
     document.querySelectorAll('#nav button').forEach(function (b) {
@@ -225,7 +226,7 @@
     main.querySelectorAll('tr.row[data-id]').forEach(function (tr) {
       var t = taskById(tr.dataset.id); if (!t) return;
       var sub = tr.querySelector('.tsub');
-      if (sub && isStation(t) && !sub.querySelector('.need-chip')) { var s = stats([t]); sub.insertAdjacentHTML('beforeend', ' <span class="need-chip">Need ' + s.ready + '/' + s.total + '</span>'); }
+      if (sub && isStation(t) && !sub.querySelector('.need-chip')) { var s = stats([t]); sub.insertAdjacentHTML('beforeend', ' <button type="button" class="need-chip need-chip-link" data-nact="open" data-id="' + esc(t.id) + '" title="Buka checklist need station ini">Need ' + s.ready + '/' + s.total + ' →</button>'); }
       if (tr.classList.contains('expanded')) {
         var det = tr.nextElementSibling && tr.nextElementSibling.querySelector('.detail');
         if (!det || det.hasAttribute('data-needs-deco')) return;
@@ -235,7 +236,7 @@
           var s2 = stats([t]), box = document.createElement('div');
           box.innerHTML = '<h4>Need per station · ' + s2.ready + '/' + s2.total + ' siap</h4>' + (t.needs.length ? '<ul class="need-mini">' + t.needs.map(function (x) {
             return '<li class="' + (x.ready ? 'ok' : '') + '"><input type="checkbox" disabled' + (x.ready ? ' checked' : '') + ' aria-label="' + (x.ready ? 'Siap' : 'Belum siap') + '"> ' + esc(x.item || '—') + (x.qty !== '' && x.qty != null ? ' <b>×' + esc(x.qty) + '</b>' : '') + '</li>';
-          }).join('') + '</ul>' : '<p class="faint">Belum ada need.</p>') + '<p style="margin-top:6px"><a href="#needs" data-nact="open">Buka di Need per Station →</a></p>';
+          }).join('') + '</ul>' : '<p class="faint">Belum ada need.</p>') + '<p style="margin-top:6px"><a href="#needs" data-nact="open" data-id="' + esc(t.id) + '">Buka di Need per Station →</a></p>';
           if (actions) det.insertBefore(box, actions); else det.appendChild(box);
         } else if (actions && canEdit()) {
           actions.insertAdjacentHTML('afterbegin', '<button class="btn sm" data-nact="enable" data-id="' + esc(t.id) + '">+ Checklist Need</button>');
@@ -248,11 +249,23 @@
   var obs = new MutationObserver(function () { if (painting) return; if (active) paint(); else decorate(); });
   obs.observe(main, { childList: true });
 
-  function open() {
-    active = true;
+  /* open(id): buka Need per Station; kalau id station diberikan, langsung scroll ke station itu & beri highlight */
+  var focusId = null;
+  function focusStation() {
+    if (!focusId) return;
+    var el = document.getElementById('station-' + focusId); focusId = null;
+    if (!el) return;
+    el.scrollIntoView({ block: 'start' });
+    el.classList.add('need-flash');
+    setTimeout(function () { el.classList.remove('need-flash'); }, 2200);
+  }
+  function open(id) {
+    active = true; keepY = null;
+    if (id && typeof id === 'string') { focusId = id; nq = ''; }
     try { history.replaceState(null, '', '#needs'); } catch (e) {}
     App.render();
     if (!main.querySelector('.need-card, .need-empty, .need-stats')) paint();
+    focusStation();
   }
   function leave() { active = false; markNav(); }
 
@@ -262,7 +275,7 @@
   btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M4.5 6l1 1 2-2M4.5 10.5l1 1 2-2M9 6h3M9 10.5h3"/></svg>Need per Station';
   var tasksBtn = nav.querySelector('button[data-page="tasks"]');
   if (tasksBtn && tasksBtn.nextSibling) nav.insertBefore(btn, tasksBtn.nextSibling); else nav.appendChild(btn);
-  btn.addEventListener('click', open);
+  btn.addEventListener('click', function () { open(); });
   nav.addEventListener('click', function (e) { var b = e.target.closest('button[data-page]'); if (b) leave(); }, true);
   window.addEventListener('hashchange', function () {
     var h = location.hash.replace('#', '');
@@ -379,7 +392,7 @@
     var el = e.target.closest('[data-nact]'); if (!el) return;
     e.preventDefault(); e.stopPropagation();
     var act = el.dataset.nact, t = taskById(el.dataset.id);
-    if (act === 'open') { open(); return; }
+    if (act === 'open') { open(el.dataset.id); return; }
     if (act === 'manage-cols') { colManager(); return; }
     if (act === 'clear-search') { nq = ''; paint(); var si = document.getElementById('needSearch'); if (si) si.focus(); return; }
     if (!guard()) return;
@@ -456,6 +469,9 @@
     '.need-toolbar{margin:0 20px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}',
     '.need-toolbar .search{flex:1 1 260px;max-width:440px}',
     '.need-empty{margin:20px;padding:28px;border:1px dashed var(--line);border-radius:12px;text-align:center}',
+    '.need-chip-link{background:none;font:inherit;font-size:11px;cursor:pointer}.need-chip-link:hover{border-color:var(--accent);color:var(--accent)}',
+    '.need-flash{animation:needFlash 2.2s ease-out}@keyframes needFlash{0%,35%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}',
+    '.need-card{scroll-margin-top:16px}',
     '.need-chip{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}',
     '.need-mini{list-style:none;margin:0;padding:0}.need-mini li{padding:2px 0;overflow-wrap:anywhere;display:flex;align-items:center;gap:6px}.need-mini li.ok{color:var(--muted)}',
     '.need-mini input{margin:0;accent-color:var(--accent)}'
