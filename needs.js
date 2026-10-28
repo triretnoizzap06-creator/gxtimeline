@@ -213,6 +213,7 @@
     if (fid && /^(n-|area-|ws-|needSearch)/.test(fid)) { var el = document.getElementById(fid); if (el) { el.focus({ preventScroll: true }); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (e) {} } }
     obs.takeRecords(); painting = false;
     focusStation();
+    if (pinId && Date.now() < pinUntil) setTimeout(focusStation, 60);   // after fonts / images settle
   }
   function markNav() {
     document.querySelectorAll('#nav button').forEach(function (b) {
@@ -222,10 +223,40 @@
   }
 
   /* ---------- integrasi di halaman Tasks ---------- */
+  // A normal task linked to a station: by explicit choice (t.stationId), or by name ("GX Face Art - Face Painting" →
+  // "GX Face Art - Koordinasi Keperluan di Booth", "Band - Spectrum" → "Band Spectrum - Riders Teknis").
+  function squash(x) { return String(x || '').toLowerCase().replace(/^gx\s+/, '').replace(/[^a-z0-9]/g, ''); }
+  var SEP = /\s+[-–—·|]\s+|\s*·\s*/;
+  function stationKeys(st) {
+    var n = String(st.name || ''), keys = [squash(n)], m = /\(([^)]+)\)/.exec(n);
+    if (m) keys.push(squash(m[1]));
+    keys.push(squash(n.replace(/\(.*\)/, '')));
+    keys.push(squash(n.split(SEP)[0]));                      // "GX Face Art - Koordinasi …" → "GX Face Art"
+    return keys.filter(function (k, i, a) { return k.length >= 4 && a.indexOf(k) === i; });
+  }
+  function relatedStation(t) {
+    var list = db().tasks.filter(isStation);
+    if (t.stationId === '-') return null;
+    if (t.stationId) { var ex = list.filter(function (s) { return s.id === t.stationId; })[0]; if (ex) return ex; }
+    var head = squash(String(t.name || '').split(SEP)[0]), full = squash(t.name), best = null;
+    if (/^(pelunasan|bayar|cairkan|pencairan)\s/i.test(t.name || '')) head = squash(String(t.name).replace(/^(pelunasan|bayar|cairkan|pencairan)\s+(dana\s+)?/i, '').split(SEP)[0]);
+    list.forEach(function (st) {
+      stationKeys(st).forEach(function (k) {
+        if (head.length >= 4 && (head === k || k.indexOf(head) > -1 || head.indexOf(k) > -1)) best = best || st;
+        else if (!best && full.indexOf(k) > -1 && k.length >= 8) best = st;
+      });
+    });
+    return best;
+  }
+  App.relatedStation = function (t) { return isStation(t) ? t : relatedStation(t); };
   function decorate() {
     main.querySelectorAll('tr.row[data-id]').forEach(function (tr) {
       var t = taskById(tr.dataset.id); if (!t) return;
       var sub = tr.querySelector('.tsub');
+      if (sub && !isStation(t) && !sub.querySelector('.need-chip')) {
+        var rs = relatedStation(t);
+        if (rs) sub.insertAdjacentHTML('beforeend', ' <button type="button" class="need-chip need-chip-link" data-nact="open" data-id="' + esc(rs.id) + '" title="Buka need station: ' + esc(rs.name) + '">Need: ' + esc(rs.name.replace(/\s*\(.*\)/, '')) + ' →</button>');
+      }
       if (sub && isStation(t) && !sub.querySelector('.need-chip')) { var s = stats([t]); sub.insertAdjacentHTML('beforeend', ' <button type="button" class="need-chip need-chip-link" data-nact="open" data-id="' + esc(t.id) + '" title="Buka checklist need station ini">Need ' + s.ready + '/' + s.total + ' →</button>'); }
       if (tr.classList.contains('expanded')) {
         var det = tr.nextElementSibling && tr.nextElementSibling.querySelector('.detail');
@@ -238,8 +269,12 @@
             return '<li class="' + (x.ready ? 'ok' : '') + '"><input type="checkbox" disabled' + (x.ready ? ' checked' : '') + ' aria-label="' + (x.ready ? 'Siap' : 'Belum siap') + '"> ' + esc(x.item || '—') + (x.qty !== '' && x.qty != null ? ' <b>×' + esc(x.qty) + '</b>' : '') + '</li>';
           }).join('') + '</ul>' : '<p class="faint">Belum ada need.</p>') + '<p style="margin-top:6px"><a href="#needs" data-nact="open" data-id="' + esc(t.id) + '">Buka di Need per Station →</a></p>';
           if (actions) det.insertBefore(box, actions); else det.appendChild(box);
-        } else if (actions && canEdit()) {
-          actions.insertAdjacentHTML('afterbegin', '<button class="btn sm" data-nact="enable" data-id="' + esc(t.id) + '">+ Checklist Need</button>');
+        } else {
+          var rs2 = relatedStation(t), stl = db().tasks.filter(isStation);
+          if (rs2 && actions) actions.insertAdjacentHTML('afterbegin', '<button class="btn sm" data-nact="open" data-id="' + esc(rs2.id) + '">Need station: ' + esc(rs2.name) + ' →</button>');
+          if (actions && canEdit() && stl.length) actions.insertAdjacentHTML('beforeend', '<label class="need-link-pick"><span>Need station</span><select class="select" data-nlink="' + esc(t.id) + '"><option value="">' + (rs2 && !t.stationId ? 'Otomatis (' + esc(rs2.name) + ')' : 'Otomatis') + '</option><option value="-"' + (t.stationId === '-' ? ' selected' : '') + '>Tidak ada</option>' +
+            stl.map(function (x) { return '<option value="' + esc(x.id) + '"' + (t.stationId === x.id ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></label>');
+          if (actions && canEdit()) actions.insertAdjacentHTML('afterbegin', '<button class="btn sm" data-nact="enable" data-id="' + esc(t.id) + '">+ Checklist Need</button>');
         }
       }
     });
@@ -250,18 +285,27 @@
   obs.observe(main, { childList: true });
 
   /* open(id): buka Need per Station; kalau id station diberikan, langsung scroll ke station itu & beri highlight */
-  var focusId = null;
+  // The chosen station stays "pinned" for a few seconds: live sync / auto-save can re-render the page right after
+  // you arrive, and every re-render scrolls back to it. It keeps a highlight until you pick another station.
+  var focusId = null, pinId = null, pinUntil = 0, targetId = null;
   function focusStation() {
-    if (!focusId) return;
-    var el = document.getElementById('station-' + focusId); focusId = null;
-    if (!el) return;
-    el.scrollIntoView({ block: 'start' });
-    el.classList.add('need-flash');
-    setTimeout(function () { el.classList.remove('need-flash'); }, 2200);
+    var id = focusId || (pinId && Date.now() < pinUntil ? pinId : null), fresh = !!focusId;
+    focusId = null;
+    if (targetId) { var tg = document.getElementById('station-' + targetId); if (tg) tg.classList.add('need-target'); }
+    if (!id) return;
+    var el = document.getElementById('station-' + id);
+    if (!el) return;                                   // data not loaded yet: the pin tries again on the next render
+    var top = el.getBoundingClientRect().top + window.scrollY - 12;
+    if (Math.abs(window.scrollY - top) > 4) window.scrollTo(window.scrollX, Math.max(0, top));
+    if (fresh) { el.classList.add('need-flash'); setTimeout(function () { el.classList.remove('need-flash'); }, 2200); }
   }
+  window.addEventListener('wheel', function () { pinUntil = 0; }, { passive: true });
+  window.addEventListener('touchmove', function () { pinUntil = 0; }, { passive: true });
+  window.addEventListener('keydown', function (e) { if (/^(PageUp|PageDown|ArrowUp|ArrowDown|Home|End| )$/.test(e.key)) pinUntil = 0; });
   function open(id) {
     active = true; keepY = null;
-    if (id && typeof id === 'string') { focusId = id; nq = ''; }
+    if (id && typeof id === 'string') { focusId = pinId = targetId = id; pinUntil = Date.now() + 5000; nq = ''; }
+    else targetId = null;
     try { history.replaceState(null, '', '#needs'); } catch (e) {}
     App.render();
     if (!main.querySelector('.need-card, .need-empty, .need-stats')) paint();
@@ -269,6 +313,12 @@
   }
   function leave() { active = false; markNav(); }
 
+  document.addEventListener('change', function (e) {
+    var el = e.target; if (!el || !el.hasAttribute || !el.hasAttribute('data-nlink')) return;
+    var t = taskById(el.getAttribute('data-nlink')); if (!t || !guard()) return;
+    if (el.value) t.stationId = el.value; else delete t.stationId;
+    t.updatedAt = Date.now(); save(el.value === '-' ? 'Task tidak ditautkan ke station' : el.value ? 'Task ditautkan ke station' : 'Station dipilih otomatis');
+  });
   /* ---------- nav ---------- */
   var btn = document.createElement('button');
   btn.type = 'button'; btn.setAttribute('data-needs-nav', '1');
@@ -400,7 +450,7 @@
     else if (act === 'new-station') stationForm(el.dataset.ws);
     else if (act === 'col-add') colAdd();
     else if (act === 'col-del') colDel(+el.dataset.idx);
-    else if (act === 'enable' && t && !isStation(t)) { t.needs = []; t.updatedAt = Date.now(); save('Checklist need aktif'); open(); }
+    else if (act === 'enable' && t && !isStation(t)) { t.needs = []; t.updatedAt = Date.now(); save('Checklist need aktif'); open(t.id); }
     else if (act === 'add' && t && isStation(t)) {
       var nn = { id: rid('N'), item: '', qty: '', design: (cols().filter(function (c) { return c.key === 'design'; })[0].options || DESIGN)[0], ready: false, notes: '' };
       t.needs.push(nn); t.updatedAt = Date.now(); save();
@@ -470,6 +520,8 @@
     '.need-toolbar .search{flex:1 1 260px;max-width:440px}',
     '.need-empty{margin:20px;padding:28px;border:1px dashed var(--line);border-radius:12px;text-align:center}',
     '.need-chip-link{background:none;font:inherit;font-size:11px;cursor:pointer}.need-chip-link:hover{border-color:var(--accent);color:var(--accent)}',
+    '.need-link-pick{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.need-link-pick .select{max-width:240px;padding:4px 28px 4px 8px;font-size:12.5px}',
+    '.need-card.need-target{outline:3px solid var(--accent);outline-offset:3px}',
     '.need-flash{animation:needFlash 2.2s ease-out}@keyframes needFlash{0%,35%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}',
     '.need-card{scroll-margin-top:16px}',
     '.need-chip{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}',

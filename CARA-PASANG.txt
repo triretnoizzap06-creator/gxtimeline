@@ -1,271 +1,29 @@
-GX27 - Patch v35 (Kotak sheet vs web dihapus, Outstanding = Budget − Paid, filter Payment Status bisa pilih banyak)
+GX27 — Update v40 (28 Okt 2026)
 
-File yang berubah: app.js, styles.css, index.html, needs.js. Tidak perlu SQL.
-Patch ini sudah termasuk semua perubahan v9, v9b, v10 - v34.
+Cara pasang:
+1. Upload SEMUA isi folder ini ke repo GitHub (timpa file lama). Vercel deploy otomatis (1–2 menit).
+2. Tidak perlu jalankan SQL. (supabase/schema.sql sekarang sama dengan schema.sql di folder utama.)
+3. Buka website, tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
 
-1. Upload app.js, styles.css, index.html, needs.js ke repo GitHub (timpa yang lama).
-2. Commit, tunggu Vercel deploy, lalu Ctrl+Shift+R sekali.
-
-CHANGES v35
-1. Kotak "Sheet | Web | Selisih" di bawah kartu Finance dihapus.
-2. Doorprize: transfer dicatat Rp 8.880.000 (sesuai sheet). Budget-nya tetap Rp 8.654.639; lebih Rp 225.361 = Over Budget di Buffer
-   (bukan selisih). Otomatis sekali saat dibuka, hanya kalau transfer Doorprize di web masih di bawah Rp 8.880.000.
-   -> Paid = Rp 82.638.870 (incl. fee Rp 27.500).
-3. Outstanding Payment = Total Budget − Paid = Rp 121.641.269 (sama dengan total Pelunasan di sheet).
-   Baris Subtotal / Grand Total kolom Remaining pakai rumus yang sama.
-4. Filter Payment Status sekarang checklist: bisa pilih lebih dari 1 (mis. Pending Payment + DP Paid).
-   Baris paling bawah tabel jadi "Total · Pending Payment + DP Paid" dengan total Budget, Paid, Remaining, Buffer untuk pilihan itu.
-
-CHANGES v34 (included)
-1. Used from Buffer = Rp 0. Rider NSK + MC + Spectrum + DJ (Rp 2.800.000) dicatat "Dari sisa Cetak Card" (sesuai catatan sheet),
-   jadi bukan pemakaian buffer: savings Cetak Card langsung dikurangi Rp 2.800.000. Available Buffer tidak berubah.
-   Perhitungan otomatis "budget di atas sheet = used from buffer" (v32) dihapus.
-2. Kolom Buffer Budget di tabel sekarang sama persis dengan popup Buffer Budget (total kolom = Available Buffer).
-   Emergency Fund / budget pool tidak dihitung sebagai buffer (sisanya ada di kolom Remaining).
-3. Baris total di bawah tabel: Paid = transfer + fee (Grand Total Paid Rp 82.638.870, incl. fee Rp 27.500), juga di subtotal kategori.
-   Kalau difilter Payment Status, baris paling bawah jadi "Total · <status>" dengan total Budget, Paid, Remaining, Buffer untuk filter itu.
-
-CHANGES v33 (included)
-1. Buffer Budget: semua item yang biaya aktualnya (invoice, atau transfer kalau Full Paid) di bawah budget langsung dihitung
-   sebagai buffer, tanpa perlu invoice Submitted / Paid dulu. Over budget juga langsung dihitung.
-   (Bagian "Potential savings not counted yet" tidak ada lagi.)
-2. Di popup Buffer Budget, 4 kotak bisa diklik -> popup tertutup dan tabel Finance langsung terfilter:
-   Savings -> item yang hemat · Over Budget -> item yang lewat budget · Used from Buffer -> item yang dibiayai buffer ·
-   Available Buffer -> semua item buffer. Klik chip "... only ✕" untuk menghapus filter.
-
-CHANGES v32 (included)
-1. Semua fee transfer dihitung sebagai pemakaian Emergency Fund (Lain-Lain):
-   "used ... · incl. transfer fees Rp ..." di baris Emergency Fund. Paid tetap = transfer + fee (sama dengan DP Total sheet).
-2. Budget yang lebih dari sheet = diambil dari Buffer, bukan selisih.
-   Doorprize: budget kembali ke total itemnya (Rp 8.654.639, sama dengan sheet); transfer Rp 8.880.000 -> lebih Rp 225.361 masuk Over Budget di Buffer.
-   Item lain yang budgetnya dinaikkan di app: kelebihannya tercatat "Used from Buffer", Total Budget tetap Rp 204.280.139.
-3. Kolom Selisih Budget hanya muncul kalau web KURANG dari sheet.
-   Selisih Paid dijelaskan per kategori (fee transfer dihitung di Emergency Fund), jadi pindah item di dalam Emergency Fund tidak dianggap selisih.
-
-CHANGES v31 (included)
-1. Banner "Rekonsiliasi dengan sheet ... Lihat rincian selisih · perlu direview" dihapus total.
-2. Gantinya kotak kecil di bawah kartu:   Sheet | Web | Selisih
-   Budget  Rp 204.280.139 | ... | selisih
-   Paid    Rp  82.638.870 | ... | selisih   (Paid = transfer + fee, sama seperti DP Total di sheet)
-   Kalau ada selisih, di bawahnya ditulis selisihnya ada di item mana (klik item untuk buka) + tombol "Samakan dengan sheet".
-   Kalau sudah sama: "✓ Web sudah balance dengan sheet".
-
-CHANGES v30 (included)
-1. Banner rekonsiliasi (rincian item dihapus / di-rename / "perlu direview") dihapus.
-   Gantinya satu baris di bawah kartu:  Budget sheet vs web  ·  Paid sheet vs web  -> "✓ Balance dengan sheet".
-   Kalau belum balance: muncul selisihnya + tombol "Samakan dengan sheet" (update dari data sheet di app, atau Upload Sheet).
-2. Kartu Paid sekarang = total uang yang sudah ditransfer termasuk fee transfer, jadi angkanya sama dengan DP Total di sheet
-   (Rp 82.638.870, termasuk fee Rp 27.500).
-
-CHANGES v29 (included)
-1. "Update dari Sheet": sheet sekarang jadi acuan. SEMUA perbedaan sudah dicentang, termasuk angka yang tadinya diedit di app
-   (mis. estimasi Doorprize Rp 8.880.000 -> dikembalikan ke rincian sheet Rp 8.654.639), jadi Total Budget = Sub Total sheet
-   Rp 204.280.139 dan transfer = Rp 82.638.870. Hapus centang kalau ada yang memang mau beda dari sheet.
-2. Tombol baru di Finance: "Upload Sheet". Setiap sheet berubah:
-   Google Sheet -> buka tab EDIT DISINI -> File -> Download -> Comma-separated values (.csv) -> Upload Sheet -> pilih file.
-   (File export semua tab juga bisa.) App membaca divisi Acara saja, lalu menampilkan daftar perubahan:
-   Qty, Price, Total Price, INV Total, DP Total (transfer + fee), Payment Status, file invoice & bukti transfer, item baru,
-   dan Sub Total / total transfer di baris rekap sheet. Klik Update -> Save.
-   Baris rincian yang hanya ditulis di kolom Note (mis. "Totebag 100 pcs : Rp2.965.000") tidak dibaca otomatis;
-   daftarnya ditampilkan di dialog supaya bisa dicek manual.
-   Item yang hanya ada di app (section, item dari buffer, Tenants/di luar budget) tidak disentuh.
-3. Catatan: web tidak bisa membaca Google Sheet secara live tanpa membuat sheet-nya publik, jadi update lewat Upload Sheet.
-
-CHANGES v28 (included)
-1. Data budget sheet di app diperbarui ke "EDIT DISINI" divisi Acara (snapshot 16 Okt 2026):
-   Sub Total Rp 204.280.139 · total transfer Rp 82.638.870.
-   Perubahan dari sheet: DIY Totebag jadi Budget Pool berisi Mini Heat Press (Rp 326.069), Totebag 100 pcs (Rp 2.965.000),
-   Sticker DTF 39 lembar (Rp 2.025.000) · Acrylic A4 4 pcs Rp 107.996 · Air Honk 2 pcs Rp 102.000 ·
-   Mobile Legend transfer Rp 5.000.000 + fee Rp 2.500 · baru: Rider NSK + MC + Spectrum + DJ Rp 2.800.000 (diambil dari sisa Cetak Card → Funded from Buffer).
-   Angka sheet diambil dari daftar realisasi di samping tabel (mis. Sticker DTF 39 lembar Rp 2.025.000, bukan catatan 44 lembar Rp 1.672.000).
-2. Setelah deploy, Finance menampilkan banner "Data budget dari sheet terbaru tersedia" -> klik "Update dari Sheet":
-   daftar perubahan per item (dicentang = diterapkan). Perubahan yang kamu buat di app (mis. estimasi Doorprize) tidak dicentang dan
-   dilipat di bagian terpisah. Item yang hanya ada di app (section, item buffer, Tenants, dll.) tidak disentuh. Lalu klik Save (admin).
-   (Tombol lama yang mengganti seluruh Finance sudah tidak dipakai.)
-3. Kategori Tenants = di luar budget event, masuk budget "Operational Marketing":
-   tetap tampil di Finance (ditandai), tapi tidak dihitung di Total Budget, Paid, Outstanding, Buffer, rekonsiliasi, dan item yang perlu dicek.
-   Totalnya ditulis terpisah di bawah tabel. Tombol "Budget: ..." di judul kategori untuk mengatur kategori mana pun.
-4. Rincian selisih dengan sheet: item yang dihapus / diganti nama otomatis dianggap sesuai (dilipat), selisih lain bisa ditandai "✓ OK".
-   Banner menulis berapa yang masih perlu direview.
-5. Items to Check: tombol "✓ Mark verified" untuk menghapus tanda Needs Verification.
-
-CHANGES v27 (included)
-1. Semua task di tab "Finance & Procurement" otomatis punya PIC "Finance" (ditambahkan di samping PIC lain, tidak mengganti).
-   Berlaku untuk task yang punya item budget ter-link, atau kategori Procurement
-   (checklist Need per Station tidak ikut kecuali punya item budget). Task baru otomatis ikut.
-   "Finance" otomatis masuk daftar PIC (Manage Categories > PIC); kalau namanya diganti di sana, auto-assign ikut nama baru.
-2. Kalau Finance sengaja dihapus dari PIC sebuah task (lewat edit PIC / form task), app mengingatnya dan tidak menambahkannya lagi.
-   Tambahkan Finance lagi kapan saja untuk menyalakan kembali.
-
-CHANGES v26 (included)
-1. Form item budget: field baru "Funding":
-   - New budget (default) -> menambah Total Budget seperti biasa.
-   - From Buffer Budget -> TIDAK menambah Total Budget; biayanya diambil dari Buffer Budget.
-   Di bawah field tampil "Available buffer: Rp ...". Kalau biaya > buffer yang tersedia, muncul peringatan (tetap bisa disimpan).
-   Hanya untuk baris utama (sub item ikut budget induknya).
-2. Kartu "Buffer Budget · Available" = penghematan confirmed − over budget − biaya item yang diambil dari buffer.
-   Detail: Confirmed Savings, Over Budget, Used from Buffer, Available Buffer + daftar item "Funded from Buffer".
-3. Item yang diambil dari buffer ditandai "Funded from Buffer"; biayanya = invoice kalau sudah ada, kalau belum = estimasi.
-   Pembayarannya tetap masuk Paid / Outstanding Payment. Kartu Total Budget menulis "+ Rp ... from buffer".
-4. Fix: kartu Total Budget tidak lagi menulis "filter on ✕" padahal tidak ada filter.
-5. Section di dalam Budget Pool (mis. Emergency Fund): tombol "Sections" di baris Emergency Fund.
-   Tambah / ganti nama / urutkan / hapus section sendiri (mis. Reimbursement, Konsumsi, Transport).
-   Budget tetap satu di Emergency Fund; sub item dikelompokkan per section dengan "N item · used Rp ...".
-   Tombol "+ Item" di tiap section langsung mengisi section-nya; di form item ada pilihan Section.
-   Ganti nama section -> sub item ikut. Hapus section -> sub item jadi "No section" (tidak terhapus).
-
-CHANGES v25 (included)
-1. Banner "Rekonsiliasi dengan sheet" di Finance punya tombol "Lihat rincian selisih":
-   daftar baris yang membuat Total Budget dan Total Transfer beda dari budget sheet (Sheet vs App vs Difference),
-   dengan keterangan: Changed in app / Added in app / No longer a main row (dipindah jadi sub item, dihapus, atau diganti nama).
-   Jumlah baris-baris itu = selisih total. Untuk transfer, selisih yang sudah ada sejak import (Rp 5.000.000) ditulis terpisah.
-2. Tombol "Lihat N item yang perlu dicek": daftar item yang di-flag beserta alasannya
-   (Needs Verification, nominal belum diisi, qty × harga ≠ total, lewat payment deadline, Proof Transfer belum ada, dll.).
-
-CHANGES v24 (included)
-1. Finance & Procurement: kartu di atas bisa diklik.
-   - Paid -> tabel hanya menampilkan item yang sudah ada pembayarannya.
-   - Outstanding Payment -> hanya item yang masih ada sisa tagihan.
-   - Total Budget -> tampilkan semua (hapus semua filter).
-   Klik kartu yang sama lagi / klik chip "... only ✕" untuk mematikan. Bisa digabung dengan filter lain (kategori, status, due date, search).
-   Baris "Total (Filtered)" di bawah tabel = angka di kartu.
-2. Presentation: kotak Paid dan Outstanding Payment membuka Finance dengan filter yang sama.
-
-CHANGES v23 (included)
-1. Semua baris yang punya sub item (Budget Pool dan Vendor Invoice: Doorprize, OJISAN, Bali Games, BUMI, Emergency Fund, dll.)
-   menampilkan di bawah nama item: Budget · Realization · Remaining (atau Over, merah) + bar.
-   Budget = estimasi baris induk (atau total estimasi sub item kalau induk kosong).
-   Realization = invoice / nominal transfer (Vendor Invoice) atau total harga sub item (Budget Pool).
-2. Kolom baru "Buffer Budget" (tampil otomatis; bisa disembunyikan lewat Columns):
-   Estimated Budget − realisasi, untuk setiap item yang punya estimasi + invoice/nominal. Hijau = sisa, merah = over.
-   "pending" = invoice belum submitted / belum lunas. Sub item ditandai "·" karena sudah dihitung di induknya (tidak dobel).
-   Subtotal per kategori dan Grand Total ikut menjumlah Buffer Budget.
-   (Kartu "Buffer Budget" di atas tetap hanya menghitung penghematan yang sudah confirmed.)
-
-CHANGES v22 (included)
-1. Budget Pool (contoh GX Create budget Rp 5.000.000 berisi Totebag, Sticker, Mini Heat Press):
-   - Klik "+ Sub Item" di item GX Create -> isi nama, qty, harga satuan. Untuk sub item pertama ada pilihan "Parent Becomes":
-     Budget Pool (default kalau item belum punya invoice) atau Vendor Invoice.
-   - Baris GX Create menampilkan sisa budget (hijau), bar pemakaian, dan "used Rp X of Rp 5.000.000".
-     Kalau total sub item melebihi budget -> "Over Rp ..." merah.
-   - Tiap sub item punya harga & status payment sendiri. Total Budget tidak dihitung dobel (yang dihitung tetap budget pool-nya).
-   - Row Type di form: "Budget Pool" (dulu "Alokasi Dana") dan "Vendor Invoice". Item lama bisa diubah lewat Row Type.
-
-CHANGES v21 (included)
-1. Form item budget: Proof Transfer jadi 2 isian — "Proof Transfer — DP" dan "Proof Transfer — Settlement" (pelunasan).
-   Kalau isinya link, muncul "Open ↗" di bawahnya. Data lama (bukti transfer yang sudah ada) tetap di isian DP.
-2. Kolom tabel baru "Proof Transfer" (default tersembunyi; nyalakan lewat tombol Columns): tampil "DP ↗" dan "Settlement ↗".
-3. Pengingat: kalau status Full Paid, ada DP, dan baru ada bukti DP -> "Proof Transfer pelunasan belum dilampirkan".
-4. Search Finance juga mencari di kedua link.
-
-CHANGES v20 (included)
-1. Finance & Procurement: tombol "Columns" di toolbar (sebelah filter). Centang / hapus centang kolom -> tabel langsung berubah.
-   Show All dan Reset to Default. Pilihan ini per browser (tampilan masing-masing orang), bisa dipakai semua user.
-   Manage Columns tetap untuk admin: ganti nama, urutan, dan default untuk semua orang.
-2. Tabel lebar (Tasks, Finance, Need per Station, dll.): scrollbar kanan-kiri menempel di bawah layar selama tabelnya kelihatan,
-   jadi tidak perlu scroll sampai bawah tabel untuk geser kanan-kiri.
-3. "Bukti Transfer" diganti "Proof Transfer" (form item budget).
-
-CHANGES v19 (included)
-1. Finance & Procurement: kolom "Transfer Receipt" diganti "Invoice / Quotation File" (posisi & tampil/sembunyi sama).
-   Isinya dari field "Invoice / Quotation File" di form item; kalau isinya link -> "Open file ↗" (buka di tab baru).
-   Bukti transfer tetap tersimpan di form item (field Bukti Transfer), hanya tidak jadi kolom tabel lagi.
-2. Emergency Fund (sekali jalan, otomatis saat data dimuat): 3 item ini dipindah jadi sub item di bawah
-   "Emergency Fund — Lain-Lain":
-   - Mobil Legends - Gift Tebak Hero (sebelumnya Alokasi Dana, sekarang line item biasa)
-   - Dana Laminating A4 — Rules Games (12 Games)
-   - Dana Laminating A6 — QR Code Voting Frame (20 Tim)
-   Kategori ikut jadi Emergency Fund dan item-item ini tampil di bawah task "Alokasi Emergency Fund".
-   Setelah pindah, klik Save (mode admin) supaya tersimpan ke database.
-
-CHANGES v18 (included)
-1. Presentation > Task Progress: legend, kartu, dan potongan donut bisa diklik, langsung buka Tasks dengan filter Status:
-   Completed -> status Done · In Progress -> status In Progress · Pending -> status Pending (+ Blocked) · Not Started -> status Not Started ·
-   Overdue -> task belum selesai yang deadline-nya sudah lewat. Jumlah task di Tasks = angka di Presentation.
-2. "Blocked" dihapus dari Presentation; task Blocked dihitung masuk Pending supaya total tetap sama.
-
-CHANGES v17 (included)
-1. Master Timeline shows every task that has a deadline, from all workstreams, by default.
-   Filters: All Tasks / Milestones Only (the previous view), workstream pills (Show All / Hide All),
-   Category, Status (Not done yet / Overdue / Done) and Search. "Clear Filters" resets everything.
-   Tasks without a deadline can't be placed on the timeline; the count is shown next to the filters.
-   The task form checkbox is now "Show as milestone" (used by Milestones Only).
-2. Need per Station: search bar (station, location, workstream, item, notes, any column).
-   A matching station shows all its items; otherwise only the matching items are shown.
-3. Finance & Procurement:
-   - English column headers: Item, Estimated Budget, Paid, Remaining, Due Date, Payment Status, Task
-     (hidden ones too: Unit Price, Invoice, Down Payment, Invoice Status, Transfer Receipt, Check).
-     Headers you renamed yourself are kept; Estimated Budget and Payment Status are switched on.
-   - All price inputs (budget form amounts and custom "Rupiah" columns) format while typing:
-     10000 -> "Rp 10.000". Values are still saved as plain numbers, so totals and calculations are unchanged.
-
-CHANGES v16 (included)
-1. Collapsible sidebar: ☰ button fixed at the top-left shows / hides the sidebar; the page content widens automatically.
-   The choice is remembered in each browser. Works on desktop and mobile (on mobile it hides the top menu bar).
-2. Presentation dashboard: new menu item "Presentation" (#present), built live from the same Tasks & Finance data
-   (no copied or hardcoded numbers):
-   - Task Progress: donut + Completed / In Progress / Pending / Blocked / Not Started, and Overdue count.
-   - Budget Summary: Total Budget, Paid, Outstanding Payment, Buffer Budget (click for the savings detail) + paid/outstanding bar.
-   - Overdue items and Upcoming (next 14 days) — tasks and unpaid payment deadlines.
-   - Recent Updates — latest edited tasks and budget items.
-   - Progress by Workstream.
-   - "Full Screen" button for meetings (hides the sidebar; press Esc to exit). Every item is clickable to open its task / budget item.
-
-CHANGES v15 (included)
-1. Overview: all text and labels in English (cards, lists, workstream progress, Needs Verification). Short amounts use M / B (Rp 82.6M).
-2. Finance summary cards: Total Budget, Paid, Outstanding Payment, Buffer Budget.
-3. Buffer Budget card is clickable -> item-level savings (Original Budget, Actual Cost, Savings), plus Over Budget items,
-   Net Buffer, and "potential savings not counted yet".
-   - Calculated automatically from Finance data; no new fields, no database change.
-   - Only confirmed savings count: invoice Submitted or fully paid, and not marked Needs Verification.
-   - No double counting: line items inside a vendor invoice are compared once at invoice level; Emergency Fund allocation
-     and its usage rows are excluded; transfer fees ignored.
-4. Finance filter "Due Date" next to All Invoice Status: All / Due on date / Due date range / Overdue (unpaid) / No due date.
-   Combines with all other filters (category, payment status, invoice status, search). Line items follow their vendor invoice's due date.
-5. Need per Station: checklist checkboxes centered in their column and aligned with the first line of each row.
-
-PERUBAHAN v14 (sudah termasuk)
-1. Overview lebih ringkas: 4 kartu (Progress Task, Perlu Perhatian, Deadline 14 Hari, Sudah Dibayar),
-   2 daftar pendek (maks. 6 item + "Lihat semua"), progress per workstream tanpa kolom budget,
-   dan "Perlu Verifikasi" dilipat (klik untuk buka). Kartu bisa diklik untuk ke Tasks / Finance.
-2. Need per Station: dropdown Design berwarna seperti Status di Tasks.
-3. Task <-> Finance & Procurement:
-   - Form New Task: centang "Tambahkan juga ke Finance & Procurement" -> setelah task dibuat, form item budget terbuka & otomatis ter-link.
-   - Form Edit Task: bagian Finance & Procurement (daftar item ter-link, "+ Item Budget Baru", "Link Item yang Ada").
-   - Detail task (klik baris): tombol "+ Item Budget Baru" dan "Link Item Finance".
-4. Emergency Fund jadi 1 ringkasan:
-   - Task baru dengan workstream Emergency Fund otomatis masuk sebagai sub item di bawah "Alokasi Emergency Fund"
-     (tidak jadi task terpisah), lalu form nominal langsung terbuka.
-   - Tombol "+ Sub Item" di baris task "Alokasi Emergency Fund" (dan di detail/form task-nya).
-
-PERUBAHAN v13 (sudah termasuk)
-1. Need per Station dikelompokkan per Workstream (nama & urutan ikut Manage Categories).
-   - Tiap station punya dropdown Workstream untuk pindah kelompok.
-   - Tombol "+ Station di <workstream>" di tiap kelompok; form Station Baru juga ada pilihan Workstream.
-2. Need per Station > Manage Columns: judul kolom bisa diganti, disembunyikan, diurutkan (drag),
-   tambah kolom sendiri (Teks, Teks Panjang, Angka, Tanggal, Dropdown, Centang), dan pilihan dropdown
-   (mis. Design) bisa diubah. Kolom tambahan bisa dihapus (isinya ikut terhapus).
-   Lebar kolom juga bisa di-drag seperti di Tasks.
-3. Kolom "Perlengkapan" sekarang centang biasa (tanpa tulisan Siap/Belum).
-4. Emergency Fund: semua pemakaian dana di Finance otomatis tampil di bawah task "Alokasi Emergency Fund"
-   (seperti Doorprize). Item baru / diedit / dihapus di Finance langsung ikut. Task per item yang dulu dibuat
-   otomatis dan belum diisi PIC/notes dihapus; yang sudah ada isinya tetap disimpan.
-
-PERUBAHAN v12 (sudah termasuk)
-1. Master Timeline otomatis ikut nama Workstream di Manage Categories.
-   Kalau nama workstream diganti (mis. "HYROX" -> "GX Race"), tombol filter, label item, warna,
-   dan status "program" di Master Timeline langsung ikut nama baru. Item tidak hilang dari timeline.
-2. Warna workstream tetap sama walaupun namanya diganti atau urutannya digeser.
-3. Urutan tombol workstream di Master Timeline ikut urutan di Manage Categories.
-4. Filter yang sedang aktif (sembunyikan workstream di Master Timeline, filter Workstream di Tasks) ikut pindah ke nama baru.
-
-PERUBAHAN v11 (sudah termasuk)
-1. Tombol & judul "Kelola Kolom" -> "Manage Columns", "Kelola Kategori" -> "Manage Categories".
-2. Manage Columns & Manage Categories (semua tab: Kategori Task, Workstream, Status Task, PIC, Status Payment):
-   urutan bisa diatur dengan drag ikon titik-titik di kiri tiap baris. Tombol up/down tetap ada.
-   Urutan tersimpan ke data (ikut tersinkron ke semua user).
-3. Filter di judul kolom Tasks (Workstream, Category, PIC, Status) sekarang urut sesuai urutan di Manage Categories.
-   Nilai yang belum ada di daftar ditaruh paling bawah (A-Z).
-
-PERUBAHAN v10 (sudah termasuk)
-- Lebar kolom tabel Tasks & Finance bisa di-drag. Klik 2x garis = reset kolom itu, tombol "Reset Lebar Kolom" = reset semua.
+Yang baru:
+1. Tasks → Need per Station: klik "Need: … →" di task, atau tombol "Need station" di detail task,
+   langsung ke station yang tepat (di-highlight). Task biasa yang namanya cocok dengan station
+   (mis. "GX Face Art - Face Painting") otomatis ditautkan; bisa dipilih manual di detail task.
+   "+ Checklist Need" sekarang langsung membuka station yang baru dibuat.
+2. Master Timeline: default hanya GX Connect, GX Got Talent, Mobile Legends, HYROX (+ Event Day).
+   Tombol "⚙ Program" untuk centang workstream lain.
+3. Finance — Sumber Budget per item & sub item (sub item di Budget Pool juga bisa):
+   - Budget RAB item ini
+   - Budget RAB + tambahan dari buffer (kalau over budget)
+   - Seluruhnya dari buffer
+   Sumbernya bisa "Buffer umum" atau sisa item tertentu yang hemat.
+   Panel "Ringkasan Budget & Buffer": Hemat − Over budget − Dipakai = Sisa buffer, daftar pemakaian
+   buffer, dan daftar over budget dengan tombol "Tutup pakai buffer".
+4. Emergency Fund (Budget Pool) → tombol "Sections": tambah/ubah/hapus section dan pilih program
+   terkaitnya (mis. "EF Mobile Legends" → Mobile Legends). Filter kategori Mobile Legends ikut
+   menampilkan item section itu.
+   Tanda "Reimbursement" di form item (+ reimburse ke siapa). Item tetap di section-nya dan juga
+   muncul di daftar Reimbursement (tombol "Reimbursement" di toolbar Finance).
+5. Presentation jadi deck 7 slide (Cover, Highlights, Program Utama, Progress Task, Budget,
+   Buffer, Deadline), tiap slide ada kotak Highlight. Pindah slide pakai tombol ← → atau keyboard.
+   Semua nominal dalam Rupiah lengkap (Rp 204.280.139).
