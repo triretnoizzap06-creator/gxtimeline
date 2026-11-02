@@ -1,29 +1,21 @@
-GX27 — Update v40 (28 Okt 2026)
+GX27 — Update v43 (2 Nov 2026)
+
+Baru di v43:
+- Tombol "✎ Ubah Nama Teks" di sidebar (bawah menu). Nyalakan, lalu klik teks apa saja di website
+  (menu, judul halaman, tombol, header kolom, label form, kartu ringkasan, judul slide, dll.) -> isi nama baru -> Simpan.
+  Berlaku untuk semua orang. "Semua perubahan" = daftar + tombol Kembalikan. "Tambah manual" = untuk pilihan dropdown/placeholder.
+  Nama item, task, rundown dan kategori tetap diubah lewat form-nya / Manage Categories.
+
+Dari v42:
+- Sumber Budget "Dari budget pool (mis. Emergency Fund)": item di kategori mana pun (contoh: Hadiah Lomba HYROX)
+  bisa ambil seluruh biayanya dari Emergency Fund. Pilih juga section-nya (contoh: HYROX).
+  -> Item tetap tampil di kategorinya sendiri, DAN muncul di dalam Emergency Fund di section yang dipilih (tanda ↗ HYROX).
+  -> Tidak menambah Total Budget, mengurangi sisa Emergency Fund, tidak memengaruhi Buffer.
+- (dari v41) Sisa Budget Pool selain Emergency Fund (contoh GX Create) masuk Buffer Budget.
+
+Cara pakai: buka item -> Sumber Budget -> "Dari budget pool" -> pilih Emergency Fund + section -> Save.
 
 Cara pasang:
-1. Upload SEMUA isi folder ini ke repo GitHub (timpa file lama). Vercel deploy otomatis (1–2 menit).
-2. Tidak perlu jalankan SQL. (supabase/schema.sql sekarang sama dengan schema.sql di folder utama.)
+1. Upload SEMUA isi folder ini ke repo GitHub (timpa file lama).
+2. Tidak perlu jalankan SQL. Data di Supabase tidak berubah.
 3. Buka website, tekan Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows) sekali.
-
-Yang baru:
-1. Tasks → Need per Station: klik "Need: … →" di task, atau tombol "Need station" di detail task,
-   langsung ke station yang tepat (di-highlight). Task biasa yang namanya cocok dengan station
-   (mis. "GX Face Art - Face Painting") otomatis ditautkan; bisa dipilih manual di detail task.
-   "+ Checklist Need" sekarang langsung membuka station yang baru dibuat.
-2. Master Timeline: default hanya GX Connect, GX Got Talent, Mobile Legends, HYROX (+ Event Day).
-   Tombol "⚙ Program" untuk centang workstream lain.
-3. Finance — Sumber Budget per item & sub item (sub item di Budget Pool juga bisa):
-   - Budget RAB item ini
-   - Budget RAB + tambahan dari buffer (kalau over budget)
-   - Seluruhnya dari buffer
-   Sumbernya bisa "Buffer umum" atau sisa item tertentu yang hemat.
-   Panel "Ringkasan Budget & Buffer": Hemat − Over budget − Dipakai = Sisa buffer, daftar pemakaian
-   buffer, dan daftar over budget dengan tombol "Tutup pakai buffer".
-4. Emergency Fund (Budget Pool) → tombol "Sections": tambah/ubah/hapus section dan pilih program
-   terkaitnya (mis. "EF Mobile Legends" → Mobile Legends). Filter kategori Mobile Legends ikut
-   menampilkan item section itu.
-   Tanda "Reimbursement" di form item (+ reimburse ke siapa). Item tetap di section-nya dan juga
-   muncul di daftar Reimbursement (tombol "Reimbursement" di toolbar Finance).
-5. Presentation jadi deck 7 slide (Cover, Highlights, Program Utama, Progress Task, Budget,
-   Buffer, Deadline), tiap slide ada kotak Highlight. Pindah slide pakai tombol ← → atau keyboard.
-   Semua nominal dalam Rupiah lengkap (Rp 204.280.139).

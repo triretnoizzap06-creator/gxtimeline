@@ -1455,6 +1455,7 @@ function calc(f) {
   if (parent && parent.kind === 'vendor') return { qty: qty, est: est, inv: null, dp: null, base: est, paid: 0, fee: 0, outstanding: null, flags: flags, inherited: true, parent: parent };
   if (f.kind === 'allocation') {
     var used = kids.reduce(function (s, k) { var ck = calc(k); return s + Math.max(0, (ck.base || 0) - bufferPart(k, ck)); }, 0), feeUsed = 0;
+    poolLinked(f).forEach(function (x) { used += bufferCost(x); });
     if (wsBase(f.workstream) === 'Emergency Fund' && f === efAlloc()) { feeUsed = feesTotal(); used += feeUsed; }
     if (est != null && used > est) flags.push({ lvl: 'crit', msg: 'Pemakaian (' + rp(used) + ') melebihi alokasi' });
     return { qty: qty, est: est, inv: null, dp: null, base: est, paid: 0, fee: 0, outstanding: null, used: used, feeUsed: feeUsed, fundLeft: est == null ? null : est - used, flags: flags, allocation: true };
@@ -1495,7 +1496,10 @@ function calc(f) {
 function fundParent(f) { return f && f.parentId ? finById(f.parentId) : null; }
 function canFund(f) { var p = fundParent(f); return !p || p.kind === 'allocation'; }
 function fromBuffer(f) { return !!f && f.fundSource === 'buffer' && canFund(f); }
-function actualCost(f, c) { c = c || calc(f); var pa = numOrNull(f.paidAmount); return c.inv != null ? c.inv : (pa != null && payType(f.paymentStatus) === 'paid' ? pa : null); }
+// v41: a Budget Pool's actual cost = what its sub items used (the pool has no invoice of its own)
+function poolBuffer(f) { return !!f && f.kind === 'allocation' && wsBase(f.workstream) !== 'Emergency Fund' && kidsOf(f).concat(poolLinked(f)).length > 0; }
+function poolSettled(f) { return kidsOf(f).concat(poolLinked(f)).every(function (k) { return fromBuffer(k) || actualCost(k) != null; }); }
+function actualCost(f, c) { c = c || calc(f); if (c.allocation) return c.used; var pa = numOrNull(f.paidAmount); return c.inv != null ? c.inv : (pa != null && payType(f.paymentStatus) === 'paid' ? pa : null); }
 function topupPart(f, c) {
   if (!f || f.fundSource !== 'topup' || !canFund(f)) return 0;
   var t = numOrNull(f.topup); if (t != null) return Math.max(0, t);
@@ -1503,8 +1507,15 @@ function topupPart(f, c) {
   c = c || calc(f); var a = actualCost(f, c); if (a == null || c.est == null) return 0;
   return Math.max(0, a - c.est);
 }
-function bufferPart(f, c) { return fromBuffer(f) ? bufferCost(f, c) : topupPart(f, c); }
+function bufferPart(f, c) { return fromPool(f) ? 0 : fromBuffer(f) ? bufferCost(f, c) : topupPart(f, c); }
+/* v42: an item can take its whole cost from a Budget Pool (e.g. Hadiah HYROX → Emergency Fund).
+   fundSource 'pool', fundPool = pool id, poolSection = section inside that pool. The item stays in its own category,
+   is not added to Total Budget (the pool's budget already is), uses up the pool, and is also listed inside the pool. */
+function fromPool(f) { if (!f || f.fundSource !== 'pool' || f.parentId || f.kind === 'allocation') return false; var p = finById(f.fundPool); return !!p && p.kind === 'allocation' && p.id !== f.id; }
+function poolLinked(pool) { return pool && pool.id ? db.finance.filter(function (x) { return x.fundPool === pool.id && fromPool(x); }) : []; }
+function poolSecOf(pool, k) { return k.parentId === pool.id ? k.section : k.poolSection; }
 function fundLabel(f) {
+  if (fromPool(f)) { var pl = finById(f.fundPool); return 'Dari ' + pl.item + (f.poolSection ? ' · ' + f.poolSection : ''); }
   var src = f.fundFrom ? finById(f.fundFrom) : null, from = src ? 'sisa ' + src.item : 'buffer';
   if (fromBuffer(f)) return 'Dari ' + from;
   if (f.fundSource === 'topup' && canFund(f)) { var tp = topupPart(f); return 'RAB + ' + (tp ? rp(tp) + ' ' : '') + 'dari ' + from; }
@@ -1520,13 +1531,16 @@ function bufferBudget() {
   });
   claims.forEach(function (x) { var src = x.f.fundFrom && x.f.fundFrom !== x.f.id ? finById(x.f.fundFrom) : null; if (src) (take[src.id] = take[src.id] || []).push(x); });
   db.finance.forEach(function (f) {
-    if (offBudgetRow(f) || fromBuffer(f)) return;
+    if (offBudgetRow(f) || fromBuffer(f) || fromPool(f)) return;
     var c = calc(f), par = fundParent(f);
-    if (c.inherited || c.allocation || (par && par.kind === 'allocation')) return;
+    if (c.inherited || (par && par.kind === 'allocation')) return;
+    if (c.allocation && !poolBuffer(f)) return;          // Emergency Fund stays a reserve, not savings
     var est = c.est, actual = actualCost(f, c), tp = topupPart(f, c), isPaid = payType(f.paymentStatus) === 'paid';
     if (est == null || est <= 0 || actual == null) return;
     var submitted = f.invoiceStatus === 'Submitted';
-    var row = { f: f, est: est, actual: actual, topup: tp, diff: est + tp - actual, basis: isPaid ? 'Paid' : submitted ? 'Invoice submitted' : f.source === 'verify' ? 'Needs verification' : 'Invoice not submitted' };
+    var row = { f: f, est: est, actual: actual, topup: tp, diff: est + tp - actual, basis: c.allocation ? 'Budget pool · semua sub item sudah ada biaya' : isPaid ? 'Paid' : submitted ? 'Invoice submitted' : f.source === 'verify' ? 'Needs verification' : 'Invoice not submitted' };
+    // v41: a pool's remaining becomes savings once every sub item has its actual cost; before that it is only "potential"
+    if (c.allocation && !poolSettled(f) && row.diff > 0) { row.basis = 'Budget pool · masih ada sub item tanpa biaya'; out.pending.push(row); return; }
     if (take[f.id]) { row.takenBy = take[f.id]; row.taken = take[f.id].reduce(function (a, x) { return a + x.cost; }, 0); row.diff -= row.taken; take[f.id].forEach(function (x) { x.src = f; }); delete take[f.id]; }
     if (row.diff > 0 || row.taken) { out.items.push(row); out.savings += row.diff; }
     else if (row.diff < 0) { out.overItems.push(row); out.over += -row.diff; }
@@ -1617,7 +1631,7 @@ function bufferDialog() {
       '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-all" title="Show all buffer items in the table"><span>Available Buffer</span><b class="' + (b.available < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(b.available) + '</b><i>show all →</i></button></div>' +
     (b.usedItems.length ? '<h4 class="buf-h">Funded from Buffer · ' + b.usedItems.length + ' item' + (b.usedItems.length === 1 ? '' : 's') + '</h4><div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Cost</th></tr></thead><tbody>' +
       b.usedItems.map(function (r) { return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + (r.overSheet != null ? 'budget di atas sheet (' + rp(r.overSheet) + ' → ' + rp(r.est) + ')' : r.inv != null ? 'invoice' : 'estimate') + '</span></td><td class="num r" data-l="Cost">' + rp(r.cost) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
-    '<p class="muted" style="margin:0;font-size:12.5px">Savings = original budget − actual cost, per item. Every item that has an actual cost (invoice, or transfer when fully paid) counts right away. Click a box above to see those items in the table. Line items inside a vendor invoice are compared once at invoice level; Emergency Fund allocations and transfer fees are excluded. Items marked "Funded from Buffer" (form → Funding) take their cost from this buffer instead of adding to Total Budget. Click a row to open the item.</p>' +
+    '<p class="muted" style="margin:0;font-size:12.5px">Savings = original budget − actual cost, per item. Every item that has an actual cost (invoice, or transfer when fully paid) counts right away. Click a box above to see those items in the table. Line items inside a vendor invoice are compared once at invoice level; a Budget Pool (e.g. GX Create) counts its remaining (Budget − sub item costs) once every sub item has a cost; the Emergency Fund and transfer fees are excluded. Items marked "Funded from Buffer" (form → Funding) take their cost from this buffer instead of adding to Total Budget. Click a row to open the item.</p>' +
     '<h4 class="buf-h">Savings · ' + b.items.length + ' item' + (b.items.length === 1 ? '' : 's') + '</h4>' + table(b.items, 'save') +
     (b.overItems.length ? '<h4 class="buf-h">Over Budget · ' + b.overItems.length + ' item' + (b.overItems.length === 1 ? '' : 's') + '</h4>' + table(b.overItems, 'over') : '') +
     (b.pending.length ? '<details class="buf-pending"><summary>Potential savings not counted yet · ' + b.pending.length + ' item' + (b.pending.length === 1 ? '' : 's') + ' (' + rp(b.pending.reduce(function (s, r) { return s + r.diff; }, 0)) + ')</summary>' + table(b.pending, 'save') + '</details>' : '') +
@@ -1639,7 +1653,7 @@ function reconKey(f) { return (f.sheetRow || '') + '|' + String(f.item || '').to
 function reconRows(kind) {
   var base = sheetBaseline(), now = db.finance.map(function (f) { return { f: f, c: calc(f) }; });
   var pick = kind === 'est'
-    ? function (x) { return x.f.parentId || fromBuffer(x.f) || offBudgetRow(x.f) ? null : (x.c.est || 0); }
+    ? function (x) { return x.f.parentId || fromBuffer(x.f) || fromPool(x.f) || offBudgetRow(x.f) ? null : (x.c.est || 0); }
     : function (x) { return x.c.inherited || offBudgetRow(x.f) ? null : (x.c.paid || 0) + (x.c.fee || 0); };
   var bmap = {}, out = [], tb = 0, tn = 0;
   base.forEach(function (x) { var v = pick(x); if (v == null) return; tb += v; (bmap[reconKey(x.f)] = bmap[reconKey(x.f)] || []).push({ x: x, v: v }); });
@@ -1675,7 +1689,7 @@ function balanceTarget() {
 }
 function balanceMatch() {
   var base = sheetBaseline(), now = db.finance.map(function (f) { return { f: f, c: calc(f) }; });
-  var pick = function (x) { return x.f.parentId || fromBuffer(x.f) || offBudgetRow(x.f) ? null : (x.c.est || 0); };
+  var pick = function (x) { return x.f.parentId || fromBuffer(x.f) || fromPool(x.f) || offBudgetRow(x.f) ? null : (x.c.est || 0); };
   var B = base.map(function (x) { return { x: x, v: pick(x) }; }).filter(function (y) { return y.v != null; });
   var N = now.map(function (x) { return { x: x, v: pick(x) }; }).filter(function (y) { return y.v != null; });
   var nm = function (y) { return syncNorm(y.x.f.item); }, row = function (y) { return +y.x.f.sheetRow || 0; }, ws = function (y) { return wsBase(y.x.f.workstream); };
@@ -1798,6 +1812,7 @@ function totals(list, opts) {
     }
     // budget: count each figure once — vendor parents carry their line items; allocation children sit inside the allocation
     if (fromBuffer(f)) t.fromBuffer = (t.fromBuffer || 0) + bufferCost(f, c);
+    else if (fromPool(f)) t.fromPool = (t.fromPool || 0) + bufferCost(f, c);
     else if (!p || (p.kind === 'vendor' && !inList[p.id])) t.est += c.est || 0;
     if (!c.inherited) { t.inv += c.inv || 0; t.paid += c.paid; t.fee += c.fee || 0; t.outstanding += c.outstanding || 0; if (c.base == null) t.missing++; }
     if (c.flags.length || f.source === 'verify') t.flagged++;
@@ -3281,7 +3296,8 @@ function budgetInfo(f, c) {
    Sub items return null: their figures are already inside the parent's buffer, so nothing is counted twice.
    "confirmed" = the cost is final (invoice Submitted or fully paid; a Budget Pool's buffer is always current). */
 /* v36: the Buffer column shows exactly what the Buffer Budget counts (savings / over budget per item), so its total = Available Buffer.
-   Budget pools (Emergency Fund, DIY Totebag) are not buffer: their remaining is shown in the Remaining column. */
+   Budget pools (Emergency Fund, DIY Totebag) are not buffer: their remaining is shown in the Remaining column.
+   v41: a Budget Pool other than Emergency Fund counts as buffer: Budget − used by its sub items, once every sub item has a cost. */
 var _bufMap = null;
 function bufferOf(f, c) {
   if (!_bufMap) { var b = bufferBudget(); _bufMap = {}; b.items.concat(b.overItems).forEach(function (r) { _bufMap[r.f.id] = { v: r.diff, confirmed: true, taken: r.taken || 0 }; }); b.usedItems.forEach(function (r) { var m = _bufMap[r.f.id]; if (m) { m.v -= r.cost; m.topup = r.cost; } else _bufMap[r.f.id] = { v: -r.cost, confirmed: true, topup: r.topup ? r.cost : 0 }; }); }
@@ -3289,6 +3305,7 @@ function bufferOf(f, c) {
 }
 function bufferCellHtml(f, c) {
   var par = f.parentId ? finById(f.parentId) : null;
+  if (fromPool(f)) return '<span class="faint" title="' + esc(fundLabel(f)) + '">dari ' + esc(finById(f.fundPool).item) + '</span>';
   if (fromBuffer(f) && f.fundFrom && finById(f.fundFrom)) return '<span class="faint" title="Dibiayai dari sisa ' + esc(finById(f.fundFrom).item) + '">dari sisa ' + esc(finById(f.fundFrom).item) + '</span>';
   if (fromBuffer(f)) return '<span class="from-buf" title="Cost taken from the Buffer Budget">− ' + rp(bufferCost(f, c)) + '</span>';
   if (par && par.kind === 'allocation' && topupPart(f, c)) return '<span class="from-buf" title="' + esc(fundLabel(f)) + '">− ' + rp(topupPart(f, c)) + '</span>';
@@ -3317,7 +3334,7 @@ function sectionWs(pool, name) { var m = pool && pool.sectionWs; return (m && na
 function rowSectionWs(f) { var p = f && f.parentId ? finById(f.parentId) : null; return p && p.kind === 'allocation' ? sectionWs(p, f.section) : ''; }
 function poolSectionRows(f, kids, row, FC) {
   var secs = poolSections(f), out = '', groups = {};
-  kids.forEach(function (k) { var sname = secs.indexOf(k.section) > -1 ? k.section : ''; (groups[sname] = groups[sname] || []).push(k); });
+  kids.forEach(function (k) { var sc = poolSecOf(f, k), sname = secs.indexOf(sc) > -1 ? sc : ''; (groups[sname] = groups[sname] || []).push(k); });
   secs.concat(['']).forEach(function (sname) {
     var list = groups[sname] || [];
     if (!sname && !list.length) return;
@@ -3333,7 +3350,7 @@ function poolSectionsDialog(id) {
   var f = finById(id); if (!f) return;
   var state = poolSections(f).map(function (n) { return { old: n, name: n, ws: (f.sectionWs || {})[n] ? wsCurrent(f.sectionWs[n]) : '' }; });
   var wsChoices = allWorkstreams().filter(function (w) { return wsBase(w) !== wsBase(f.workstream); });
-  function count(n) { return db.finance.filter(function (k) { return k.parentId === f.id && k.section === n; }).length; }
+  function count(n) { return db.finance.filter(function (k) { return (k.parentId === f.id && k.section === n) || (fromPool(k) && k.fundPool === f.id && k.poolSection === n); }).length; }
   function draw() {
     var rows = state.map(function (x, i) {
       return '<div class="cat-row sec-row"><input class="input" data-sec="' + i + '" value="' + esc(x.name) + '" maxlength="60" aria-label="Section name">' +
@@ -3370,6 +3387,7 @@ function poolSectionsDialog(id) {
       }
       var keepOld = {}; state.forEach(function (x) { if (x.old) keepOld[x.old] = x.name; });
       db.finance.forEach(function (k) {
+        if (k.fundPool === f.id && k.poolSection) { var t2 = keepOld[k.poolSection]; if (t2 === undefined) k.poolSection = ''; else k.poolSection = t2; }
         if (k.parentId !== f.id || !k.section) return;
         var to = keepOld[k.section];
         if (to === undefined) { k.section = ''; k.updatedAt = Date.now(); } else if (to !== k.section) { k.section = to; k.updatedAt = Date.now(); }
@@ -3422,7 +3440,7 @@ function renderFinance() {
     var on = !!amt && ui.finAmt === amt;
     return '<button type="button" class="kpi kpi-btn' + (hl ? ' hl' : '') + (on ? ' kpi-on' : '') + '" data-act="fin-amt" data-amt="' + amt + '" aria-pressed="' + on + '" title="' + title + '"><span class="k">' + k + '</span><span class="v money">' + v + '</span><span class="s">' + sub + (on ? ' · filter on ✕' : ' · show items →') + '</span></button>';
   };
-  h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.fromBuffer ? ' · + ' + rp(all.fromBuffer) + ' dari sisa budget' : '') + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
+  h += '<div class="kpis fin-kpis">' + kbtn('Total Budget', rp(all.est), all.count + ' items' + (all.fromBuffer ? ' · + ' + rp(all.fromBuffer) + ' dari sisa budget' : '') + (all.fromPool ? ' · ' + rp(all.fromPool) + ' dibayar dari pool' : '') + (all.flagged ? ' · ' + all.flagged + ' need checking' : ''), false, '', 'Show all items') +
     kbtn('Paid', rp(all.paid + all.fee), (all.fee ? 'incl. ' + rp(all.fee) + ' transfer fees' : 'transfers made'), false, 'paid', 'Show items that already have a payment') +
     kbtn('Outstanding Payment', rp(all.est - all.paid - all.fee), 'Total Budget − Paid', all.est - all.paid - all.fee > 0, 'outstanding', 'Show items that still have an amount to pay') +
     '<button type="button" class="kpi kpi-btn' + (buf.available < 0 ? ' hl' : '') + '" data-act="buffer-detail" aria-label="Buffer Budget details"><span class="k">Buffer Budget · Available</span><span class="v money' + (buf.available < 0 ? ' buf-neg' : '') + '">' + (buf.available < 0 ? '− ' + rp(-buf.available) : rp(buf.available)) + '</span>' +
@@ -3458,10 +3476,12 @@ function renderFinance() {
       (c.flags.length ? '<span class="flag' + (c.flags.some(function (x) { return x.lvl === 'crit'; }) ? ' crit' : '') + '" title="' + esc(c.flags.map(function (x) { return x.msg; }).join('\n')) + '">⚠ ' + c.flags.length + '</span>' : (f.source === 'verify' ? '' : '<span class="flag" style="color:var(--ok)">✓</span>'));
     var sub = [];
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
-    if (fundLabel(f)) sub.push('<span class="from-buf">' + esc(fundLabel(f)) + '</span>');
+    var mirror = child && fromPool(f);
+    if (mirror) sub.push('<span class="pool-link">↗ ' + esc(f.workstream) + '</span>');
+    else if (fundLabel(f)) sub.push('<span class="from-buf">' + esc(fundLabel(f)) + '</span>');
     if (f.reimburse) sub.push('<span class="reimb-tag">Reimburse' + (f.reimburseTo ? ' → ' + esc(f.reimburseTo) : '') + '</span>');
     if (rowSectionWs(f) && !ui.finWs) sub.push('<span class="muted">' + esc(f.section) + ' · ' + esc(rowSectionWs(f)) + '</span>');
-    if (f.kind === 'allocation') sub.push('Budget pool · ' + kidsOf(f).length + ' sub item' + (kidsOf(f).length === 1 ? '' : 's') + (c.feeUsed ? ' + transfer fees ' + rp(c.feeUsed) : ''));
+    if (f.kind === 'allocation') sub.push('Budget pool · ' + kidsOf(f).length + ' sub item' + (kidsOf(f).length === 1 ? '' : 's') + (poolLinked(f).length ? ' + ' + poolLinked(f).length + ' dari kategori lain' : '') + (c.feeUsed ? ' + transfer fees ' + rp(c.feeUsed) : ''));
     var qtyTxt = c.qty != null ? rpFmt.format(c.qty) + (f.unit ? ' <span class="faint">' + esc(f.unit) + '</span>' : '') : '<span class="faint">—</span>';
     var pay, paid, rem, dpc, inv, ivs, rec, pd, iref;
     if (c.inherited) {
@@ -3498,7 +3518,7 @@ function renderFinance() {
       check: '<td>' + flagHtml + '</td>'
     };
     var wc = wsColor(f.workstream);
-    return '<tr class="row' + (child ? ' child' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
+    return '<tr class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
       if (col.custom) return cfCell('finance', col, f);
       if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
       var h = cell[col.key] || '<td></td>';
@@ -3514,7 +3534,9 @@ function renderFinance() {
         ' <button type="button" class="btn sm ghost add-item" data-act="off-budget" data-ws="' + esc(w) + '" title="Atur apakah kategori ini masuk budget event">' + (ob ? 'Budget: ' + esc(ob) : 'Budget: Event') + '</button>' : '') + '</td></tr>';
     g.forEach(function (f) {
       if (f.parentId && inList[f.parentId]) return;
+      if (fromPool(f) && inList[f.fundPool] && wsBase(finById(f.fundPool).workstream) === wsBase(f.workstream)) return;   // shown inside its pool already
       var kids = g.filter(function (k) { return k.parentId === f.id; });
+      if (f.kind === 'allocation') kids = kids.concat(poolLinked(f).sort(rowOrder));   // v42: items from other categories paid by this pool
       var folded = f.kind === 'vendor' && kids.length > 0 && finCollapsed(f);
         body += row(f, !!f.parentId, f.kind === 'vendor' && !folded ? 1 + kids.length : 1, false);
         if (!folded && f.kind === 'allocation' && poolSections(f).length) body += poolSectionRows(f, kids, row, FC);
@@ -3720,7 +3742,18 @@ function fundingFields(f) {
     '<select class="select" id="f-fundSource" name="fundSource">' + opts([
       { value: '', label: 'Budget RAB item ini' },
       { value: 'topup', label: 'Budget RAB + tambahan dari buffer (kalau over budget)' },
-      { value: 'buffer', label: 'Seluruhnya dari buffer — tidak menambah Total Budget' }], f.fundSource || '') + '</select>' +
+      { value: 'buffer', label: 'Seluruhnya dari buffer — tidak menambah Total Budget' },
+      { value: 'pool', label: 'Dari budget pool (mis. Emergency Fund) — tidak menambah Total Budget' }], f.fundSource || '') + '</select>' +
+    (function () {
+      var pools = db.finance.filter(function (x) { return x.kind === 'allocation' && x.id !== f.id; }).sort(function (a, b) { return (wsBase(b.workstream) === 'Emergency Fund') - (wsBase(a.workstream) === 'Emergency Fund') || rowOrder(a, b); });
+      var curP = f.fundPool && finById(f.fundPool) ? f.fundPool : (pools[0] || {}).id || '';
+      window.__poolSecs = {}; pools.forEach(function (x) { window.__poolSecs[x.id] = poolSections(x); });
+      var secs = curP ? poolSections(finById(curP)) : [];
+      return '<div class="fund-more" id="poolMore"' + (f.fundSource === 'pool' ? '' : ' hidden') + '>' +
+        '<label for="f-fundPool">Budget pool</label><select class="select" id="f-fundPool" name="fundPool">' + opts(pools.map(function (x) { var cx = calc(x); return { value: x.id, label: x.item + ' — sisa ' + rp(cx.fundLeft) }; }), curP) + '</select>' +
+        '<label for="f-poolSection">Section di pool</label><select class="select" id="f-poolSection" name="poolSection">' + opts([{ value: '', label: '— Tanpa section —' }].concat(secs.map(function (n) { return { value: n, label: n }; })), f.poolSection || '') + '</select>' +
+        '<span class="hint">Item tetap ada di kategori ini, dan juga muncul di dalam pool (di section yang dipilih). Biayanya mengurangi sisa pool.</span></div>';
+    })() +
     '<div class="fund-more" id="fundMore"' + (f.fundSource ? '' : ' hidden') + '>' +
       '<label for="f-fundFrom">Ambil dari</label><select class="select" id="f-fundFrom" name="fundFrom">' + opts(src, cur) + '</select>' +
       '<span id="topupWrap"' + (f.fundSource === 'topup' ? '' : ' hidden') + '><label for="f-topup">Jumlah tambahan</label>' +
@@ -3779,10 +3812,16 @@ function finForm(f, presetTask, preset) {
     var syncFund = function () {
       var par = pp && pp.value ? finById(pp.value) : null, vendorKid = !!(par && par.kind === 'vendor');
       fw.hidden = vendorKid;                                   // line items of a vendor invoice follow the invoice
-      more.hidden = !fs.value; tw.hidden = fs.value !== 'topup';
+      more.hidden = !fs.value || fs.value === 'pool'; tw.hidden = fs.value !== 'topup';
+      var pm = document.getElementById('poolMore'); if (pm) pm.hidden = fs.value !== 'pool';
       var ti = document.getElementById('f-topup'); if (ti) ti.placeholder = par ? 'Isi jumlahnya, mis. Rp 500.000' : 'Otomatis: sebesar kelebihan biaya';
     };
     fs.addEventListener('change', syncFund); if (pp) pp.addEventListener('change', syncFund); syncFund();
+    var fpSel = document.getElementById('f-fundPool'), psSel = document.getElementById('f-poolSection');
+    if (fpSel && psSel) fpSel.addEventListener('change', function () {
+      var secs = (window.__poolSecs || {})[fpSel.value] || [];
+      psSel.innerHTML = '<option value="">— Tanpa section —</option>' + secs.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    });
   })();
   (function () {
     var ps = document.getElementById('f-parentId'), wrap = document.getElementById('subModeWrap'), sm = document.getElementById('f-subMode');
@@ -3830,6 +3869,14 @@ function finForm(f, presetTask, preset) {
     var r = read(), v = r.v, errs = r.errs;
     var fpar = v.parentId ? finById(v.parentId) : null;
     if (fpar && fpar.kind === 'vendor') v.fundSource = '';   // vendor line items follow the invoice
+    if (v.fundSource === 'pool') {
+      var pl = finById(v.fundPool);
+      v.fundFrom = ''; v.topup = null;
+      if (!pl || pl.kind !== 'allocation') errs.fundSource = 'Pilih budget pool-nya.';
+      else if (v.parentId) errs.fundSource = 'Item di dalam pool / vendor tidak bisa ambil dari pool lain. Kosongkan "Part Of", atau pindahkan langsung ke pool itu.';
+      else if (v.kind === 'allocation') errs.fundSource = 'Budget pool tidak bisa dibiayai pool lain.';
+      if (pl && poolSections(pl).indexOf(v.poolSection) < 0) v.poolSection = '';
+    } else { v.fundPool = ''; v.poolSection = ''; }
     if (!v.fundSource) { v.fundFrom = ''; v.topup = null; }
     if (v.fundSource === 'buffer') v.topup = null;
     if (v.fundSource === 'topup' && fpar && v.topup == null) errs.fundSource = 'Isi jumlah tambahan untuk sub item.';

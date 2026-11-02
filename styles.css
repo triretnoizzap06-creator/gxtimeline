@@ -1471,3 +1471,22 @@ body.present-fs .dk-slide{min-height:calc(100vh - 120px)}
 .dk-eq .dk-big{flex:1 1 200px}
 .dk-logo{bottom:66px}
 .dk-hl span{color:var(--muted)}
+
+/* v42: item paid by a budget pool, shown again inside the pool */
+.fin-table tr.mirror td{background:color-mix(in srgb,var(--accent) 4%,transparent)}
+.fin-table tr.mirror .tname{font-style:italic}
+.pool-link{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:999px;padding:0 7px}
+#poolMore .hint{grid-column:1/-1}
+
+/* v43: Ubah Nama mode */
+.lbl-toggle{margin:8px 12px 0;padding:7px 10px;border:1px dashed var(--line-2);border-radius:8px;background:transparent;color:var(--fg-2,inherit);font:inherit;font-size:12.5px;text-align:left;cursor:pointer}
+.lbl-toggle:hover,.lbl-toggle.on{border-style:solid;border-color:var(--accent);color:var(--accent)}
+body.lbl-edit #main *:not(input):not(select):not(textarea),body.lbl-edit #nav *,body.lbl-edit #modalRoot .modal *{cursor:text !important}
+body.lbl-edit #main :is(h1,h2,h3,h4,th,button,label,span,b,a,p,td,summary,.badge):hover,body.lbl-edit #nav button:hover,body.lbl-edit #modalRoot :is(label,h3,h4,span,button,p):hover{outline:1.5px dashed var(--accent);outline-offset:1px}
+#lblBar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:900;display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 32px);padding:10px 14px;border-radius:12px;background:var(--fg,#111);color:var(--bg,#fff);box-shadow:0 8px 30px rgba(0,0,0,.25);font-size:13px}
+#lblBar .btn{color:inherit}
+#lblBar .btn.primary{color:#fff}
+.lbl-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lbl-list li{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
+.lbl-add{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
+@media (max-width:560px){.lbl-add{grid-template-columns:1fr}}
