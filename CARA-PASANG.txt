@@ -1,6 +1,11 @@
-GX27 — Update v43 (2 Nov 2026)
+GX27 — Update v44 (3 Nov 2026)
 
-Baru di v43:
+Baru di v44 (Master Timeline):
+- "⚙ Pilih Program" sekarang mengikuti nama kategori yang ada sekarang: GX Mobile Legends dan GX Fit Race (HYROX) ikut tampil lagi.
+- Daftar centang hanya berisi kategori yang benar-benar ada (tidak ada lagi "Mobile Legends"/"HYROX" lama dengan 0 task).
+- Tombol "Centang semua" dan "Kosongkan". "Kembali ke 4 program utama" = GX Connect, GX Got Talent, GX Mobile Legends, GX Fit Race.
+
+Dari v43:
 - Tombol "✎ Ubah Nama Teks" di sidebar (bawah menu). Nyalakan, lalu klik teks apa saja di website
   (menu, judul halaman, tombol, header kolom, label form, kartu ringkasan, judul slide, dll.) -> isi nama baru -> Simpan.
   Berlaku untuk semua orang. "Semua perubahan" = daftar + tombol Kembalikan. "Tambah manual" = untuk pilihan dropdown/placeholder.

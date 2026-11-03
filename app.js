@@ -1927,11 +1927,11 @@ function presentData() {
     var ts = db.tasks.filter(function (t) { return taskWorkstreams(t).indexOf(w) > -1; });
     if (!ts.length) return null;
     var d = ts.filter(isDone).length, od = ts.filter(function (t) { return dueState(t).kind === 'overdue'; }).length;
-    return { w: w, n: ts.length, d: d, od: od, p: Math.round(d / ts.length * 100), main: PROGRAMS.map(wsCurrent).indexOf(w) > -1 };
+    return { w: w, n: ts.length, d: d, od: od, p: Math.round(d / ts.length * 100), main: mainPrograms().indexOf(w) > -1 };
   }).filter(Boolean);
   var weekAgo = Date.now() - 7 * 864e5;
   var doneWeek = db.tasks.filter(function (t) { return isDone(t) && (t.updatedAt || 0) >= weekAgo; }).length;
-  var progs = PROGRAMS.map(wsCurrent).map(function (w) {
+  var progs = mainPrograms().map(function (w) {
     var next = db.tasks.filter(function (t) { return !isDone(t) && t.deadline && t.deadline >= today && taskWorkstreams(t).indexOf(w) > -1; }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
     var x = ws.filter(function (y) { return y.w === w; })[0] || { n: 0, d: 0, od: 0, p: 0 };
     return { w: w, next: next, n: x.n, d: x.d, od: x.od, p: x.p };
@@ -2037,16 +2037,25 @@ function pageHead(title, sub, actions) {
 
 /* ---------- Master Timeline ---------- */
 var PROGRAMS = ['GX Connect','GX Got Talent','Mobile Legends','HYROX'];
+// v44: the 4 programs follow the categories that really exist (e.g. "Mobile Legends" → "GX Mobile Legends", "HYROX" → "GX Fit Race")
+var PROG_ALIAS = { 'GX Connect': ['gx connect', 'connect'], 'GX Got Talent': ['got talent'], 'Mobile Legends': ['mobile legend'], 'HYROX': ['hyrox', 'fit race'] };
+function progResolve(p) {
+  var c = wsCurrent(p), all = allWorkstreams(); if (all.indexOf(c) > -1) return c;
+  var keys = PROG_ALIAS[p] || [String(p).toLowerCase()];
+  for (var i = 0; i < keys.length; i++) { var hit = all.filter(function (w) { return String(w).toLowerCase().indexOf(keys[i]) > -1; })[0]; if (hit) return hit; }
+  return c;
+}
+function mainPrograms() { var out = []; PROGRAMS.forEach(function (p) { var w = progResolve(p); if (out.indexOf(w) < 0) out.push(w); }); return out; }
 // which tasks are on the Master Timeline: Event Day segments, every "Program Milestone" (any workstream), program tasks that are not procurement,
 // plus any task switched on/off by hand with "Tampilkan di Master Timeline" (t.mt)
-function isProgram(ws) { return PROGRAMS.indexOf(wsBase(ws)) > -1; }
+function isProgram(ws) { return PROGRAMS.indexOf(wsBase(ws)) > -1 || mainPrograms().indexOf(ws) > -1; }
 function mtDefault(t) { return t.category === 'Event Day' || t.category === 'Program Milestone' || (isProgram(t.workstream) && t.category !== 'Procurement'); }
 function onMaster(t) { return typeof t.mt === 'boolean' ? t.mt : mtDefault(t); }
 function mtWorkstreams(list) {
   // legend follows the names and order set in Manage Categories (Workstream); the 4 programs are always listed
   var have = {}; list.forEach(function (t) { if (t.workstream) have[t.workstream] = 1; });
   var order = allWorkstreams().filter(function (w) { return wsBase(w) !== 'Event Day'; });
-  PROGRAMS.forEach(function (p) { var cur = wsCurrent(p); if (order.indexOf(cur) < 0 && have[cur]) order.push(cur); });
+  mainPrograms().forEach(function (cur) { if (order.indexOf(cur) < 0 && have[cur]) order.push(cur); });
   Object.keys(have).forEach(function (w) { if (order.indexOf(w) < 0 && wsBase(w) !== 'Event Day') order.push(w); });
   return order.filter(function (w) { return have[w]; });
 }
@@ -2063,8 +2072,13 @@ function mtStyle(ws, kind) {
 // v40: Master Timeline shows the 4 main programs by default; more workstreams can be ticked in "⚙ Program"
 // (shared setting: settings.mtWorkstreams holds the original names, so renaming a workstream keeps it ticked)
 function mtProgramsShown() {
-  var s = db.settings.mtWorkstreams;
-  return (Array.isArray(s) ? s : PROGRAMS).map(function (w) { return wsCurrent(w); });
+  var s = db.settings.mtWorkstreams, all = allWorkstreams(), out = [];
+  (Array.isArray(s) ? s : PROGRAMS).forEach(function (w) {
+    var c = wsCurrent(w);
+    if (all.indexOf(c) < 0) c = PROGRAMS.indexOf(w) > -1 ? progResolve(w) : null;   // a category that no longer exists is skipped
+    if (c && all.indexOf(c) > -1 && out.indexOf(c) < 0) out.push(c);
+  });
+  return out;
 }
 function mtInPrograms(t) {
   if (t.category === 'Event Day') return true;
@@ -2073,12 +2087,14 @@ function mtInPrograms(t) {
 }
 function mtProgramDialog() {
   var on = mtProgramsShown(), list = allWorkstreams().filter(function (w) { return wsBase(w) !== 'Event Day'; });
-  PROGRAMS.slice().reverse().forEach(function (p) { var c = wsCurrent(p); list = [c].concat(list.filter(function (x) { return x !== c; })); });
+  mainPrograms().slice().reverse().forEach(function (c) { if (list.indexOf(c) > -1) list = [c].concat(list.filter(function (x) { return x !== c; })); });
+  var nMain = mainPrograms().filter(function (c) { return list.indexOf(c) > -1; }).length;
   var cnt = function (w) { return db.tasks.filter(function (t) { return t.deadline && (t.workstream === w || (t.workstreams || []).indexOf(w) > -1); }).length; };
   openModal('<form id="mtProgForm" novalidate><div class="modal-h"><h3>Program di Master Timeline</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
-    '<p class="muted" style="margin:0">Centang workstream yang mau ditampilkan. Default-nya 4 program utama. Event Day selalu tampil.</p>' +
+    '<p class="muted" style="margin:0">Centang semua workstream yang mau muncul di Master Timeline (boleh sebanyak apa pun). Event Day selalu tampil.</p>' +
+    '<div class="mt-prog-quick"><button type="button" class="btn sm ghost" data-act="mt-prog-all">Centang semua</button><button type="button" class="btn sm ghost" data-act="mt-prog-none">Kosongkan</button></div>' +
     '<div class="mt-prog-list">' + list.map(function (w, i) {
-      return '<label class="mt-prog-opt"><input type="checkbox" name="w" value="' + esc(w) + '"' + (on.indexOf(w) > -1 ? ' checked' : '') + '> ' + wsTag(w) + '<span class="muted">' + cnt(w) + ' task</span>' + (i === PROGRAMS.length - 1 ? '' : '') + '</label>' + (i === PROGRAMS.length - 1 ? '<hr class="mt-prog-sep">' : '');
+      return '<label class="mt-prog-opt"><input type="checkbox" name="w" value="' + esc(w) + '"' + (on.indexOf(w) > -1 ? ' checked' : '') + '> ' + wsTag(w) + '<span class="muted">' + cnt(w) + ' task</span>' + '' + '</label>' + (i === nMain - 1 ? '<hr class="mt-prog-sep">' : '');
     }).join('') + '</div></div>' +
     '<div class="modal-f"><button type="button" class="btn ghost" data-act="mt-prog-default">Kembali ke 4 program utama</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Batal</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'sm');
   document.getElementById('mtProgForm').onsubmit = function (e) {
@@ -2180,7 +2196,7 @@ function renderMaster() {
   var doneN = all.filter(isDone).length;
   var nextT = all.filter(function (t) { return !isDone(t) && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
-    '<div class="mt-actions"><div class="mt-btns">' + (canEdit() ? '<button class="btn" data-act="mt-programs" title="Pilih program / workstream yang ditampilkan">⚙ Program (' + mtProgramsShown().length + ')</button>' : '') + (canEdit() ? '<button class="btn" data-act="mt-customize" title="Choose which tasks show as milestones">⚙ Customize</button>' : '') + '<button class="btn primary" data-act="new-milestone">+ Add Milestone</button></div><div class="mt-legend" role="group" aria-label="Show workstreams">' +
+    '<div class="mt-actions"><div class="mt-btns">' + (canEdit() ? '<button class="btn" data-act="mt-programs" title="Pilih program / workstream yang ditampilkan">⚙ Pilih Program (' + mtProgramsShown().length + ')</button>' : '') + (canEdit() ? '<button class="btn" data-act="mt-customize" title="Choose which tasks show as milestones">⚙ Customize</button>' : '') + '<button class="btn primary" data-act="new-milestone">+ Add Milestone</button></div><div class="mt-legend" role="group" aria-label="Show workstreams">' +
     wsShown.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '"' + mtStyle(p, 'pill') + ' data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') +
     (wsShown.length > 4 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Show or hide all workstreams">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
   h += mtToolbar(all.filter(function (t) { return t.category === 'Event Day' || hide.indexOf(t.workstream) < 0; }).length, totalDl);
@@ -4137,7 +4153,9 @@ function handleAct(el, e) {
     case 'mt-customize': mtCustomize(); break;
     case 'mt-programs': mtProgramDialog(); break;
     case 'fund-cover': closeModal(); fundCoverDialog(id); break;
-    case 'mt-prog-default': document.querySelectorAll('#mtProgForm input[name=w]').forEach(function (x) { x.checked = PROGRAMS.map(wsCurrent).indexOf(x.value) > -1; }); break;
+    case 'mt-prog-all': document.querySelectorAll('#mtProgForm input[name=w]').forEach(function (x) { x.checked = true; }); break;
+    case 'mt-prog-none': document.querySelectorAll('#mtProgForm input[name=w]').forEach(function (x) { x.checked = false; }); break;
+    case 'mt-prog-default': document.querySelectorAll('#mtProgForm input[name=w]').forEach(function (x) { x.checked = mainPrograms().indexOf(x.value) > -1; }); break;
     case 'mt-scope': ui.mtScope = el.dataset.scope; render(); break;
     case 'mt-clear': ui.mtScope = 'all'; ui.mtCat = ''; ui.mtStatus = ''; ui.mtQ = ''; ui.mtHide = []; render(); break;
     case 'new-event-item': taskForm(null, { category: 'Event Day', workstream: wsCurrent('Event Day'), deadline: EVENT_DATE }); break;

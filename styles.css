@@ -1490,3 +1490,5 @@ body.lbl-edit #main :is(h1,h2,h3,h4,th,button,label,span,b,a,p,td,summary,.badge
 .lbl-list li{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
 .lbl-add{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
 @media (max-width:560px){.lbl-add{grid-template-columns:1fr}}
+/* v44 */
+.mt-prog-quick{display:flex;gap:6px;flex-wrap:wrap}
