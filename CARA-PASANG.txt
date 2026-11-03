@@ -1,3 +1,13 @@
+GX27 — Update v49 (3 Nov 2026)
+
+Baru di v49:
+- Tombol ▲▼ di samping nama item (Finance) dan task (Tasks): naik/turun satu langkah sekali klik (selain geser ⋮⋮).
+- Form budget item: isi Qty × Harga Satuan → Total/Estimasi langsung terhitung; Qty × Harga Realisasi → Invoice langsung terhitung.
+  Kalau cuma isi total + qty, muncul "≈ Rp x per satuan". Item vendor/pool: info "Jumlah estimasi sub item" + tombol Samakan.
+- Tombol "Cek Data" di Finance: crosscheck semua item (qty x harga vs total, realisasi vs invoice, total vendor/pool vs sub item,
+  status bayar vs nominal) + tombol perbaikan sekali klik untuk yang jelas.
+- Budget pool yang over tapi ditutup buffer sekarang tertulis "ditutup buffer ✓" (tidak merah lagi).
+
 GX27 — Update v48 (3 Nov 2026)
 
 Baru di v48:
