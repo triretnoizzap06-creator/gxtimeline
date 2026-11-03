@@ -355,6 +355,7 @@ function rowDragEnd() {
   d.tr.classList.remove('row-dragging'); document.body.classList.remove('rd-dragging');
   d.sibs.forEach(function (r) { r.classList.remove('drop-before', 'drop-after'); });
   if (!d.target || !d.moved) return;
+  if (/^pool:/.test(d.tr.getAttribute('data-rg'))) { poolDrop(d); return; }
   var ids = d.sibs.map(function (r) { return r.getAttribute('data-id'); }), id = d.tr.getAttribute('data-id');
   ids.splice(ids.indexOf(id), 1);
   var at = ids.indexOf(d.target.getAttribute('data-id')) + (d.after ? 1 : 0);
@@ -364,6 +365,28 @@ function rowDragEnd() {
 document.addEventListener('pointerup', rowDragEnd, true);
 document.addEventListener('pointercancel', rowDragEnd, true);
 document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.row-grip')) { e.preventDefault(); e.stopPropagation(); } }, true);
+// v48: inside a Budget Pool (Emergency Fund) rows can be dragged to another section: the section headers are drop points
+function poolDrop(d) {
+  var pool = finById(d.tr.getAttribute('data-rg').slice(5)); if (!pool) return;
+  var seq = d.sibs.filter(function (r) { return r !== d.tr; }), at = seq.indexOf(d.target) + (d.after ? 1 : 0);
+  seq.splice(at, 0, d.tr);
+  var secs = poolSections(pool), sec = '', keep = false, n = 0, movedTo = null, moved = finById(d.tr.getAttribute('data-id'));
+  seq.forEach(function (r) {
+    if (r.getAttribute('data-hdr')) { keep = r.getAttribute('data-hdr') === 'reimb'; sec = r.getAttribute('data-sec') || ''; return; }
+    var f = finById(r.getAttribute('data-id')); if (!f) return;
+    if (f.parentId === pool.id) {
+      f.ord = ++n;
+      if (keep) { if (f === moved && !f.reimburse) { f.reimburse = true; movedTo = 'Reimbursement'; } return; }
+      var ns = secs.indexOf(sec) > -1 ? sec : '';
+      if ((f.section || '') !== ns) { f.section = ns; if (f === moved) movedTo = ns || 'No section'; }
+    } else if (f === moved && !keep) {                                       // item from another category paid by this pool
+      var ns2 = secs.indexOf(sec) > -1 ? sec : '';
+      if ((f.poolSection || '') !== ns2) { f.poolSection = ns2; movedTo = ns2 || 'No section'; }
+    }
+  });
+  if (moved) moved.updatedAt = Date.now();
+  commit(movedTo ? '"' + (moved ? moved.item : 'Item') + '" dipindah ke ' + movedTo : 'Urutan diubah');
+}
 function rowsReorder(rg, ids, movedId) {
   if (rg === 'tasks') {
     var byOrd = db.tasks.slice().sort(function (a, b) { var oa = a.ord != null ? a.ord : 1e9, ob = b.ord != null ? b.ord : 1e9; return oa - ob; }), all;
@@ -2019,89 +2042,218 @@ function presentData() {
     overdue: overdue, upcoming: upcoming, ws: ws, doneWeek: doneWeek, progs: progs, paidAll: paidAll, outstanding: outstanding,
     paidPct: ft.est ? Math.min(100, paidAll / ft.est * 100) : 0, reimb: reimbStats(), dl: daysBetween(today, EVENT_DATE) };
 }
+/* v47: the deck is a meeting agenda: what needs a decision ("Perlu Dibahas"), what each PIC must update ("Perlu Diupdate"),
+   then programs, budget, the next 7 days and an action list with meeting notes. Every item opens its task / budget item. */
+function picOfFin(f) { var t = taskById(f.taskId) || (f.parentId && finById(f.parentId) ? taskById(finById(f.parentId).taskId) : null); return t ? t.pic || '' : ''; }
+function meetAgenda(D) {
+  var today = D.today, disc = [], upd = [];
+  var ago = function (ms) { return ms ? Math.floor((Date.now() - ms) / 864e5) : null; };
+  db.tasks.forEach(function (t) {
+    if (isDone(t)) return;
+    var ty = sType(t.status), ds = dueState(t);
+    var base = { title: t.name, ws: t.workstream, pic: t.pic || '', act: 'open-task', id: t.id, date: t.deadline || '' };
+    if (ty === 'blocked') disc.push(Object.assign({ tag: 'Terhambat', cls: 'crit', why: t.blockers ? 'Blocker: ' + t.blockers : 'Status terhambat, blocker belum ditulis', ask: 'Apa yang dibutuhkan supaya bisa jalan lagi?', w: 1 }, base));
+    else if (ty === 'pending') disc.push(Object.assign({ tag: 'Menunggu', cls: 'warn', why: 'Status: ' + t.status + (t.deadline ? ' · deadline ' + fmtDate(t.deadline, true) : ''), ask: 'Siapa yang follow up, kapan ada jawaban?', w: 3 }, base));
+    if (ds.kind === 'overdue') upd.push(Object.assign({ tag: 'Lewat deadline', cls: 'crit', why: (-ds.days) + ' hari lewat · status masih ' + t.status, todo: 'Update status, atau isi deadline baru', w: 1 }, base));
+    else if (ty === 'progress' && ago(t.updatedAt) != null && ago(t.updatedAt) >= 7) upd.push(Object.assign({ tag: 'Belum diupdate', cls: 'warn', why: 'Terakhir diupdate ' + ago(t.updatedAt) + ' hari lalu', todo: 'Update progress / catatan', w: 2 }, base));
+    if (!t.pic && t.deadline && daysBetween(today, t.deadline) <= 14) upd.push(Object.assign({ tag: 'Belum ada PIC', cls: 'warn', why: 'Deadline ' + fmtDate(t.deadline, true), todo: 'Tentukan PIC', w: 2 }, base));
+  });
+  D.buf.overItems.forEach(function (r) {
+    disc.push({ tag: 'Over budget', cls: 'crit', title: r.f.item, ws: r.f.workstream, pic: picOfFin(r.f), act: 'edit-fin', id: r.f.id, why: 'RAB ' + rp(r.est) + ' → biaya ' + rp(r.actual) + ' (over ' + rp(-r.diff) + ')', ask: 'Tutup pakai buffer, tambah budget, atau kurangi scope?', amt: -r.diff, w: 1 });
+  });
+  db.finance.forEach(function (f) {
+    var c = calc(f); if (c.inherited || c.allocation || offBudgetRow(f)) return;
+    var pt = payType(f.paymentStatus), base = { title: f.item, ws: f.workstream, pic: picOfFin(f), act: 'edit-fin', id: f.id };
+    if (f.paymentDeadline && f.paymentDeadline < today && pt !== 'paid') disc.push(Object.assign({ tag: 'Pembayaran telat', cls: 'crit', why: 'Jatuh tempo ' + fmtDate(f.paymentDeadline, true) + ' · sisa ' + rp(c.outstanding), ask: 'Kapan dibayar, siapa yang proses?', amt: c.outstanding, w: 2 }, base));
+    if (pt !== 'unpaid' && !f.receipt && !f.receipt2) upd.push(Object.assign({ tag: 'Bukti transfer', cls: 'warn', why: 'Sudah dibayar tapi bukti transfer belum dilampirkan', todo: 'Lampirkan bukti transfer', w: 3 }, base));
+    if (c.base == null) upd.push(Object.assign({ tag: 'Nominal kosong', cls: 'warn', why: 'Estimasi / invoice belum diisi', todo: 'Isi nominal', w: 3 }, base));
+    if (f.source === 'verify') upd.push(Object.assign({ tag: 'Perlu verifikasi', cls: 'warn', why: f.verifyNote || 'Ditandai Needs Verification', todo: 'Cek & konfirmasi angkanya', w: 3 }, base));
+    if (f.reimburse && c.outstanding > 0) upd.push(Object.assign({ tag: 'Reimburse', cls: 'warn', why: 'Belum diganti ' + rp(c.outstanding) + (f.reimburseTo ? ' ke ' + f.reimburseTo : ''), todo: 'Proses reimbursement', w: 2 }, base));
+  });
+  if (D.buf.available < 0) disc.push({ tag: 'Buffer minus', cls: 'crit', title: 'Buffer Budget', ws: '', pic: '', act: 'buffer-detail', id: '', why: 'Sisa buffer − ' + rp(-D.buf.available), ask: 'Dari mana tambahan dananya?', w: 0 });
+  var ef = efAlloc(); if (ef) { var ce = calc(ef); if (ce.est && ce.used / ce.est >= 0.8) disc.push({ tag: 'Emergency Fund', cls: ce.used > ce.est ? 'crit' : 'warn', title: ef.item, ws: ef.workstream, pic: '', act: 'edit-fin', id: ef.id, why: 'Terpakai ' + Math.round(ce.used / ce.est * 100) + '% · sisa ' + rp(ce.fundLeft), ask: 'Cukup sampai Event Day? Perlu ditambah?', w: 1 }); }
+  var byW = function (a, b) { return (a.w - b.w) || String(a.date || '9').localeCompare(String(b.date || '9')); };
+  var skip = deckCfg().skip, sk = function (x) { x.sk = x.tag + '|' + (x.id || x.title); return !skip[x.sk]; };
+  disc = disc.filter(sk); upd = upd.filter(sk);
+  disc.sort(byW); upd.sort(byW);
+  var pics = {};
+  upd.forEach(function (x) { picsOf(x.pic).concat(picsOf(x.pic).length ? [] : ['Belum ada PIC']).forEach(function (p) { (pics[p] = pics[p] || []).push(x); }); });
+  var picList2 = Object.keys(pics).sort(function (a, b) { return (a === 'Belum ada PIC') - (b === 'Belum ada PIC') || pics[b].length - pics[a].length; });
+  return { disc: disc, upd: upd, pics: pics, picList: picList2 };
+}
 function pSlides(D) {
-  var hl = function (txt) { return '<div class="dk-hl"><span>Highlight</span><p>' + txt + '</p></div>'; };
+  var A = meetAgenda(D);
+  var hl = function (txt) { return '<div class="dk-hl"><span>Intinya</span><p>' + txt + '</p></div>'; };
   var big = function (k, v, sub, cls, act, arg) { return '<button type="button" class="dk-big ' + (cls || '') + '"' + (act ? ' data-act="' + act + '"' + (arg ? ' data-stype="' + arg + '" data-amt="' + arg + '"' : '') : ' tabindex="-1"') + '><span class="k">' + k + '</span><b>' + v + '</b>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>'; };
-  var item = function (x, mode) {
-    var d = daysBetween(D.today, x.date), c = wsColor(x.ws), when = mode === 'over' ? (-d) + ' hari lewat' : d === 0 ? 'hari ini' : d === 1 ? 'besok' : d + ' hari lagi';
-    return '<div class="pd-item" data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="pd-date' + (mode === 'over' ? ' over' : d <= 3 ? ' soon' : '') + '"><b>' + fmtDate(x.date, true) + '</b><em>' + when + '</em></span>' +
-      '<span class="pd-it"><b>' + esc(x.title || '(tanpa nama)') + '</b><span><i style="background:' + c[0] + '"></i>' + esc(x.ws || '—') + ' · ' + (x.kind === 'Payment' ? 'Pembayaran' : 'Task') + (x.amt ? ' · ' + rp(x.amt) : '') + '</span></span></div>';
-  };
-  var parts = [
-    { k: 'Selesai', n: D.st.done, c: 'var(--ok)', ty: 'done' }, { k: 'In Progress', n: D.st.prog, c: 'var(--info)', ty: 'progress' },
-    { k: 'Pending', n: D.pendAll, c: 'var(--crit)', ty: 'pending' }, { k: 'Not Started', n: D.notStarted, c: 'var(--faint)', ty: 'todo' }
-  ];
+  var picTxt = function (p) { return p ? esc(p) : '<span class="dk-nopic">belum ada PIC</span>'; };
+  var more = function (n, shown) { return n > shown ? '<div class="dk-more">+ ' + (n - shown) + ' lainnya — lihat di Tasks / Finance</div>' : ''; };
   var slides = [];
-  // 1 — cover
-  slides.push({ t: 'Cover', h: '<div class="dk-cover"><div class="dk-eyebrow">' + esc(db.settings.eventName || 'Event') + '</div><h1>Status Update</h1>' +
-    '<p>' + fmtDate(D.today) + ' · Event Day ' + fmtDate(EVENT_DATE) + '</p>' +
-    '<div class="dk-cover-nums"><div><b>' + Math.max(0, D.dl) + '</b><span>hari menuju Event Day</span></div><div><b>' + D.pct + '%</b><span>task selesai</span></div><div><b>' + Math.round(D.paidPct) + '%</b><span>budget sudah dibayar</span></div></div>' +
+  var nDisc = A.disc.length, nUpd = A.upd.length;
+  // 1 — cover + agenda
+  var agenda = [['Ringkasan', ''], ['Perlu Dibahas', nDisc + ' poin'], ['Perlu Diupdate', nUpd + ' item · ' + A.picList.length + ' PIC'], ['Program Utama', ''], ['Budget & Buffer', ''], ['7 Hari ke Depan', ''], ['Action Items', '']];
+  slides.push({ t: 'Cover', h: '<div class="dk-cover"><div class="dk-eyebrow">' + esc(db.settings.eventName || 'Event') + '</div><h1>Weekly Update</h1>' +
+    '<p>' + fmtDate(D.today) + ' · <b>' + Math.max(0, D.dl) + ' hari</b> menuju Event Day (' + fmtDate(EVENT_DATE) + ')</p>' +
+    '<ol class="dk-agenda">' + agenda.map(function (a, i) { return '<li data-act="p-go" data-i="' + (i + 1) + '" role="button" tabindex="0"><b>' + a[0] + '</b>' + (a[1] ? '<span>' + a[1] + '</span>' : '') + '</li>'; }).join('') + '</ol>' +
     '<img class="dk-logo" src="' + esc(logoSrc()) + '" alt=""></div>' });
-  // 2 — highlights
-  var hlItems = [
-    ['Task selesai', D.st.done + ' dari ' + D.st.total, D.doneWeek + ' selesai dalam 7 hari terakhir', 'ok'],
-    ['Overdue', D.overdue.length, D.overdue.length ? 'perlu ditindaklanjuti' : 'tidak ada yang terlambat', D.overdue.length ? 'crit' : 'ok'],
-    ['Jatuh tempo 14 hari', D.upcoming.length, 'task & pembayaran', ''],
+  // 2 — summary + focus
+  var cards = [
+    ['Task selesai', D.pct + '%', D.st.done + ' dari ' + D.st.total + ' · +' + D.doneWeek + ' minggu ini', 'ok'],
+    ['Perlu dibahas', nDisc, nDisc ? 'butuh keputusan di meeting ini' : 'tidak ada', nDisc ? 'crit' : 'ok'],
+    ['Perlu diupdate', nUpd, nUpd ? 'item yang statusnya belum update' : 'semua up to date', nUpd ? 'warn' : 'ok'],
     ['Sudah dibayar', rp(D.paidAll), Math.round(D.paidPct) + '% dari total budget', 'ok'],
-    ['Belum dibayar', rp(D.outstanding), 'sisa dari total budget', D.outstanding ? 'warn' : ''],
+    ['Belum dibayar', rp(D.outstanding), 'sisa yang harus dibayar', D.outstanding ? 'warn' : ''],
     ['Sisa buffer', (D.buf.available < 0 ? '− ' + rp(-D.buf.available) : rp(D.buf.available)), D.buf.overItems.length ? D.buf.overItems.length + ' item over budget' : 'tidak ada over budget', D.buf.available < 0 ? 'crit' : 'ok']
   ];
-  var nextAll = D.progs.filter(function (p) { return p.next; }).sort(function (a, b) { return a.next.deadline < b.next.deadline ? -1 : 1; })[0];
-  slides.push({ t: 'Highlights', h: '<h2 class="dk-title">Highlights</h2><div class="dk-hl-grid">' + hlItems.map(function (x) { return '<div class="dk-hcard ' + x[3] + '"><span class="k">' + x[0] + '</span><b>' + x[1] + '</b><span class="s">' + x[2] + '</span></div>'; }).join('') + '</div>' +
-    hl(D.pct + '% task sudah selesai, ' + (D.overdue.length ? '<b>' + D.overdue.length + ' item overdue</b> perlu dikejar' : 'tidak ada yang overdue') + (nextAll ? '. Berikutnya: <b>' + esc(nextAll.next.name) + '</b> (' + esc(nextAll.w) + ', ' + fmtDate(nextAll.next.deadline, true) + ')' : '') + '.') });
-  // 3 — main programs
+  var focus = A.disc.slice(0, 3);
+  slides.push({ t: 'Ringkasan', h: '<h2 class="dk-title">Ringkasan</h2><div class="dk-hl-grid">' + cards.map(function (x) { return '<div class="dk-hcard ' + x[3] + '"><span class="k">' + x[0] + '</span><b>' + x[1] + '</b><span class="s">' + x[2] + '</span></div>'; }).join('') + '</div>' +
+    '<div class="dk-focus"><h3>Fokus meeting hari ini</h3>' + (focus.length ? '<ol>' + focus.map(function (x) { return '<li data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="dk-tag ' + x.cls + '">' + x.tag + '</span><b>' + esc(x.title) + '</b><span class="muted"> — ' + esc(x.ask) + '</span></li>'; }).join('') + '</ol>' : '<p class="muted">Tidak ada isu besar. Fokus ke update progress per PIC.</p>') + '</div>' });
+  // 3 — discuss
+  var DN = 7;
+  slides.push({ t: 'Perlu Dibahas', h: '<h2 class="dk-title">Perlu Dibahas <span class="dk-count">' + nDisc + '</span></h2><p class="dk-sub">Hal yang butuh keputusan atau bantuan dari tim. Klik untuk buka detailnya.</p>' +
+    (nDisc ? '<div class="dk-rows">' + A.disc.slice(0, DN).map(function (x) {
+      return '<div class="dk-row" data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="dk-tag ' + x.cls + '">' + x.tag + '</span>' +
+        '<span class="dk-row-m"><b>' + esc(x.title) + '</b><span>' + (x.ws ? esc(x.ws) + ' · ' : '') + esc(x.why) + '</span></span>' +
+        '<span class="dk-ask"><em>Bahas:</em> ' + esc(x.ask) + '</span><span class="dk-pic">' + picTxt(x.pic) + '</span>' + (ui.dkEdit ? '<button type="button" class="dk-x" data-act="dk-skip" data-k="' + esc(x.sk) + '" title="Sembunyikan dari presentasi">✕</button>' : '') + '</div>';
+    }).join('') + '</div>' + more(nDisc, DN) : '<div class="dk-empty">Tidak ada yang perlu diputuskan. 🎉</div>') });
+  // 4 — update per PIC
+  var PN = 6;
+  slides.push({ t: 'Perlu Diupdate', h: '<h2 class="dk-title">Perlu Diupdate <span class="dk-count">' + nUpd + '</span></h2><p class="dk-sub">Per PIC: status yang lewat deadline, progress yang belum diupdate, dan data budget yang belum lengkap.</p>' +
+    (nUpd ? '<div class="dk-pics">' + A.picList.slice(0, 6).map(function (p) {
+      var l = A.pics[p];
+      return '<div class="dk-picc"><div class="dk-picc-h"><b>' + esc(p) + '</b><span>' + l.length + ' item</span></div>' + l.slice(0, PN).map(function (x) {
+        return '<div class="dk-u" data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="dk-tag ' + x.cls + '">' + x.tag + '</span><b>' + esc(x.title) + (ui.dkEdit ? ' <button type="button" class="dk-x" data-act="dk-skip" data-k="' + esc(x.sk) + '" title="Sembunyikan dari presentasi">✕</button>' : '') + '</b><span>' + esc(x.todo) + ' · ' + esc(x.why) + '</span></div>';
+      }).join('') + (l.length > PN ? '<div class="dk-more">+ ' + (l.length - PN) + ' lagi</div>' : '') + '</div>';
+    }).join('') + '</div>' + (A.picList.length > 6 ? '<div class="dk-more">+ ' + (A.picList.length - 6) + ' PIC lain</div>' : '') : '<div class="dk-empty">Semua sudah up to date. 🎉</div>') });
+  // 5 — main programs (with issues)
   slides.push({ t: 'Program Utama', h: '<h2 class="dk-title">Program Utama</h2><div class="dk-progs">' + D.progs.map(function (p) {
-    var c = wsColor(p.w);
+    var c = wsColor(p.w), iss = A.disc.filter(function (x) { return x.ws === p.w; }).length, up = A.upd.filter(function (x) { return x.ws === p.w; }).length;
     return '<div class="dk-prog" style="--pc:' + c[0] + ';--pb:' + c[1] + '"><div class="dk-prog-h"><b>' + esc(p.w) + '</b><span>' + p.d + '/' + p.n + ' task</span></div>' +
       '<div class="dk-prog-bar"><i style="width:' + p.p + '%"></i></div><div class="dk-prog-p">' + p.p + '%' + (p.od ? ' <em>' + p.od + ' overdue</em>' : '') + '</div>' +
-      '<div class="dk-prog-n">' + (p.next ? 'Berikutnya: <b>' + esc(p.next.name) + '</b><span>' + fmtDate(p.next.deadline, true) + '</span>' : '<span class="muted">Tidak ada deadline berikutnya</span>') + '</div></div>';
-  }).join('') + '</div>' + (function () { var lead = D.progs.slice().sort(function (a, b) { return b.p - a.p; }); return lead.length ? hl('<b>' + esc(lead[0].w) + '</b> paling maju (' + lead[0].p + '%)' + (lead[lead.length - 1].p < lead[0].p ? ', <b>' + esc(lead[lead.length - 1].w) + '</b> perlu dorongan (' + lead[lead.length - 1].p + '%)' : '') + '.') : ''; })() });
-  // 4 — task progress
-  slides.push({ t: 'Progress Task', h: '<h2 class="dk-title">Progress Task</h2><div class="dk-two"><div class="pd-tasks">' + pDonut(parts, D.st.total, D.pct + '%', 'selesai') +
-    '<div class="pd-legend">' + parts.map(function (x) { return '<button type="button" data-act="task-stype" data-stype="' + x.ty + '"><i style="background:' + x.c + '"></i><span>' + x.k + '</span><b class="num">' + x.n + '</b></button>'; }).join('') + '</div></div>' +
-    '<div class="pd-ws">' + D.ws.sort(function (a, b) { return (b.main - a.main) || (b.n - a.n); }).slice(0, 9).map(function (x) {
-      var c = wsColor(x.w);
-      return '<div class="pd-ws-r' + (x.main ? ' main' : '') + '"><span class="pd-ws-n"><i style="background:' + c[0] + '"></i>' + esc(x.w) + '</span><span class="pd-ws-bar"><i style="width:' + x.p + '%;background:' + c[0] + '"></i></span><span class="pd-ws-c num">' + x.d + '/' + x.n + (x.od ? ' <em>' + x.od + ' overdue</em>' : '') + '</span></div>';
-    }).join('') + '</div></div>' + hl(D.st.done + ' dari ' + D.st.total + ' task selesai · ' + D.st.prog + ' sedang berjalan · ' + D.pendAll + ' pending.') });
-  // 5 — budget
-  var outPct = D.ft.est ? Math.min(100 - D.paidPct, D.outstanding / D.ft.est * 100) : 0;
-  slides.push({ t: 'Budget', h: '<h2 class="dk-title">Ringkasan Budget</h2><div class="dk-bigs">' +
-    big('Total Budget', rp(D.ft.est), D.ft.count + ' item', '', 'fin-amt', '') + big('Sudah Dibayar', rp(D.paidAll), Math.round(D.paidPct) + '% dari budget', 'ok', 'fin-amt', 'paid') +
-    big('Belum Dibayar', rp(D.outstanding), 'Total Budget − Sudah Dibayar', 'warn', 'fin-amt', 'outstanding') + '</div>' +
-    '<div class="pd-budgetbar dk-bar"><i class="paid" style="width:' + D.paidPct.toFixed(1) + '%"></i><i class="out" style="width:' + outPct.toFixed(1) + '%"></i></div>' +
-    '<div class="pd-budgetkey"><span><i class="paid"></i>Sudah dibayar</span><span><i class="out"></i>Belum dibayar</span></div>' +
-    hl(Math.round(D.paidPct) + '% budget sudah dibayar (' + rp(D.paidAll) + '). Sisa yang harus dibayar <b>' + rp(D.outstanding) + '</b>.' + (D.reimb.n ? ' Reimbursement: ' + D.reimb.n + ' item, belum dibayar ' + rp(D.reimb.open) + '.' : '')) });
-  // 6 — buffer
+      '<div class="dk-prog-n">' + (p.next ? 'Berikutnya: <b>' + esc(p.next.name) + '</b><span>' + fmtDate(p.next.deadline, true) + (p.next.pic ? ' · ' + esc(p.next.pic) : '') + '</span>' : '<span class="muted">Tidak ada deadline berikutnya</span>') + '</div>' +
+      '<div class="dk-prog-i">' + (iss ? '<span class="dk-tag crit">' + iss + ' perlu dibahas</span>' : '') + (up ? '<span class="dk-tag warn">' + up + ' perlu update</span>' : '') + (!iss && !up ? '<span class="dk-tag ok">aman</span>' : '') + '</div></div>';
+  }).join('') + '</div>' + (function () { var l = D.progs.slice().sort(function (a, b) { return b.p - a.p; }); return l.length ? hl('<b>' + esc(l[0].w) + '</b> paling maju (' + l[0].p + '%)' + (l[l.length - 1].p < l[0].p ? ', <b>' + esc(l[l.length - 1].w) + '</b> perlu dorongan (' + l[l.length - 1].p + '%)' : '') + '.') : ''; })() });
+  // 6 — budget & buffer
   var b = D.buf, gross = b.items.reduce(function (a, r) { return a + r.diff + (r.taken || 0); }, 0), usedAll = b.flows.reduce(function (a, x) { return a + x.cost; }, 0);
-  slides.push({ t: 'Buffer', h: '<h2 class="dk-title">Buffer Budget</h2><div class="dk-eq">' +
-    big('Hemat', rp(gross), b.items.length + ' item di bawah RAB', 'ok') + '<span>−</span>' + big('Over Budget', rp(b.over), b.overItems.length + ' item belum ditutup', b.over ? 'crit' : '') + '<span>−</span>' +
-    big('Dipakai', rp(usedAll), b.flows.length + ' item pakai buffer', '') + '<span>=</span>' + big('Sisa Buffer', (b.available < 0 ? '− ' + rp(-b.available) : rp(b.available)), 'bisa dipakai', b.available < 0 ? 'crit' : 'ok', 'buffer-detail') + '</div>' +
-    (b.flows.length ? '<div class="dk-flows">' + b.flows.slice().sort(function (x, y) { return y.cost - x.cost; }).slice(0, 5).map(function (x) {
-      return '<div><b>' + esc(x.f.item) + '</b><span>← ' + esc(x.src ? 'sisa ' + x.src.item : 'Buffer umum') + '</span><em>' + rp(x.cost) + '</em></div>'; }).join('') + '</div>' : '') +
-    hl(b.available >= 0 ? 'Masih ada buffer <b>' + rp(b.available) + '</b> untuk kebutuhan tambahan.' : 'Buffer <b>minus ' + rp(-b.available) + '</b> — perlu tambahan budget atau penghematan.') });
-  // 7 — overdue & upcoming
-  slides.push({ t: 'Deadline', h: '<h2 class="dk-title">Overdue &amp; 14 Hari ke Depan</h2><div class="dk-two">' +
-    '<section class="pd-card pd-list"><div class="pd-card-h"><h2>Overdue <span class="pd-pill' + (D.overdue.length ? ' crit' : '') + '">' + D.overdue.length + '</span></h2></div>' + (D.overdue.length ? D.overdue.slice(0, 6).map(function (x) { return item(x, 'over'); }).join('') + (D.overdue.length > 6 ? '<button type="button" class="pd-more" data-act="go-tasks" data-view="pending">+ ' + (D.overdue.length - 6) + ' lagi</button>' : '') : '<div class="pd-empty">Tidak ada yang overdue.</div>') + '</section>' +
-    '<section class="pd-card pd-list"><div class="pd-card-h"><h2>Jatuh Tempo <span class="pd-pill">' + D.upcoming.length + '</span></h2></div>' + (D.upcoming.length ? D.upcoming.slice(0, 6).map(function (x) { return item(x, 'up'); }).join('') + (D.upcoming.length > 6 ? '<button type="button" class="pd-more" data-act="go-tasks" data-view="timeline">+ ' + (D.upcoming.length - 6) + ' lagi</button>' : '') : '<div class="pd-empty">Tidak ada deadline 14 hari ke depan.</div>') + '</section></div>' +
-    hl(D.overdue.length ? 'Prioritas: <b>' + esc(D.overdue[0].title) + '</b> (lewat sejak ' + fmtDate(D.overdue[0].date, true) + ').' : D.upcoming.length ? 'Terdekat: <b>' + esc(D.upcoming[0].title) + '</b> (' + fmtDate(D.upcoming[0].date, true) + ').' : 'Tidak ada deadline mendesak.') });
+  var outPct = D.ft.est ? Math.min(100 - D.paidPct, D.outstanding / D.ft.est * 100) : 0, ef = efAlloc(), ce = ef ? calc(ef) : null;
+  slides.push({ t: 'Budget & Buffer', h: '<h2 class="dk-title">Budget &amp; Buffer</h2><div class="dk-bigs">' +
+    big('Total Budget', rp(D.ft.est), D.ft.count + ' item', '', 'fin-amt', '') + big('Sudah Dibayar', rp(D.paidAll), Math.round(D.paidPct) + '% dari budget', 'ok', 'fin-amt', 'paid') +
+    big('Belum Dibayar', rp(D.outstanding), 'harus dibayar sebelum/sesudah event', 'warn', 'fin-amt', 'outstanding') + '</div>' +
+    '<div class="pd-budgetbar dk-bar"><i class="paid" style="width:' + D.paidPct.toFixed(1) + '%"></i><i class="out" style="width:' + outPct.toFixed(1) + '%"></i></div>' +
+    '<div class="dk-eq">' + big('Hemat', rp(gross), b.items.length + ' item di bawah RAB', 'ok') + '<span>−</span>' + big('Over Budget', rp(b.over), b.overItems.length + ' item belum ditutup', b.over ? 'crit' : '') + '<span>−</span>' +
+    big('Dipakai', rp(usedAll), b.flows.length + ' item', '') + '<span>=</span>' + big('Sisa Buffer', (b.available < 0 ? '− ' + rp(-b.available) : rp(b.available)), 'bisa dipakai', b.available < 0 ? 'crit' : 'ok', 'buffer-detail') + '</div>' +
+    hl('Sisa yang harus dibayar <b>' + rp(D.outstanding) + '</b>. Buffer ' + (b.available >= 0 ? 'masih <b>' + rp(b.available) + '</b>' : '<b>minus ' + rp(-b.available) + '</b>') + '.' +
+      (ce && ce.est ? ' Emergency Fund sisa <b>' + rp(ce.fundLeft) + '</b> (' + Math.round(ce.used / ce.est * 100) + '% terpakai).' : '') + (D.reimb.open ? ' Reimbursement belum diganti <b>' + rp(D.reimb.open) + '</b>.' : '')) });
+  // 7 — next 7 days
+  var wk = D.upcoming.filter(function (x) { return daysBetween(D.today, x.date) <= 7; });
+  var item = function (x) {
+    var d = daysBetween(D.today, x.date), c = wsColor(x.ws), when = d === 0 ? 'hari ini' : d === 1 ? 'besok' : d + ' hari lagi', t = x.kind === 'Task' ? taskById(x.id) : null, pic = t ? t.pic : x.kind === 'Payment' ? picOfFin(finById(x.id) || {}) : '';
+    return '<div class="pd-item" data-act="' + x.act + '" data-id="' + x.id + '" role="button" tabindex="0"><span class="pd-date' + (d <= 3 ? ' soon' : '') + '"><b>' + fmtDate(x.date, true) + '</b><em>' + when + '</em></span>' +
+      '<span class="pd-it"><b>' + esc(x.title || '(tanpa nama)') + '</b><span><i style="background:' + c[0] + '"></i>' + esc(x.ws || '—') + ' · ' + (x.kind === 'Payment' ? 'Pembayaran' + (x.amt ? ' ' + rp(x.amt) : '') : esc(x.status || 'Task')) + ' · ' + picTxt(pic) + '</span></span></div>';
+  };
+  var half = Math.ceil(Math.min(wk.length, 12) / 2);
+  slides.push({ t: '7 Hari ke Depan', h: '<h2 class="dk-title">7 Hari ke Depan <span class="dk-count">' + wk.length + '</span></h2><p class="dk-sub">Pastikan tiap PIC siap. Yang ≤ 3 hari ditandai kuning.</p>' +
+    (wk.length ? '<div class="dk-two"><div class="pd-list">' + wk.slice(0, half).map(item).join('') + '</div><div class="pd-list">' + wk.slice(half, 12).map(item).join('') + '</div></div>' + more(wk.length, 12) : '<div class="dk-empty">Tidak ada deadline 7 hari ke depan.</div>') });
+  // 8 — action items + notes
+  var acts = [];
+  A.picList.forEach(function (p) {
+    var l = A.pics[p], od = l.filter(function (x) { return x.tag === 'Lewat deadline'; }).length;
+    acts.push('<b>' + esc(p) + '</b>: ' + (od ? 'update ' + od + ' task lewat deadline' + (l.length > od ? ' + ' + (l.length - od) + ' item lain' : '') : 'update ' + l.length + ' item'));
+  });
+  A.disc.filter(function (x) { return x.tag === 'Over budget'; }).slice(0, 3).forEach(function (x) { acts.push('Putuskan pendanaan <b>' + esc(x.title) + '</b> (over ' + rp(x.amt) + ')'); });
+  A.disc.filter(function (x) { return x.tag === 'Terhambat'; }).slice(0, 3).forEach(function (x) { acts.push('Bantu buka blocker <b>' + esc(x.title) + '</b>' + (x.pic ? ' (' + esc(x.pic) + ')' : '')); });
+  var notes = (db.settings.meetNotes || {})[D.today] || '';
+  slides.push({ t: 'Action Items', h: '<h2 class="dk-title">Action Items</h2><div class="dk-two"><div><h3 class="dk-h3">Sebelum meeting berikutnya</h3>' +
+    (acts.length ? '<ol class="dk-acts">' + acts.slice(0, 10).map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ol>' : '<p class="muted">Tidak ada action item otomatis.</p>') + '</div>' +
+    '<div><h3 class="dk-h3">Catatan &amp; keputusan meeting · ' + fmtDate(D.today, true) + '</h3>' +
+    '<textarea class="input dk-notes" id="meetNotes" placeholder="Tulis keputusan, siapa melakukan apa, sampai kapan…"' + (canEdit() ? '' : ' readonly') + '>' + esc(notes) + '</textarea><span class="hint">Tersimpan otomatis untuk semua orang.</span></div></div>' });
   return slides;
 }
+/* v47: the deck is editable ("✎ Edit Presentasi"): rename slide titles, add your own points to any slide, hide / move slides,
+   add your own slides, and hide single items from "Perlu Dibahas" / "Perlu Diupdate". Stored in settings.deck (shared). */
+var DECK_KEYS = { 'Cover': 'cover', 'Ringkasan': 'sum', 'Perlu Dibahas': 'disc', 'Perlu Diupdate': 'upd', 'Program Utama': 'prog', 'Budget & Buffer': 'budget', '7 Hari ke Depan': 'week', 'Action Items': 'act' };
+function deckCfg() {
+  var c = db.settings.deck; c = c && typeof c === 'object' && !Array.isArray(c) ? c : {};
+  return { titles: c.titles || {}, extra: c.extra || {}, hidden: c.hidden || {}, order: Array.isArray(c.order) ? c.order : [], custom: Array.isArray(c.custom) ? c.custom : [], skip: c.skip || {} };
+}
+function deckSave(cfg, msg) { db.settings.deck = cfg; commit(msg || 'Presentasi diperbarui'); }
+function deckLines(txt) {
+  var l = String(txt || '').split('\n').map(function (x) { return x.replace(/^\s*[-•*]\s*/, '').trim(); }).filter(Boolean);
+  return l.length ? '<ul class="dk-extra">' + l.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '';
+}
+function deckSlides(D) {
+  var cfg = deckCfg(), base = pSlides(D).map(function (s) { s.k = DECK_KEYS[s.t] || s.t; return s; });
+  cfg.custom.forEach(function (c) { base.push({ k: c.id, t: c.title || 'Slide baru', custom: true, h: '<h2 class="dk-title">' + esc(c.title || 'Slide baru') + '</h2>' }); });
+  var ord = cfg.order.filter(function (k) { return base.some(function (s) { return s.k === k; }); });
+  base.forEach(function (s) { if (ord.indexOf(s.k) < 0) ord.push(s.k); });
+  return ord.map(function (k) {
+    var s = base.filter(function (x) { return x.k === k; })[0], tt = cfg.titles[k];
+    if (tt && !s.custom) {
+      s.h = s.k === 'cover' ? s.h.replace(/<h1>[^<]*<\/h1>/, '<h1>' + esc(tt) + '</h1>') : s.h.replace(/(<h2 class="dk-title">)[^<]*/, '$1' + esc(tt) + ' ');
+      s.t = tt;
+    }
+    if (cfg.extra[k]) s.h += '<div class="dk-extra-box">' + deckLines(cfg.extra[k]) + '</div>';
+    s.hidden = !!cfg.hidden[k];
+    return s;
+  });
+}
+function deckEditPanel(s, idx, total) {
+  var cfg = deckCfg(), k = s.k, skipN = Object.keys(cfg.skip).length;
+  return '<div class="dk-edit" data-k="' + esc(k) + '"><div class="dk-edit-row">' +
+    '<label>Judul slide<input class="input" data-dk="title" value="' + esc(cfg.titles[k] || (s.custom ? s.t : '')) + '" placeholder="' + esc(s.custom ? 'Slide baru' : s.t) + '" maxlength="80"></label>' +
+    '<div class="dk-edit-btns"><button type="button" class="btn sm" data-act="dk-move" data-dir="-1"' + (idx === 0 ? ' disabled' : '') + '>◀ Geser</button><button type="button" class="btn sm" data-act="dk-move" data-dir="1"' + (idx === total - 1 ? ' disabled' : '') + '>Geser ▶</button>' +
+    '<button type="button" class="btn sm' + (s.hidden ? ' on' : '') + '" data-act="dk-hide">' + (s.hidden ? '👁 Tampilkan slide' : 'Sembunyikan slide') + '</button>' +
+    (s.custom ? '<button type="button" class="btn sm danger" data-act="dk-del">Hapus slide</button>' : '') + '<button type="button" class="btn sm primary" data-act="dk-add">+ Slide baru</button></div></div>' +
+    '<label><span>' + (s.custom ? 'Isi slide' : 'Poin tambahan di slide ini') + ' <span class="muted" style="font-weight:400">· satu baris = satu poin</span></span><textarea class="input" data-dk="extra" rows="3" placeholder="mis. Venue confirm paling lambat Jumat">' + esc(cfg.extra[k] || '') + '</textarea></label>' +
+    ((k === 'disc' || k === 'upd') ? '<p class="muted" style="margin:0;font-size:12.5px">Klik ✕ di item untuk menyembunyikannya dari presentasi (datanya tidak berubah).' + (skipN ? ' <button type="button" class="btn sm ghost" data-act="dk-unskip">Tampilkan lagi ' + skipN + ' item tersembunyi</button>' : '') + '</p>' : '') +
+    '</div>';
+}
 function renderPresent() {
-  var D = presentData(), slides = pSlides(D), n = slides.length;
-  var i = Math.max(0, Math.min(n - 1, ui.pSlide || 0)); ui.pSlide = i;
+  var D = presentData(), all = deckSlides(D), edit = !!ui.dkEdit && canEdit();
+  var slides = edit ? all : all.filter(function (s) { return !s.hidden; }); if (!slides.length) slides = all;
+  var n = slides.length, i = Math.max(0, Math.min(n - 1, ui.pSlide || 0)); ui.pSlide = i;
   var s = slides[i];
-  return '<div class="deck">' +
-    '<div class="dk-bar-top"><div class="dk-dots">' + slides.map(function (x, k) { return '<button type="button" class="dk-dot' + (k === i ? ' on' : '') + '" data-act="p-go" data-i="' + k + '" title="' + esc(x.t) + '"><span>' + (k + 1) + '</span>' + esc(x.t) + '</button>'; }).join('') + '</div>' +
+  return '<div class="deck' + (edit ? ' dk-editing' : '') + '">' +
+    '<div class="dk-bar-top"><div class="dk-dots">' + slides.map(function (x, k) { return '<button type="button" class="dk-dot' + (k === i ? ' on' : '') + (x.hidden ? ' off' : '') + '" data-act="p-go" data-i="' + k + '" title="' + esc(x.t) + '"><span>' + (k + 1) + '</span>' + esc(x.t) + '</button>'; }).join('') + '</div>' +
     '<div class="dk-ctrl"><button type="button" class="btn" data-act="p-prev"' + (i === 0 ? ' disabled' : '') + ' aria-label="Slide sebelumnya">←</button><span class="dk-n">' + (i + 1) + ' / ' + n + '</span><button type="button" class="btn" data-act="p-next"' + (i === n - 1 ? ' disabled' : '') + ' aria-label="Slide berikutnya">→</button>' +
+    (canEdit() ? '<button class="btn' + (edit ? ' primary' : '') + '" data-act="dk-edit" type="button">' + (edit ? '✓ Selesai Edit' : '✎ Edit Presentasi') + '</button>' : '') +
     '<button class="btn" data-act="present-fs" type="button">' + (document.fullscreenElement ? 'Keluar Full Screen' : 'Full Screen') + '</button></div></div>' +
-    '<section class="dk-slide dk-s' + (i + 1) + '" aria-roledescription="slide" aria-label="' + esc(s.t) + '">' + s.h +
+    (edit ? deckEditPanel(s, i, n) : '') +
+    '<section class="dk-slide dk-s' + (i + 1) + (s.hidden ? ' dk-hidden' : '') + '" aria-roledescription="slide" aria-label="' + esc(s.t) + '">' + (s.hidden ? '<div class="dk-hidden-note">Slide ini disembunyikan — tidak muncul saat presentasi</div>' : '') + s.h +
     '<footer class="dk-foot"><span>' + esc(db.settings.eventName || '') + '</span><span>' + esc(s.t) + ' · ' + (i + 1) + '/' + n + '</span></footer></section></div>';
+}
+document.addEventListener('change', function (e) {
+  var f = e.target && e.target.getAttribute && e.target.getAttribute('data-dk'); if (!f || !canEdit()) return;
+  var box = e.target.closest('.dk-edit'), k = box && box.getAttribute('data-k'); if (!k) return;
+  var cfg = deckCfg(), v = e.target.value.trim();
+  if (f === 'title') {
+    var cu = cfg.custom.filter(function (c) { return c.id === k; })[0];
+    if (cu) cu.title = v || 'Slide baru'; else if (v) cfg.titles[k] = v.slice(0, 80); else delete cfg.titles[k];
+  }
+  if (f === 'extra') { if (v) cfg.extra[k] = v.slice(0, 3000); else delete cfg.extra[k]; }
+  deckSave(cfg);
+});
+function deckAction(act, el) {
+  var cfg = deckCfg(), D = presentData(), all = deckSlides(D), edit = !!ui.dkEdit, list = edit ? all : all.filter(function (s) { return !s.hidden; });
+  var cur = list[Math.max(0, Math.min(list.length - 1, ui.pSlide || 0))], keys = all.map(function (s) { return s.k; });
+  if (act === 'dk-edit') { ui.dkEdit = !ui.dkEdit; if (!ui.dkEdit) { var vis = all.filter(function (s) { return !s.hidden; }); var at = vis.indexOf(cur); ui.pSlide = at < 0 ? 0 : at; } render(); return; }
+  if (act === 'dk-move') { var p = keys.indexOf(cur.k), q = p + (+el.dataset.dir); if (q < 0 || q >= keys.length) return; keys.splice(q, 0, keys.splice(p, 1)[0]); cfg.order = keys; ui.pSlide = q; deckSave(cfg, 'Urutan slide diubah'); return; }
+  if (act === 'dk-hide') { if (cfg.hidden[cur.k]) delete cfg.hidden[cur.k]; else cfg.hidden[cur.k] = true; deckSave(cfg, cfg.hidden[cur.k] ? 'Slide disembunyikan' : 'Slide ditampilkan'); return; }
+  if (act === 'dk-add') { var id = 'c' + Date.now().toString(36); cfg.custom.push({ id: id, title: 'Slide baru' }); var p2 = keys.indexOf(cur.k); keys.splice(p2 + 1, 0, id); cfg.order = keys; ui.pSlide = p2 + 1; deckSave(cfg, 'Slide baru ditambahkan'); return; }
+  if (act === 'dk-del') { cfg.custom = cfg.custom.filter(function (c) { return c.id !== cur.k; }); delete cfg.extra[cur.k]; delete cfg.hidden[cur.k]; cfg.order = keys.filter(function (k) { return k !== cur.k; }); ui.pSlide = Math.max(0, (ui.pSlide || 0) - 1); deckSave(cfg, 'Slide dihapus'); return; }
+  if (act === 'dk-skip') { cfg.skip[el.dataset.k] = 1; deckSave(cfg, 'Item disembunyikan dari presentasi'); return; }
+  if (act === 'dk-unskip') { cfg.skip = {}; deckSave(cfg, 'Semua item tampil lagi'); return; }
 }
 document.addEventListener('keydown', function (e) {
   if (ui.page !== 'present' || (modalRoot && modalRoot.innerHTML) || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName || '')) return;
   if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) { e.preventDefault(); ui.pSlide = (ui.pSlide || 0) + 1; render(); }
   else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); ui.pSlide = Math.max(0, (ui.pSlide || 0) - 1); render(); }
   else if (e.key === 'Home') { ui.pSlide = 0; render(); }
+});
+document.addEventListener('change', function (e) {
+  if (!e.target || e.target.id !== 'meetNotes' || !canEdit()) return;
+  var m = Object.assign({}, db.settings.meetNotes || {}); var v = e.target.value.trim();
+  if (v) m[todayISO()] = v.slice(0, 5000); else delete m[todayISO()];
+  db.settings.meetNotes = m; commit('Catatan meeting disimpan');
 });
 document.addEventListener('fullscreenchange', function () {
   if (!document.fullscreenElement) document.body.classList.remove('present-fs');
@@ -3429,7 +3581,7 @@ function poolSections(f) { return f && Array.isArray(f.sections) ? f.sections.fi
 function sectionWs(pool, name) { var m = pool && pool.sectionWs; return (m && name && m[name]) ? wsCurrent(m[name]) : ''; }
 function rowSectionWs(f) { var p = f && f.parentId ? finById(f.parentId) : null; return p && p.kind === 'allocation' ? sectionWs(p, f.section) : ''; }
 function poolSectionRows(f, kids, row, FC) {
-  var secs = poolSections(f), out = '', groups = {};
+  var secs = poolSections(f), secs0 = secs.slice(), out = '', groups = {};
   kids.forEach(function (k) { var sc = poolSecOf(f, k), sname = secs.indexOf(sc) > -1 ? sc : ''; (groups[sname] = groups[sname] || []).push(k); });
   // v45: Emergency Fund gets a Reimbursement section listing every item ticked "Reimbursement" (from any category / section).
   // Items that live elsewhere are shown as a copy (↗) and are not taken from the pool unless their Sumber Budget says so.
@@ -3449,7 +3601,7 @@ function poolSectionRows(f, kids, row, FC) {
     if (!sname && !list.length) return;
     if (sname && sname === rsec) {
       var rs = reimbStats(), own = list.filter(function (k) { return !rmirror[k.id]; }).length;
-      out += '<tr class="pool-sec reimb-sec"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname) + '</span><span class="reimb-tag">auto</span> <span class="muted">' + rs.n + ' item reimbursement · total ' + rp(rs.total) + ' · sudah dibayar ' + rp(rs.paid) + (rs.open ? ' · <b class="buf-neg">belum ' + rp(rs.open) + '</b>' : '') + (own < list.length ? ' · ↗ = item dari kategori/section lain' : '') + '</span>' +
+      out += '<tr class="pool-sec reimb-sec" data-rg="pool:' + esc(f.id) + '" data-sec="' + esc(sname) + '" data-hdr="' + (secs0.indexOf(sname) > -1 ? '1' : 'reimb') + '"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname) + '</span><span class="reimb-tag">auto</span> <span class="muted">' + rs.n + ' item reimbursement · total ' + rp(rs.total) + ' · sudah dibayar ' + rp(rs.paid) + (rs.open ? ' · <b class="buf-neg">belum ' + rp(rs.open) + '</b>' : '') + (own < list.length ? ' · ↗ = item dari kategori/section lain' : '') + '</span>' +
         (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
       list.forEach(function (k) {
         if (!rmirror[k.id]) { out += row(k, true, 1, false); return; }
@@ -3460,7 +3612,7 @@ function poolSectionRows(f, kids, row, FC) {
     }
     var used = list.reduce(function (a, k) { return a + (calc(k).base || 0); }, 0);
     var sw = sectionWs(f, sname), reimb = list.filter(function (k) { return k.reimburse; }).length;
-    out += '<tr class="pool-sec"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname || 'No section') + '</span>' + (sw ? wsTag(sw) + ' ' : '') + '<span class="muted">' + list.length + ' item · used ' + rp(used) + (reimb ? ' · ' + reimb + ' reimbursement' : '') + '</span>' +
+    out += '<tr class="pool-sec" data-rg="pool:' + esc(f.id) + '" data-sec="' + esc(sname) + '" data-hdr="1"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname || 'No section') + '</span>' + (sw ? wsTag(sw) + ' ' : '') + '<span class="muted">' + list.length + ' item · used ' + rp(used) + (reimb ? ' · ' + reimb + ' reimbursement' : '') + '</span>' +
       (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
     list.forEach(function (k) { out += row(k, true, 1, false); });
   });
@@ -3633,7 +3785,7 @@ function renderFinance() {
       iref = fileCell(f.invoiceRef);
     }
     var cell = {
-      item: '<td class="fin-item-cell">' + (canEdit() && !mirror ? ROW_GRIP : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
+      item: '<td class="fin-item-cell">' + (canEdit() && (!mirror || (child && fromPool(f) && !mirrorTag)) ? ROW_GRIP : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') +
           (f.kind === 'allocation' && canEdit() ? ' <button type="button" class="btn sm pool-sec-btn" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">⚙ Section' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : ' · tambah') + '</button>' : '') + '</td>',
@@ -3646,8 +3798,9 @@ function renderFinance() {
       check: '<td>' + flagHtml + '</td>'
     };
     var wc = wsColor(f.workstream);
-    var rg = mirror ? '' : f.parentId ? 'p:' + f.parentId + (finById(f.parentId) && finById(f.parentId).kind === 'allocation' ? ':' + (f.section || '') : '') : 'w:' + f.workstream;
-    return '<tr data-rg="' + esc(rg) + '" class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
+    var parP = f.parentId ? finById(f.parentId) : null, poolRow = !mirrorTag && ((parP && parP.kind === 'allocation') || (child && fromPool(f)));
+    var rg = poolRow ? 'pool:' + (parP && parP.kind === 'allocation' ? parP.id : f.fundPool) : mirror ? '' : f.parentId ? 'p:' + f.parentId : 'w:' + f.workstream;
+    return '<tr data-rg="' + esc(rg) + '"' + (poolRow ? ' data-sec="' + esc(parP && parP.kind === 'allocation' ? (f.section || '') : (f.poolSection || '')) + '"' : '') + '" class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
       if (col.custom) return cfCell('finance', col, f);
       if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
       var h = cell[col.key] || '<td></td>';
@@ -4374,6 +4527,7 @@ function handleAct(el, e) {
       if (ui.colView && ui.colView.tasks) { delete ui.colView.tasks.status; if (dates) delete ui.colView.tasks.deadline; }   // filters only work on visible columns
       go('tasks'); break;
     }
+    case 'dk-edit': case 'dk-move': case 'dk-hide': case 'dk-add': case 'dk-del': case 'dk-skip': case 'dk-unskip': e.preventDefault(); e.stopPropagation(); deckAction(act, el); break;
     case 'p-prev': ui.pSlide = Math.max(0, (ui.pSlide || 0) - 1); render(); break;
     case 'p-next': ui.pSlide = (ui.pSlide || 0) + 1; render(); break;
     case 'p-go': ui.pSlide = +el.dataset.i || 0; render(); break;

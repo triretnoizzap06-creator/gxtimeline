@@ -1,4 +1,19 @@
-GX27 — Update v46 (3 Nov 2026)
+GX27 — Update v48 (3 Nov 2026)
+
+Baru di v48:
+- Emergency Fund (dan budget pool lain): item bisa dipindah ke section lain dengan geser ⋮⋮ ke bawah judul section tujuan
+  (termasuk "No section", dan item dari kategori lain yang dibayar dari EF). Geser ke section Reimbursement = otomatis dicentang Reimbursement.
+
+GX27 — Update v47 (3 Nov 2026)
+
+Baru di v47 (Presentation):
+- Deck sekarang berbentuk agenda meeting: Cover+Agenda · Ringkasan (+ fokus meeting) · Perlu Dibahas (butuh keputusan:
+  task terhambat/menunggu, over budget, pembayaran telat, buffer/EF menipis) · Perlu Diupdate (per PIC: lewat deadline,
+  progress belum diupdate, belum ada PIC, data budget belum lengkap) · Program Utama · Budget & Buffer · 7 Hari ke Depan ·
+  Action Items + kotak Catatan meeting (tersimpan per tanggal).
+- "✎ Edit Presentasi": ganti judul slide, tambah poin sendiri di slide mana pun, geser/sembunyikan slide, tambah slide
+  sendiri, dan ✕ untuk menyembunyikan item tertentu dari presentasi (data asli tidak berubah).
+- Cache: index & semua file JS sekarang selalu dicek ulang, jadi update langsung terlihat setelah refresh.
 
 Baru di v46:
 - Urutan bisa diatur sendiri: arahkan ke baris, tekan & geser ikon ⋮⋮ di samping nama (Finance & Tasks).
