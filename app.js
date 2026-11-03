@@ -317,6 +317,71 @@ function listReorder(spec, from, to) {
   li.splice(to, 0, li.splice(from, 1)[0]);
   persist(db); render(); closeModal(); categoryManager(name);
 }
+/* v46: drag table rows (Finance & Tasks) by their handle to set your own order. Rows only move among their siblings
+   (same category / same parent / same section). Finance keeps f.ord; Tasks keep t.ord and switch to "Urutan manual". */
+var ROW_GRIP = '<span class="row-grip" title="Tekan &amp; geser untuk mengurutkan" aria-hidden="true"><svg viewBox="0 0 10 16" width="9" height="14"><g fill="currentColor"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></g></svg></span>';
+var rowDrag = null;
+document.addEventListener('pointerdown', function (e) {
+  var g = e.target.closest && e.target.closest('.row-grip'); if (!g || (e.button && e.button !== 0)) return;
+  var tr = g.closest('tr[data-rg]'); if (!tr || !tr.getAttribute('data-rg')) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!canEdit()) { toast('Hanya editor yang bisa mengubah urutan.', true); return; }
+  var tb = tr.parentNode, rg = tr.getAttribute('data-rg');
+  var sibs = [].filter.call(tb.querySelectorAll('tr[data-rg]'), function (r) { return r.getAttribute('data-rg') === rg; });
+  if (sibs.length < 2) { toast('Tidak ada baris lain di kelompok ini untuk ditukar.'); return; }
+  rowDrag = { tr: tr, sibs: sibs, target: null, after: false, y0: e.clientY, moved: false };
+  try { g.setPointerCapture(e.pointerId); } catch (er) {}
+  tr.classList.add('row-dragging'); document.body.classList.add('rd-dragging');
+}, true);
+document.addEventListener('pointermove', function (e) {
+  var d = rowDrag; if (!d) return;
+  if (Math.abs(e.clientY - d.y0) > 3) d.moved = true;
+  d.sibs.forEach(function (r) { r.classList.remove('drop-before', 'drop-after'); });
+  d.target = null;
+  for (var i = 0; i < d.sibs.length; i++) {
+    var r = d.sibs[i]; if (r === d.tr) continue;
+    var b = r.getBoundingClientRect();
+    if (e.clientY >= b.top && e.clientY <= b.bottom) { d.target = r; d.after = e.clientY > b.top + b.height / 2; r.classList.add(d.after ? 'drop-after' : 'drop-before'); break; }
+  }
+  if (!d.target && d.sibs.length) {                         // above the first / below the last sibling
+    var f0 = d.sibs[0].getBoundingClientRect(), l0 = d.sibs[d.sibs.length - 1].getBoundingClientRect();
+    if (e.clientY < f0.top && d.sibs[0] !== d.tr) { d.target = d.sibs[0]; d.after = false; d.target.classList.add('drop-before'); }
+    else if (e.clientY > l0.bottom && d.sibs[d.sibs.length - 1] !== d.tr) { d.target = d.sibs[d.sibs.length - 1]; d.after = true; d.target.classList.add('drop-after'); }
+  }
+  if (e.clientY < 40) window.scrollBy(0, -12); else if (e.clientY > window.innerHeight - 40) window.scrollBy(0, 12);
+}, true);
+function rowDragEnd() {
+  var d = rowDrag; if (!d) return; rowDrag = null;
+  d.tr.classList.remove('row-dragging'); document.body.classList.remove('rd-dragging');
+  d.sibs.forEach(function (r) { r.classList.remove('drop-before', 'drop-after'); });
+  if (!d.target || !d.moved) return;
+  var ids = d.sibs.map(function (r) { return r.getAttribute('data-id'); }), id = d.tr.getAttribute('data-id');
+  ids.splice(ids.indexOf(id), 1);
+  var at = ids.indexOf(d.target.getAttribute('data-id')) + (d.after ? 1 : 0);
+  ids.splice(at, 0, id);
+  rowsReorder(d.tr.getAttribute('data-rg'), ids, id);
+}
+document.addEventListener('pointerup', rowDragEnd, true);
+document.addEventListener('pointercancel', rowDragEnd, true);
+document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.row-grip')) { e.preventDefault(); e.stopPropagation(); } }, true);
+function rowsReorder(rg, ids, movedId) {
+  if (rg === 'tasks') {
+    var byOrd = db.tasks.slice().sort(function (a, b) { var oa = a.ord != null ? a.ord : 1e9, ob = b.ord != null ? b.ord : 1e9; return oa - ob; }), all;
+    if (ui.sort.key !== 'manual') {                          // first drag: start from the order on screen
+      var seen = {}; all = ids.map(function (x) { seen[x] = 1; return taskById(x); }).filter(Boolean).concat(byOrd.filter(function (t) { return !seen[t.id]; }));
+    } else {                                                 // filtered list: place the moved task next to its new neighbour
+      all = byOrd.filter(function (t) { return t.id !== movedId; });
+      var i = ids.indexOf(movedId), nb = i > 0 ? ids[i - 1] : ids[1], pos = all.map(function (t) { return t.id; }).indexOf(nb);
+      all.splice(i > 0 ? pos + 1 : Math.max(0, pos), 0, taskById(movedId));
+    }
+    all.forEach(function (t, k) { t.ord = k + 1; });
+    if (ui.sort.key !== 'manual') { ui.sort = { key: 'manual', dir: 1 }; saveUI(); }
+    commit('Urutan task diubah · urutan manual aktif');
+    return;
+  }
+  ids.forEach(function (x, k) { var f = finById(x); if (f) f.ord = k + 1; });
+  commit('Urutan diubah');
+}
 var rdDrag = null;
 document.addEventListener('pointerdown', function (e) {
   var g = e.target.closest && e.target.closest('.drag-h'); if (!g || (e.button && e.button !== 0)) return;
@@ -2761,6 +2826,7 @@ function filteredTasks(view) {
   db.tasks.forEach(function (t, i) { pos[t.id] = i; });
   var sl = statusList();
   list.sort(function (a, b) {
+    if (key === 'manual') { var oa = a.ord != null ? a.ord : 1e9 + pos[a.id], ob = b.ord != null ? b.ord : 1e9 + pos[b.id]; return oa - ob; }
     if (key === 'deadline') return dlCmp(a, b, dir) || String(a.name).localeCompare(String(b.name)) || (pos[a.id] - pos[b.id]);
     var va, vb;
     if (key === 'status') { va = TYPE_ORDER[sType(a.status)] * 100 + sl.indexOf(a.status); vb = TYPE_ORDER[sType(b.status)] * 100 + sl.indexOf(b.status); }
@@ -2782,6 +2848,7 @@ function renderTasks() {
     '<input class="input search" id="taskSearch" type="search" placeholder="Search task, PIC, notes…" value="' + esc(ui.q) + '" aria-label="Search tasks">' +
     '<select class="select" id="fSrc" aria-label="Data Source">' + opts([{ value: 'confirmed', label: 'Confirmed' }, { value: 'verify', label: 'Needs Verification' }], ui.fSrc, 'All Sources') + '</select>' +
     ((ui.q || ui.fWs.length || ui.fStatus.length || ui.fSrc || colFilterActive()) ? '<button class="btn ghost sm" data-act="clear-filters">Clear Filters</button>' : '') +
+    (ui.taskView !== 'timeline' ? '<button class="btn sm' + (ui.sort.key === 'manual' ? ' on' : '') + '" data-act="task-manual" aria-pressed="' + (ui.sort.key === 'manual') + '" title="Tekan & geser ⋮⋮ di samping nama task untuk mengurutkan sendiri">' + (ui.sort.key === 'manual' ? '✓ Urutan manual · kembali ke deadline' : '⇅ Urutan manual') + '</button>' : '') +
     (ui.taskView !== 'timeline' ? '<button class="btn sm fin-all-btn" data-act="task-fin-all" aria-pressed="' + !ui.tfHide + '">' + (ui.tfHide ? 'Tampilkan Item Finance' : 'Sembunyikan Item Finance') + '</button>' : '') + '</div>';
   var list = filteredTasks(ui.taskView);
   if (!db.tasks.length) return h + '<div class="table-wrap">' + emptyBox('No Tasks Yet', 'Create the first task to get started.') + '</div>';
@@ -3067,7 +3134,7 @@ function taskTable(list, compact, showBlockers) {
   }).join('') + '</tr></thead><tbody>';
   list.forEach(function (t) {
     var exp = ui.expanded === t.id;
-    h += '<tr class="row' + (exp ? ' expanded' : '') + '" data-act="expand" data-id="' + t.id + '" aria-expanded="' + exp + '">' + cols.map(function (c) { return c.custom ? cfCell('tasks', c, t) : taskCell(c.key, t); }).join('') + '</tr>';
+    h += '<tr data-rg="tasks" class="row' + (exp ? ' expanded' : '') + '" data-act="expand" data-id="' + t.id + '" aria-expanded="' + exp + '">' + cols.map(function (c) { return c.custom ? cfCell('tasks', c, t) : taskCell(c.key, t); }).join('') + '</tr>';
     if (exp) h += '<tr class="expanded"><td colspan="' + cols.length + '">' + taskDetail(t) + '</td></tr>';
     if (taskFinOpen(t)) taskFinRows(t).forEach(function (f) {
       h += '<tr class="fin-sub" data-act="edit-fin" data-id="' + f.id + '" title="Buka item budget: ' + esc(f.item) + '">' + cols.map(function (c) { return c.custom ? '<td></td>' : finSubCell(c.key, f, t); }).join('') + '</tr>';
@@ -3143,7 +3210,7 @@ function taskCell(key, t) {
         finTag = '<button type="button" class="src fin fin-tog" data-act="task-fin-toggle" data-id="' + t.id + '" aria-expanded="' + fo + '" title="' + (fo ? 'Sembunyikan' : 'Tampilkan') + ' item Finance">' + (fo ? '▾' : '▸') + ' Finance · ' + nfin + ' Item</button> ';
       } else if (nfin) finTag = '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' Item</span> ';
       var alc = canEdit() ? allocForTask(t) : null;
-      return '<td><span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span>' +
+      return '<td>' + (canEdit() ? ROW_GRIP : '') + '<span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span>' +
         (alc ? '<button type="button" class="btn sm ghost task-add-sub" data-act="new-sub" data-id="' + alc.id + '" title="Tambah pemakaian dana di bawah ' + esc(alc.item) + '">+ Sub Item</button>' : '') + '</td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
@@ -3397,6 +3464,7 @@ function poolSectionRows(f, kids, row, FC) {
       (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
     list.forEach(function (k) { out += row(k, true, 1, false); });
   });
+  if (canEdit()) out += '<tr class="pool-sec pool-sec-add"><td colspan="' + FC.length + '"><button type="button" class="btn sm ghost" data-act="pool-sections" data-id="' + f.id + '">+ Section baru</button><span class="muted">kelompokkan item di ' + esc(f.item) + ', mis. Mobile Legends, Konsumsi</span></td></tr>';
   return out;
 }
 function poolSectionsDialog(id) {
@@ -3470,7 +3538,12 @@ function finFilterCats() {
   db.finance.forEach(function (f) { var w = rowSectionWs(f); if (w && l.indexOf(w) < 0) l.push(w); });
   return l;
 }
-function rowOrder(a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); }
+function rowOrder(a, b) {
+  var oa = a.ord != null, ob = b.ord != null;               // v46: manual order (drag) wins; rows never dragged keep the sheet order, after them
+  if (oa && ob && a.ord !== b.ord) return a.ord - b.ord;
+  if (oa !== ob) return oa ? -1 : 1;
+  return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0);
+}
 // a vendor invoice with line items: the Doorprize group starts folded (the prizes are included in the invoice row), other groups start open
 function finCollapsed(f) {
   if (ui.finQ || ui.finWs || ui.finPays.length || ui.finInv || finDueActive() || ui.finAmt) return false;      // while searching/filtering, show everything
@@ -3560,10 +3633,10 @@ function renderFinance() {
       iref = fileCell(f.invoiceRef);
     }
     var cell = {
-      item: '<td class="fin-item-cell"><span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
+      item: '<td class="fin-item-cell">' + (canEdit() && !mirror ? ROW_GRIP : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') +
-          (f.kind === 'allocation' && canEdit() ? ' <button type="button" class="btn sm ghost add-sub" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">Sections' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : '') + '</button>' : '') + '</td>',
+          (f.kind === 'allocation' && canEdit() ? ' <button type="button" class="btn sm pool-sec-btn" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">⚙ Section' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : ' · tambah') + '</button>' : '') + '</td>',
       invQty: '<td class="num r">' + (numOrNull(f.invQty) != null ? rpFmt.format(numOrNull(f.invQty)) + ((f.invUnit || f.unit) ? ' <span class="faint">' + esc(f.invUnit || f.unit) + '</span>' : '') : '<span class="faint">—</span>') + '</td>',
       invUnitCost: '<td class="num r">' + rp(numOrNull(f.invUnitCost)) + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
@@ -3573,7 +3646,8 @@ function renderFinance() {
       check: '<td>' + flagHtml + '</td>'
     };
     var wc = wsColor(f.workstream);
-    return '<tr class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
+    var rg = mirror ? '' : f.parentId ? 'p:' + f.parentId + (finById(f.parentId) && finById(f.parentId).kind === 'allocation' ? ':' + (f.section || '') : '') : 'w:' + f.workstream;
+    return '<tr data-rg="' + esc(rg) + '" class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
       if (col.custom) return cfCell('finance', col, f);
       if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
       var h = cell[col.key] || '<td></td>';
@@ -3595,7 +3669,10 @@ function renderFinance() {
       var folded = f.kind === 'vendor' && kids.length > 0 && finCollapsed(f);
         body += row(f, !!f.parentId, f.kind === 'vendor' && !folded ? 1 + kids.length : 1, false);
         if (!folded && f.kind === 'allocation' && (poolSections(f).length || (f === efAlloc() && reimbRows().length))) body += poolSectionRows(f, kids, row, FC);
-        else if (!folded) kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
+        else if (!folded) {
+          if (f.kind === 'allocation' && canEdit()) body += '<tr class="pool-sec pool-sec-add"><td colspan="' + FC.length + '"><button type="button" class="btn sm ghost" data-act="pool-sections" data-id="' + f.id + '">+ Tambah section</button><span class="muted">kelompokkan item di ' + esc(f.item) + ', mis. Mobile Legends, Konsumsi</span></td></tr>';
+          kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
+        }
     });
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(' + (ob ? esc(ob) + ', not in event total' : 'auto') + ')</span>', st);
   });
@@ -3795,25 +3872,25 @@ function fundingFields(f) {
   if (cur && !src.some(function (o) { return o.value === cur; }) && finById(cur)) src.push({ value: cur, label: 'Sisa ' + finById(cur).item });
   return '<div class="field full fund-box" data-field="fundSource" id="fundWrap"><label for="f-fundSource">Sumber Budget</label>' +
     '<select class="select" id="f-fundSource" name="fundSource">' + opts([
-      { value: '', label: 'Budget RAB item ini' },
-      { value: 'topup', label: 'Budget RAB + tambahan dari buffer (kalau over budget)' },
-      { value: 'buffer', label: 'Seluruhnya dari buffer — tidak menambah Total Budget' },
-      { value: 'pool', label: 'Dari budget pool (mis. Emergency Fund) — tidak menambah Total Budget' }], f.fundSource || '') + '</select>' +
+      { value: '', label: 'Budget RAB' },
+      { value: 'buffer', label: 'Budget Buffer' },
+      { value: 'topup', label: 'Budget RAB + Buffer' },
+      { value: 'pool', label: 'Emergency Fund' }], f.fundSource || '') + '</select>' +
     (function () {
       var pools = db.finance.filter(function (x) { return x.kind === 'allocation' && x.id !== f.id; }).sort(function (a, b) { return (wsBase(b.workstream) === 'Emergency Fund') - (wsBase(a.workstream) === 'Emergency Fund') || rowOrder(a, b); });
       var curP = f.fundPool && finById(f.fundPool) ? f.fundPool : (pools[0] || {}).id || '';
       window.__poolSecs = {}; pools.forEach(function (x) { window.__poolSecs[x.id] = poolSections(x); });
       var secs = curP ? poolSections(finById(curP)) : [];
       return '<div class="fund-more" id="poolMore"' + (f.fundSource === 'pool' ? '' : ' hidden') + '>' +
-        '<label for="f-fundPool">Budget pool</label><select class="select" id="f-fundPool" name="fundPool">' + opts(pools.map(function (x) { var cx = calc(x); return { value: x.id, label: x.item + ' — sisa ' + rp(cx.fundLeft) }; }), curP) + '</select>' +
+        '<label for="f-fundPool">Ambil dari</label><select class="select" id="f-fundPool" name="fundPool">' + opts(pools.map(function (x) { var cx = calc(x); return { value: x.id, label: x.item + ' — sisa ' + rp(cx.fundLeft) }; }), curP) + '</select>' +
         '<label for="f-poolSection">Section di pool</label><select class="select" id="f-poolSection" name="poolSection">' + opts([{ value: '', label: '— Tanpa section —' }].concat(secs.map(function (n) { return { value: n, label: n }; })), f.poolSection || '') + '</select>' +
-        '<span class="hint">Item tetap ada di kategori ini, dan juga muncul di dalam pool (di section yang dipilih). Biayanya mengurangi sisa pool.</span></div>';
+        '<span class="hint">Item tetap ada di kategori ini, dan juga muncul di dalam Emergency Fund (di section yang dipilih). Biayanya mengurangi sisa Emergency Fund. Belum ada section-nya? Buat lewat tombol "⚙ Section" di baris Emergency Fund.</span></div>';
     })() +
     '<div class="fund-more" id="fundMore"' + (f.fundSource ? '' : ' hidden') + '>' +
       '<label for="f-fundFrom">Ambil dari</label><select class="select" id="f-fundFrom" name="fundFrom">' + opts(src, cur) + '</select>' +
       '<span id="topupWrap"' + (f.fundSource === 'topup' ? '' : ' hidden') + '><label for="f-topup">Jumlah tambahan</label>' +
       '<input class="input" id="f-topup" name="topup" type="text" inputmode="numeric" data-rp autocomplete="off" placeholder="Otomatis: sebesar kelebihan biaya" value="' + esc(rpInputText(f.topup)) + '"></span>' +
-    '</div><span class="hint" id="fundHint">Pilih "tambahan dari buffer" kalau biaya melebihi RAB: kelebihannya diambil dari buffer (atau dari sisa item lain yang hemat).</span><span class="msg" hidden></span></div>';
+    '</div><span class="hint" id="fundHint">Budget RAB = pakai RAB item ini · Budget Buffer = seluruhnya dari buffer · RAB + Buffer = RAB, kelebihannya dari buffer · Emergency Fund = seluruhnya dari dana EF.</span><span class="msg" hidden></span></div>';
 }
 /* v45: the budget item form is customizable (⚙ Atur Form): rename any field, hide fields you don't use
    (hidden fields keep their data and sit under "Field tersembunyi"), add new fields (= custom columns).
@@ -4317,6 +4394,7 @@ function handleAct(el, e) {
     case 'task-fin-toggle': { var tt0 = taskById(id); if (tt0) { ui.tfOpen = ui.tfOpen || {}; ui.tfOpen[id] = !taskFinOpen(tt0); render(); } break; }
     case 'task-fin-all': ui.tfHide = !ui.tfHide; if (!ui.tfHide) ui.tfOpen = {}; render(); break;
     case 'task-view': ui.taskView = el.dataset.view; ui.expanded = null; render(); break;
+    case 'task-manual': ui.sort = ui.sort.key === 'manual' ? { key: 'deadline', dir: -1 } : { key: 'manual', dir: 1 }; saveUI(); render(); break;
     case 'sort': var k = el.dataset.key; ui.sort = { key: k, dir: ui.sort.key === k ? -ui.sort.dir : (k === 'deadline' ? -1 : 1) }; render(); break;
    case 'expand': {
   if (e.target.closest('select,a,button,.dl-box,.pic-cell')) return;

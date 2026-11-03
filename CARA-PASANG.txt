@@ -1,6 +1,14 @@
-GX27 — Update v45 (3 Nov 2026)
+GX27 — Update v46 (3 Nov 2026)
 
-Baru di v45 (Finance):
+Baru di v46:
+- Urutan bisa diatur sendiri: arahkan ke baris, tekan & geser ikon ⋮⋮ di samping nama (Finance & Tasks).
+  Finance: urut di dalam kategori / sub item di dalam induknya / section-nya. Tasks: otomatis pindah ke "Urutan manual"
+  (tombol "⇅ Urutan manual" untuk bolak-balik dengan urutan deadline; urutan buatanmu tetap tersimpan).
+- Sumber Budget: Budget RAB · Budget Buffer · Budget RAB + Buffer · Emergency Fund.
+- Section di Emergency Fund (dan budget pool lain) lebih gampang dibuat: tombol "⚙ Section" di baris pool,
+  dan "+ Tambah section / + Section baru" langsung di tabel. Section bisa ditautkan ke program (mis. Mobile Legends).
+
+Dari v45 (Finance):
 - Form budget item punya bagian "Realisasi / Invoice": Qty Realisasi, Satuan Realisasi, Harga Satuan Realisasi.
   Invoice Amount dikosongkan = otomatis qty x harga realisasi (dipakai juga untuk Buffer & Remaining).
   Kolom tabel baru (aktifkan di Columns / Manage Columns): "Qty (Invoice)" dan "Unit Price (Invoice)".

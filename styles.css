@@ -1505,3 +1505,16 @@ body.lbl-edit #main :is(h1,h2,h3,h4,th,button,label,span,b,a,p,td,summary,.badge
 .ff-def{font-size:12px}
 @media (max-width:560px){.ff-row{grid-template-columns:auto 1fr}.ff-def{grid-column:2}}
 .reimb-sec .reimb-tag{margin:0 6px}
+/* v46: drag rows to reorder, section buttons */
+.row-grip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:22px;margin:0 4px 0 -6px;vertical-align:middle;color:var(--muted);cursor:grab;opacity:0;touch-action:none;border-radius:4px}
+tr.row:hover .row-grip,.row-grip:focus{opacity:1}
+.row-grip:hover{background:var(--surface-2);color:var(--fg)}
+@media (hover:none){.row-grip{opacity:.7;width:22px}}
+body.rd-dragging,body.rd-dragging *{cursor:grabbing !important;user-select:none}
+tr.row-dragging td{background:color-mix(in srgb,var(--accent) 10%,transparent) !important}
+tr.drop-before td{box-shadow:inset 0 3px 0 var(--accent)}
+tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
+.pool-sec-btn{margin-top:4px;font-size:11.5px;padding:1px 8px}
+.pool-sec-add td{padding-top:4px !important;padding-bottom:4px !important}
+.pool-sec-add .muted{margin-left:8px;font-size:12px}
+.btn.on{border-color:var(--accent);color:var(--accent)}
