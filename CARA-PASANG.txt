@@ -1,6 +1,15 @@
-GX27 — Update v44 (3 Nov 2026)
+GX27 — Update v45 (3 Nov 2026)
 
-Baru di v44 (Master Timeline):
+Baru di v45 (Finance):
+- Form budget item punya bagian "Realisasi / Invoice": Qty Realisasi, Satuan Realisasi, Harga Satuan Realisasi.
+  Invoice Amount dikosongkan = otomatis qty x harga realisasi (dipakai juga untuk Buffer & Remaining).
+  Kolom tabel baru (aktifkan di Columns / Manage Columns): "Qty (Invoice)" dan "Unit Price (Invoice)".
+- "Atur Form" (tombol di halaman Finance dan di pojok form item): ganti nama field apa pun, sembunyikan field
+  yang tidak dipakai (datanya tetap aman di "Field tersembunyi"), dan "+ Field baru" untuk tambah field sendiri.
+- Item yang dicentang Reimbursement otomatis muncul di section "Reimbursement" di bawah Emergency Fund
+  (tetap juga ada di kategori/section aslinya, ditandai ↗). Tidak mengurangi dana EF kecuali Sumber Budget-nya dari EF.
+
+Dari v44 (Master Timeline):
 - "⚙ Pilih Program" sekarang mengikuti nama kategori yang ada sekarang: GX Mobile Legends dan GX Fit Race (HYROX) ikut tampil lagi.
 - Daftar centang hanya berisi kategori yang benar-benar ada (tidak ada lagi "Mobile Legends"/"HYROX" lama dengan 0 task).
 - Tombol "Centang semua" dan "Kosongkan". "Kembali ke 4 program utama" = GX Connect, GX Got Talent, GX Mobile Legends, GX Fit Race.

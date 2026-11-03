@@ -52,7 +52,7 @@ var COL_BUILTIN = {
   ],
   finance: [
     { key: 'item', label: 'Item', locked: true }, { key: 'qty', label: 'Qty', num: true, hidden: true }, { key: 'unitCost', label: 'Unit Price', num: true, hidden: true }, { key: 'est', label: 'Estimated Budget', num: true, total: 'est' },
-    { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' }, { key: 'buffer', label: 'Buffer Budget', num: true, total: 'buffer' },
+    { key: 'invQty', label: 'Qty (Invoice)', num: true, hidden: true }, { key: 'invUnitCost', label: 'Unit Price (Invoice)', num: true, hidden: true }, { key: 'invoice', label: 'Invoice', num: true, total: 'inv', hidden: true }, { key: 'dp', label: 'Down Payment', num: true, hidden: true }, { key: 'paid', label: 'Paid', num: true, total: 'paid' }, { key: 'remaining', label: 'Remaining', num: true, total: 'outstanding' }, { key: 'buffer', label: 'Buffer Budget', num: true, total: 'buffer' },
     { key: 'paymentDeadline', label: 'Due Date' }, { key: 'invoiceStatus', label: 'Invoice Status', hidden: true }, { key: 'paymentStatus', label: 'Payment Status' }, { key: 'invoiceRef', label: 'Invoice / Quotation File', hidden: true }, { key: 'proof', label: 'Proof Transfer', hidden: true },
     { key: 'task', label: 'Task' }, { key: 'check', label: 'Check', hidden: true }
   ]
@@ -1443,14 +1443,27 @@ function dueLabel(t) {
 }
 // v34: all transfer fees (event budget rows) — they are taken from the Emergency Fund pool
 function feesTotal() { return db.finance.reduce(function (a, f) { return a + (offBudgetRow(f) ? 0 : (numOrNull(f.fee) || 0)); }, 0); }
+// v45: realization (invoice) can be entered as qty × unit price, like the estimate
+function invAmount(f) {
+  var v = numOrNull(f.invoice); if (v != null) return v;
+  var q = numOrNull(f.invQty), u = numOrNull(f.invUnitCost);
+  if (q != null && u != null) return q * u;
+  if (f.kind === 'vendor') {                                   // vendor invoice without its own amount = sum of its line items' realization
+    var ks = kidsOf(f), vals = ks.map(function (k) { return invAmount(k); });
+    if (ks.length && vals.every(function (x) { return x != null; })) return vals.reduce(function (a, x) { return a + x; }, 0);
+  }
+  return null;
+}
 function kidsOf(f) { return f && f.id ? db.finance.filter(function (c) { return c.parentId === f.id; }) : []; }
 function calc(f) {
   var qty = numOrNull(f.qty), unit = numOrNull(f.unitCost), estIn = numOrNull(f.estimated);
-  var inv = numOrNull(f.invoice), dp = numOrNull(f.dp), fee = numOrNull(f.fee) || 0, paidAmt = numOrNull(f.paidAmount);
+  var inv = invAmount(f), dp = numOrNull(f.dp), fee = numOrNull(f.fee) || 0, paidAmt = numOrNull(f.paidAmount);
   var flags = [], parent = f.parentId ? finById(f.parentId) : null;
   var kids = (f.kind === 'vendor' || f.kind === 'allocation') ? kidsOf(f) : [];
   var est = estIn != null ? estIn : (qty != null && unit != null ? qty * unit : null);
   if (estIn == null && f.kind === 'vendor' && kids.length) est = kids.reduce(function (s, k) { return s + (calc(k).est || 0); }, 0);
+  var iq = numOrNull(f.invQty), iu = numOrNull(f.invUnitCost), iIn = numOrNull(f.invoice);
+  if (iIn != null && iq != null && iu != null && Math.abs(iq * iu - iIn) > 0.5) flags.push({ lvl: 'warn', msg: 'Qty × harga realisasi (' + rp(iq * iu) + ') ≠ invoice amount (' + rp(iIn) + ')' });
   if (estIn != null && qty != null && unit != null && Math.abs(qty * unit - estIn) > 0.5) flags.push({ lvl: 'warn', msg: 'Qty × harga (' + rp(qty * unit) + ') ≠ total di sheet (' + rp(estIn) + ')' });
   if (parent && parent.kind === 'vendor') return { qty: qty, est: est, inv: null, dp: null, base: est, paid: 0, fee: 0, outstanding: null, flags: flags, inherited: true, parent: parent };
   if (f.kind === 'allocation') {
@@ -3351,9 +3364,33 @@ function rowSectionWs(f) { var p = f && f.parentId ? finById(f.parentId) : null;
 function poolSectionRows(f, kids, row, FC) {
   var secs = poolSections(f), out = '', groups = {};
   kids.forEach(function (k) { var sc = poolSecOf(f, k), sname = secs.indexOf(sc) > -1 ? sc : ''; (groups[sname] = groups[sname] || []).push(k); });
+  // v45: Emergency Fund gets a Reimbursement section listing every item ticked "Reimbursement" (from any category / section).
+  // Items that live elsewhere are shown as a copy (↗) and are not taken from the pool unless their Sumber Budget says so.
+  var rsec = null, rmirror = {};
+  if (f === efAlloc() && ui.finAmt !== 'reimb') {     // with the "Reimbursement saja" filter on, every item is already listed once
+    var all = reimbRows();
+    if (all.length) {
+      rsec = secs.filter(function (n) { return /reimburs/i.test(n); })[0] || 'Reimbursement';
+      if (secs.indexOf(rsec) < 0) secs = secs.concat([rsec]);
+      var g = groups[rsec] = groups[rsec] || [];
+      if (groups['']) { groups[''] = groups[''].filter(function (k) { if (k.reimburse && k.parentId === f.id) { g.push(k); return false; } return true; }); }   // EF items without a section → Reimbursement
+      all.slice().sort(rowOrder).forEach(function (k) { if (g.indexOf(k) < 0) { g.push(k); rmirror[k.id] = 1; } });
+    }
+  }
   secs.concat(['']).forEach(function (sname) {
     var list = groups[sname] || [];
     if (!sname && !list.length) return;
+    if (sname && sname === rsec) {
+      var rs = reimbStats(), own = list.filter(function (k) { return !rmirror[k.id]; }).length;
+      out += '<tr class="pool-sec reimb-sec"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname) + '</span><span class="reimb-tag">auto</span> <span class="muted">' + rs.n + ' item reimbursement · total ' + rp(rs.total) + ' · sudah dibayar ' + rp(rs.paid) + (rs.open ? ' · <b class="buf-neg">belum ' + rp(rs.open) + '</b>' : '') + (own < list.length ? ' · ↗ = item dari kategori/section lain' : '') + '</span>' +
+        (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
+      list.forEach(function (k) {
+        if (!rmirror[k.id]) { out += row(k, true, 1, false); return; }
+        var where = k.parentId === f.id ? (k.section || 'No section') : (k.parentId && finById(k.parentId) ? finById(k.parentId).item : k.workstream);
+        out += row(k, true, 1, false, where);
+      });
+      return;
+    }
     var used = list.reduce(function (a, k) { return a + (calc(k).base || 0); }, 0);
     var sw = sectionWs(f, sname), reimb = list.filter(function (k) { return k.reimburse; }).length;
     out += '<tr class="pool-sec"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname || 'No section') + '</span>' + (sw ? wsTag(sw) + ' ' : '') + '<span class="muted">' + list.length + ' item · used ' + rp(used) + (reimb ? ' · ' + reimb + ' reimbursement' : '') + '</span>' +
@@ -3444,7 +3481,7 @@ function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', '',
-    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Manage Categories</button><button class="btn" data-act="manage-columns" data-table="finance">Manage Columns</button><button class="btn" data-act="sheet-upload">Upload Sheet</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Manage Categories</button><button class="btn" data-act="manage-columns" data-table="finance">Manage Columns</button>' + (canEdit() ? '<button class="btn" data-act="fin-form-cfg">Atur Form</button>' : '') + '<button class="btn" data-act="sheet-upload">Upload Sheet</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
   if (db.budgetUpdateAvailable && canEdit()) {
     var sm = SHEET_SEED.meta || {};
     h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
@@ -3486,14 +3523,14 @@ function renderFinance() {
   var body = '';
   // vendor invoices: payment cells are merged (rowspan) over the vendor row and its line items
   var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1, invoiceRef: 1, proof: 1 };
-  function row(f, child, span, underParent) {
+  function row(f, child, span, underParent, mirrorTag) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
     var flagHtml = (f.source === 'verify' ? '<span class="src verify" title="' + esc(f.verifyNote || 'Needs Verification') + '">Verify</span> ' : '') +
       (c.flags.length ? '<span class="flag' + (c.flags.some(function (x) { return x.lvl === 'crit'; }) ? ' crit' : '') + '" title="' + esc(c.flags.map(function (x) { return x.msg; }).join('\n')) + '">⚠ ' + c.flags.length + '</span>' : (f.source === 'verify' ? '' : '<span class="flag" style="color:var(--ok)">✓</span>'));
     var sub = [];
     if (f.kind === 'vendor') sub.push('Vendor · ' + kidsOf(f).length + ' item');
-    var mirror = child && fromPool(f);
-    if (mirror) sub.push('<span class="pool-link">↗ ' + esc(f.workstream) + '</span>');
+    var mirror = !!mirrorTag || (child && fromPool(f));
+    if (mirror) sub.push('<span class="pool-link">↗ ' + esc(mirrorTag || f.workstream) + '</span>');
     else if (fundLabel(f)) sub.push('<span class="from-buf">' + esc(fundLabel(f)) + '</span>');
     if (f.reimburse) sub.push('<span class="reimb-tag">Reimburse' + (f.reimburseTo ? ' → ' + esc(f.reimburseTo) : '') + '</span>');
     if (rowSectionWs(f) && !ui.finWs) sub.push('<span class="muted">' + esc(f.section) + ' · ' + esc(rowSectionWs(f)) + '</span>');
@@ -3527,6 +3564,8 @@ function renderFinance() {
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') +
           (f.kind === 'allocation' && canEdit() ? ' <button type="button" class="btn sm ghost add-sub" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">Sections' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : '') + '</button>' : '') + '</td>',
+      invQty: '<td class="num r">' + (numOrNull(f.invQty) != null ? rpFmt.format(numOrNull(f.invQty)) + ((f.invUnit || f.unit) ? ' <span class="faint">' + esc(f.invUnit || f.unit) + '</span>' : '') : '<span class="faint">—</span>') + '</td>',
+      invUnitCost: '<td class="num r">' + rp(numOrNull(f.invUnitCost)) + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
       invoice: '<td class="num r">' + inv + '</td>', dp: '<td class="num r">' + dpc + '</td>', paid: '<td class="num r">' + paid + '</td>', remaining: '<td class="num r">' + rem + '</td>', buffer: '<td class="num r">' + bufferCellHtml(f, c) + '</td>',
       paymentDeadline: '<td>' + pd + '</td>', invoiceStatus: '<td>' + ivs + '</td>', paymentStatus: '<td>' + pay + '</td>', receipt: '<td>' + rec + '</td>', invoiceRef: '<td class="fin-file">' + iref + '</td>', proof: '<td class="fin-file">' + (c.inherited ? '<span class="faint" style="font-size:12px">via vendor</span>' : c.allocation ? '<span class="faint">—</span>' : proofCell(f)) + '</td>',
@@ -3555,7 +3594,7 @@ function renderFinance() {
       if (f.kind === 'allocation') kids = kids.concat(poolLinked(f).sort(rowOrder));   // v42: items from other categories paid by this pool
       var folded = f.kind === 'vendor' && kids.length > 0 && finCollapsed(f);
         body += row(f, !!f.parentId, f.kind === 'vendor' && !folded ? 1 + kids.length : 1, false);
-        if (!folded && f.kind === 'allocation' && poolSections(f).length) body += poolSectionRows(f, kids, row, FC);
+        if (!folded && f.kind === 'allocation' && (poolSections(f).length || (f === efAlloc() && reimbRows().length))) body += poolSectionRows(f, kids, row, FC);
         else if (!folded) kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
     });
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(' + (ob ? esc(ob) + ', not in event total' : 'auto') + ')</span>', st);
@@ -3776,6 +3815,61 @@ function fundingFields(f) {
       '<input class="input" id="f-topup" name="topup" type="text" inputmode="numeric" data-rp autocomplete="off" placeholder="Otomatis: sebesar kelebihan biaya" value="' + esc(rpInputText(f.topup)) + '"></span>' +
     '</div><span class="hint" id="fundHint">Pilih "tambahan dari buffer" kalau biaya melebihi RAB: kelebihannya diambil dari buffer (atau dari sisa item lain yang hemat).</span><span class="msg" hidden></span></div>';
 }
+/* v45: the budget item form is customizable (⚙ Atur Form): rename any field, hide fields you don't use
+   (hidden fields keep their data and sit under "Field tersembunyi"), add new fields (= custom columns).
+   settings.finForm = { labels: { fieldKey: 'name' }, hide: { fieldKey: true } } — shared with everyone. */
+var FIN_FORM_FIELDS = [['item', 'Item', 1], ['fundSource', 'Sumber Budget'], ['workstream', 'Budget Category', 1], ['taskId', 'Linked Operational Task'], ['kind', 'Row Type'], ['parentId', 'Part Of'], ['section', 'Section'],
+  ['qty', 'Quantity'], ['unit', 'Unit'], ['unitCost', 'Harga Satuan (Rp)'], ['estimated', 'Total / Estimasi (Rp)'],
+  ['invQty', 'Qty Realisasi'], ['invUnit', 'Satuan Realisasi'], ['invUnitCost', 'Harga Satuan Realisasi (Rp)'], ['invoice', 'Invoice Amount (Rp)'],
+  ['dp', 'DP Amount (Rp)'], ['paidAmount', 'Total Transferred (Rp)'], ['fee', 'Biaya Transfer (Rp)'], ['paymentDeadline', 'Payment Deadline'], ['invoiceStatus', 'Invoice Status'], ['paymentStatus', 'Payment Status'],
+  ['reimburse', 'Reimbursement'], ['invoiceRef', 'Invoice / Quotation File'], ['receipt', 'Proof Transfer — DP'], ['receipt2', 'Proof Transfer — Settlement'], ['notes', 'Notes'], ['source', 'Data Source'], ['verifyNote', 'Verification Note']];
+function finFormCfg() { var c = db.settings.finForm; c = c && typeof c === 'object' && !Array.isArray(c) ? c : {}; return { labels: c.labels || {}, hide: c.hide || {} }; }
+function finFormFields() {
+  return FIN_FORM_FIELDS.map(function (x) { return { key: x[0], def: x[1], locked: !!x[2] }; })
+    .concat(customCols('finance').map(function (col) { return { key: 'cf__' + col.key, def: col.label, custom: true }; }));
+}
+function applyFinForm(form) {
+  var cfg = finFormCfg(), body = form.querySelector('.modal-b'), hidden = [];
+  finFormFields().forEach(function (x) {
+    var el = body.querySelector('.field[data-field="' + x.key + '"]'); if (!el) return;
+    var lb = el.querySelector('label'), nm = cfg.labels[x.key];
+    if (lb && nm) { var tn = [].filter.call(lb.childNodes, function (n) { return n.nodeType === 3 && n.nodeValue.trim(); })[0]; if (tn) tn.nodeValue = nm + ' '; }
+    if (cfg.hide[x.key] && !x.locked) hidden.push(el);
+  });
+  if (!hidden.length) return;
+  var box = document.createElement('details'); box.className = 'field full ff-hidden';
+  box.innerHTML = '<summary>Field tersembunyi (' + hidden.length + ') <span class="muted">— datanya tetap tersimpan</span></summary><div class="ff-hidden-b"></div>';
+  var inner = box.querySelector('.ff-hidden-b'); hidden.forEach(function (el) { inner.appendChild(el); });
+  body.appendChild(box);
+}
+function finFormDialog(reopenId) {
+  var cfg = finFormCfg(), list = finFormFields();
+  openModal('<form id="ffForm" novalidate><div class="modal-h"><h3>Atur Form Budget Item</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
+    '<p class="muted" style="margin:0">Ganti nama field langsung di kotaknya. Hapus centang = field disembunyikan (pindah ke "Field tersembunyi" di bawah form, datanya tetap ada). Berlaku untuk semua orang.</p>' +
+    '<div class="ff-list">' + list.map(function (x) {
+      return '<div class="ff-row' + (cfg.hide[x.key] && !x.locked ? ' off' : '') + '"><label class="col-vis" title="Tampilkan di form"><input type="checkbox" data-ff-vis="' + esc(x.key) + '"' + (cfg.hide[x.key] && !x.locked ? '' : ' checked') + (x.locked ? ' disabled' : '') + '></label>' +
+        '<input class="input" data-ff-lbl="' + esc(x.key) + '" value="' + esc(cfg.labels[x.key] || x.def) + '" maxlength="60" aria-label="Nama field ' + esc(x.def) + '">' +
+        '<span class="muted ff-def">' + (x.custom ? 'field tambahan' : (cfg.labels[x.key] && cfg.labels[x.key] !== x.def ? 'asli: ' + esc(x.def) : '')) + (x.locked ? ' · wajib' : '') + '</span></div>';
+    }).join('') + '</div>' +
+    '<p class="muted" style="margin:0;font-size:12.5px">Butuh field baru (mis. Vendor, No. PO, Link Nota)? Klik "+ Field baru" → Tambah Kolom (tab Finance). Field baru otomatis muncul di form ini dan bisa jadi kolom tabel.</p>' +
+    '</div><div class="modal-f"><button type="button" class="btn ghost" data-act="ff-reset">Kembalikan semua</button><button type="button" class="btn" data-act="manage-columns" data-table="finance">+ Field baru</button><div class="right"><button type="button" class="btn" data-act="modal-cancel">Batal</button><button type="submit" class="btn primary">Simpan</button></div></div></form>', 'wide');
+  var form = document.getElementById('ffForm');
+  form.addEventListener('change', function (e) { var k = e.target.getAttribute && e.target.getAttribute('data-ff-vis'); if (k != null) e.target.closest('.ff-row').classList.toggle('off', !e.target.checked); });
+  form.onsubmit = function (e) {
+    e.preventDefault();
+    var labels = {}, hide = {};
+    list.forEach(function (x) {
+      var li = form.querySelector('[data-ff-lbl="' + x.key + '"]'), vi = form.querySelector('[data-ff-vis="' + x.key + '"]');
+      var v = (li.value || '').trim();
+      if (x.custom) { if (v && v !== x.def) { var col = colList('finance').filter(function (c) { return 'cf__' + c.key === x.key; })[0]; if (col) col.label = v.slice(0, 60); } }
+      else if (v && v !== x.def) labels[x.key] = v.slice(0, 60);
+      if (!x.locked && vi && !vi.checked) hide[x.key] = true;
+    });
+    db.settings.finForm = { labels: labels, hide: hide };
+    closeModal(); commit('Form budget item diperbarui');
+    if (reopenId && finById(reopenId)) finForm(finById(reopenId));
+  };
+}
 function finForm(f, presetTask, preset) {
   var isNew = !f;
   f = f || Object.assign({ item: '', workstream: presetTask ? (taskById(presetTask) || {}).workstream || '' : '', qty: null, unit: '', unitCost: null, estimated: null, invoice: null, dp: null, fee: null, paidAmount: null,
@@ -3785,7 +3879,7 @@ function finForm(f, presetTask, preset) {
   var hasKids = !isNew && kidsOf(f).length > 0;
   var wsList = '<datalist id="wsList2">' + finCategories().concat(allWorkstreams()).filter(function (v, i, a) { return a.indexOf(v) === i; }).map(function (w) { return '<option value="' + esc(w) + '">'; }).join('') + '</datalist>';
   function amt(v) { return rpInputText(v); }
-  openModal('<form id="finForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New Budget Item' : 'Edit Budget Item') + (f.sheetRow ? ' <span class="muted" style="font:500 13px var(--f-body)">· sheet row ' + f.sheetRow + '</span>' : '') + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
+  openModal('<form id="finForm" novalidate><div class="modal-h"><h3>' + (isNew ? 'New Budget Item' : 'Edit Budget Item') + (f.sheetRow ? ' <span class="muted" style="font:500 13px var(--f-body)">· sheet row ' + f.sheetRow + '</span>' : '') + '</h3>' + (canEdit() ? '<button type="button" class="btn sm ghost ff-cfg" data-act="fin-form-cfg" data-id="' + esc(f.id || '') + '" title="Ganti nama field, sembunyikan field, tambah field baru">⚙ Atur Form</button>' : '') + '<button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b">' +
     field('item', 'Item', inp('item', f.item, 'text', 'maxlength="200"'), { req: true, full: true }) +
     fundingFields(f) +
     field('workstream', 'Budget Category', inp('workstream', f.workstream, 'text', 'list="wsList2"') + wsList, { req: true }) +
@@ -3798,11 +3892,16 @@ function finForm(f, presetTask, preset) {
     '<div class="field" data-field="subMode" id="subModeWrap" hidden><label for="f-subMode">Parent Becomes</label>' +
       '<select class="select" id="f-subMode" name="subMode"><option value="allocation">Budget Pool — show remaining budget</option><option value="vendor">Vendor Invoice — one invoice</option></select>' +
       '<span class="hint">The item you picked in Part Of is a plain line item; choose how it should hold its sub items.</span></div>' +
+    '<div class="field full ff-sep"><span class="hint"><b>Estimasi (RAB)</b></span></div>' +
     field('qty', 'Quantity', inp('qty', f.qty == null ? '' : f.qty, 'text', 'inputmode="decimal"')) +
     field('unit', 'Unit', inp('unit', f.unit, 'text', 'maxlength="20" placeholder="Pcs / Pack / Pax"')) +
     field('unitCost', 'Harga Satuan (Rp)', inp('unitCost', amt(f.unitCost), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
     field('estimated', 'Total / Estimasi (Rp)', inp('estimated', amt(f.estimated), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"'), { hint: 'Kosongkan untuk qty × harga' }) +
-    field('invoice', 'Invoice Amount (Rp)', inp('invoice', amt(f.invoice), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
+    '<div class="field full ff-sep"><span class="hint"><b>Realisasi / Invoice</b> — isi qty &amp; harga satuan sesuai invoice, atau langsung total invoice-nya</span></div>' +
+    field('invQty', 'Qty Realisasi', inp('invQty', f.invQty == null ? '' : f.invQty, 'text', 'inputmode="decimal" placeholder="' + esc(f.qty == null ? '' : String(f.qty)) + '"')) +
+    field('invUnit', 'Satuan Realisasi', inp('invUnit', f.invUnit || '', 'text', 'maxlength="20" placeholder="' + esc(f.unit || 'Pcs / Pack / Pax') + '"')) +
+    field('invUnitCost', 'Harga Satuan Realisasi (Rp)', inp('invUnitCost', amt(f.invUnitCost), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
+    field('invoice', 'Invoice Amount (Rp)', inp('invoice', amt(f.invoice), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"'), { hint: 'Kosongkan untuk qty × harga realisasi' }) +
     field('dp', 'DP Amount (Rp)', inp('dp', amt(f.dp), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
     field('paidAmount', 'Total Transferred (Rp)', inp('paidAmount', amt(f.paidAmount), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"'), { hint: 'Opsional. Isi kalau nominal transfer beda dari DP/invoice' }) +
     field('fee', 'Biaya Transfer (Rp)', inp('fee', amt(f.fee), 'text', 'inputmode="numeric" data-rp autocomplete="off" placeholder="Rp 0"')) +
@@ -3823,6 +3922,7 @@ function finForm(f, presetTask, preset) {
     '</div><div class="modal-f">' + (isNew ? '' : '<button type="button" class="btn danger" data-act="delete-fin" data-id="' + f.id + '">Delete</button>') +
     '<div class="right"><button type="button" class="btn" data-act="modal-cancel">Cancel</button><button type="submit" class="btn primary">' + (isNew ? 'Add item' : 'Save changes') + '</button></div></div></form>', 'wide');
   var form = document.getElementById('finForm');
+  applyFinForm(form);
   (function () {
     var fs = document.getElementById('f-fundSource'), more = document.getElementById('fundMore'), tw = document.getElementById('topupWrap'), fw = document.getElementById('fundWrap'), pp = document.getElementById('f-parentId');
     var syncFund = function () {
@@ -3862,8 +3962,9 @@ function finForm(f, presetTask, preset) {
   function read() {
     var fd = new FormData(form), v = {}, errs = {};
     fd.forEach(function (val, k) { v[k] = String(val).trim(); });
-    ['unitCost','estimated','invoice','dp','paidAmount','fee','topup'].forEach(function (k) { var p = parseAmount(v[k]); if (!p.ok) errs[k] = p.negative ? 'Nominal tidak boleh negatif.' : 'Isi angka saja, contoh 1.500.000'; else v[k] = p.value; });
+    ['unitCost','estimated','invoice','invUnitCost','dp','paidAmount','fee','topup'].forEach(function (k) { var p = parseAmount(v[k]); if (!p.ok) errs[k] = p.negative ? 'Nominal tidak boleh negatif.' : 'Isi angka saja, contoh 1.500.000'; else v[k] = p.value; });
     if (v.qty === '') v.qty = null; else { var q = Number(String(v.qty).replace(',', '.')); if (isNaN(q) || q < 0) errs.qty = 'Quantity harus angka ≥ 0.'; else v.qty = q; }
+    if (v.invQty === '' || v.invQty == null) v.invQty = null; else { var iq2 = Number(String(v.invQty).replace(',', '.')); if (isNaN(iq2) || iq2 < 0) errs.invQty = 'Qty realisasi harus angka ≥ 0.'; else v.invQty = iq2; }
     v.parentId = v.parentId || null; v.kind = v.kind || '';
     v.reimburse = !!(form.querySelector('#f-reimburse') || {}).checked; if (!v.reimburse) v.reimburseTo = '';
     v.id = f.id;
@@ -3875,7 +3976,7 @@ function finForm(f, presetTask, preset) {
     var r = read(), c = calc(r.v);
     var cells = c.inherited ? [['Est. total', rp(c.est)], ['Payment', 'dicatat di vendor invoice']] :
       c.allocation ? [['Alokasi', rp(c.est)], ['Terpakai', rp(c.used)], ['Sisa dana', rp(c.fundLeft)]] :
-      [['Est. total', rp(c.est)], ['Paid', rp(c.paid)], ['Biaya transfer', rp(c.fee || null)], ['Remaining', rp(c.outstanding) + (c.basedOnEstimate && c.outstanding ? ' (est.)' : '')]];
+      [['Est. total', rp(c.est)], ['Invoice', rp(c.inv)], ['Paid', rp(c.paid)], ['Biaya transfer', rp(c.fee || null)], ['Remaining', rp(c.outstanding) + (c.basedOnEstimate && c.outstanding ? ' (est.)' : '')]];
     document.getElementById('calcPreview').innerHTML = cells.map(function (x) { return '<div><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div></div>'; }).join('');
     document.getElementById('calcFlags').innerHTML = c.flags.map(function (x) { return '<span class="flag' + (x.lvl === 'crit' ? ' crit' : '') + '">⚠ ' + esc(x.msg) + '</span>'; }).join('');
   }
@@ -4126,6 +4227,9 @@ function handleAct(el, e) {
     case 'pick-pic': picDialog(id); break;
     case 'pic-add-inline': picAddInline(); break;
     case 'ws-add-inline': wsAddInline(); break;
+    case 'fin-form-cfg': closeModal(); finFormDialog(id); break;
+    case 'ff-reset': document.querySelectorAll('#ffForm [data-ff-vis]').forEach(function (x) { if (!x.disabled) { x.checked = true; x.closest('.ff-row').classList.remove('off'); } });
+      document.querySelectorAll('#ffForm [data-ff-lbl]').forEach(function (x) { var d = finFormFields().filter(function (y) { return y.key === x.getAttribute('data-ff-lbl'); })[0]; if (d && !d.custom) x.value = d.def; }); break;
     case 'manage-columns': e.preventDefault(); closeModal(); columnManager(el.dataset.table); break;
     case 'col-tab': if (colApply(document.querySelector('#colForm [aria-selected="true"]').dataset.table)) { persist(db); render(); } closeModal(); columnManager(el.dataset.table); break;
     case 'col-add': colAdd(el.dataset.table); break;
@@ -4166,7 +4270,7 @@ function handleAct(el, e) {
     case 'fin-toggle': { var ft = finById(id); if (ft) { ui.finOpen = ui.finOpen || {}; ui.finOpen[id] = finCollapsed(ft); render(); } break; }
       case 'new-sub':
       var pf = finById(id); if (!pf) break;
-      closeModal(); finForm(null, null, { parentId: pf.id, workstream: pf.workstream, taskId: '', section: el.dataset.section || '' }); break;
+      closeModal(); finForm(null, null, { parentId: pf.id, workstream: pf.workstream, taskId: '', section: el.dataset.section || '', reimburse: /reimburs/i.test(el.dataset.section || '') }); break;
     case 'pool-sections': closeModal(); poolSectionsDialog(id); break;
     case 'edit-fin': e.preventDefault(); closeModal(); if (finById(id)) finForm(finById(id)); break;
     case 'link-fin': closeModal(); linkFinDialog(id); break;
