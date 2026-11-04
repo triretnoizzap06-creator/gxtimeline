@@ -3643,8 +3643,43 @@ function poolSections(f) { return f && Array.isArray(f.sections) ? f.sections.fi
 // filtered on that program, together with the program's own items.
 function sectionWs(pool, name) { var m = pool && pool.sectionWs; return (m && name && m[name]) ? wsCurrent(m[name]) : ''; }
 function rowSectionWs(f) { var p = f && f.parentId ? finById(f.parentId) : null; return p && p.kind === 'allocation' ? sectionWs(p, f.section) : ''; }
+/* v51: Emergency Fund groups itself: every item paid from it is listed under its program / category
+   (an item from another category = that category; an EF line = the program in its linked task or in its name, e.g. "Mobile Legends - …"),
+   anything else under "Lain-lain", plus the automatic Reimbursement group. No sections to manage by hand. */
+var EF_OTHER = 'Lain-lain';
+function efPrefix(name) { var m = String(name || '').split(/\s+[—–-]\s+/); return m.length > 1 && m[0].trim().length >= 3 ? m[0].trim() : ''; }
+function efGroupOf(k, ef) {
+  ef = ef || efAlloc();
+  if (!ef || k.parentId !== ef.id) return wsCurrent(k.workstream) || EF_OTHER;
+  var t = taskById(k.taskId);
+  if (t && t.workstream && wsBase(t.workstream) !== 'Emergency Fund' && wsBase(t.workstream) !== wsBase(ef.workstream)) return t.workstream;
+  var name = ' ' + efNorm(k.item) + ' ';
+  var cats = allWorkstreams().filter(function (w) { return wsBase(w) !== 'Emergency Fund' && wsBase(w) !== wsBase(ef.workstream) && wsBase(w) !== 'Event Day'; });
+  var mp = mainPrograms(), hit = null;
+  PROGRAMS.forEach(function (p, i) { if (hit) return; (PROG_ALIAS[p] || []).concat([p.toLowerCase()]).forEach(function (key) { var kk = efNorm(key); if (!hit && kk.length >= 4 && name.indexOf(' ' + kk) > -1) hit = mp[i]; }); });
+  if (!hit) cats.forEach(function (w) { if (hit) return; [w, String(w).replace(/^gx\s+/i, '')].forEach(function (key) { var kk = efNorm(key); if (!hit && kk.length >= 4 && name.indexOf(' ' + kk + ' ') > -1) hit = w; }); });
+  if (hit) return hit;
+  var sw = k.section ? sectionWs(ef, k.section) : '';
+  if (sw) return sw;
+  // same prefix as other EF items ("Anniv Ceremony — Air Honk", "Anniv Ceremony — Balon Tepuk") → group by that prefix
+  var pre = efPrefix(k.item);
+  if (pre && kidsOf(ef).filter(function (x) { return efPrefix(x.item) === pre; }).length >= 2) return pre;
+  return EF_OTHER;
+}
+function efGroupOrder(names) {
+  var mp = mainPrograms();
+  return names.slice().sort(function (a, b) {
+    var ra = a === EF_OTHER ? 2 : mp.indexOf(a) > -1 ? 0 : 1, rb = b === EF_OTHER ? 2 : mp.indexOf(b) > -1 ? 0 : 1;
+    return ra - rb || (ra === 0 ? mp.indexOf(a) - mp.indexOf(b) : String(a).localeCompare(String(b)));
+  });
+}
 function poolSectionRows(f, kids, row, FC) {
+  var isEF = f === efAlloc();
   var secs = poolSections(f), secs0 = secs.slice(), out = '', groups = {};
+  if (isEF) {
+    kids.forEach(function (k) { if (k.reimburse && k.parentId === f.id && ui.finAmt !== 'reimb') return; var gname = efGroupOf(k, f); (groups[gname] = groups[gname] || []).push(k); });
+    secs = efGroupOrder(Object.keys(groups)); secs0 = secs.slice();
+  } else
   kids.forEach(function (k) { var sc = poolSecOf(f, k), sname = secs.indexOf(sc) > -1 ? sc : ''; (groups[sname] = groups[sname] || []).push(k); });
   // v45: Emergency Fund gets a Reimbursement section listing every item ticked "Reimbursement" (from any category / section).
   // Items that live elsewhere are shown as a copy (↗) and are not taken from the pool unless their Sumber Budget says so.
@@ -3652,10 +3687,11 @@ function poolSectionRows(f, kids, row, FC) {
   if (f === efAlloc() && ui.finAmt !== 'reimb') {     // with the "Reimbursement saja" filter on, every item is already listed once
     var all = reimbRows();
     if (all.length) {
-      rsec = secs.filter(function (n) { return /reimburs/i.test(n); })[0] || 'Reimbursement';
+      rsec = (isEF ? '' : secs.filter(function (n) { return /reimburs/i.test(n); })[0]) || 'Reimbursement';
       if (secs.indexOf(rsec) < 0) secs = secs.concat([rsec]);
       var g = groups[rsec] = groups[rsec] || [];
-      if (groups['']) { groups[''] = groups[''].filter(function (k) { if (k.reimburse && k.parentId === f.id) { g.push(k); return false; } return true; }); }   // EF items without a section → Reimbursement
+      if (isEF) kids.forEach(function (k) { if (k.reimburse && k.parentId === f.id && g.indexOf(k) < 0) g.push(k); });
+      else if (groups['']) { groups[''] = groups[''].filter(function (k) { if (k.reimburse && k.parentId === f.id) { g.push(k); return false; } return true; }); }   // EF items without a section → Reimbursement
       all.slice().sort(rowOrder).forEach(function (k) { if (g.indexOf(k) < 0) { g.push(k); rmirror[k.id] = 1; } });
     }
   }
@@ -3664,7 +3700,7 @@ function poolSectionRows(f, kids, row, FC) {
     if (!sname && !list.length) return;
     if (sname && sname === rsec) {
       var rs = reimbStats(), own = list.filter(function (k) { return !rmirror[k.id]; }).length;
-      out += '<tr class="pool-sec reimb-sec" data-rg="pool:' + esc(f.id) + '" data-sec="' + esc(sname) + '" data-hdr="' + (secs0.indexOf(sname) > -1 ? '1' : 'reimb') + '"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname) + '</span><span class="reimb-tag">auto</span> <span class="muted">' + rs.n + ' item reimbursement · total ' + rp(rs.total) + ' · sudah dibayar ' + rp(rs.paid) + (rs.open ? ' · <b class="buf-neg">belum ' + rp(rs.open) + '</b>' : '') + (own < list.length ? ' · ↗ = item dari kategori/section lain' : '') + '</span>' +
+      out += '<tr class="pool-sec reimb-sec"' + (isEF ? '' : ' data-rg="pool:' + esc(f.id) + '" data-sec="' + esc(sname) + '" data-hdr="' + (secs0.indexOf(sname) > -1 ? '1' : 'reimb') + '"') + '><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname) + '</span><span class="reimb-tag">auto</span> <span class="muted">' + rs.n + ' item reimbursement · total ' + rp(rs.total) + ' · sudah dibayar ' + rp(rs.paid) + (rs.open ? ' · <b class="buf-neg">belum ' + rp(rs.open) + '</b>' : '') + (own < list.length ? ' · ↗ = item dari kategori/section lain' : '') + '</span>' +
         (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
       list.forEach(function (k) {
         if (!rmirror[k.id]) { out += row(k, true, 1, false); return; }
@@ -3675,11 +3711,18 @@ function poolSectionRows(f, kids, row, FC) {
     }
     var used = list.reduce(function (a, k) { return a + (calc(k).base || 0); }, 0);
     var sw = sectionWs(f, sname), reimb = list.filter(function (k) { return k.reimburse; }).length;
+    if (isEF) {
+      var isCat = sname !== EF_OTHER, efU = list.reduce(function (a, k) { return a + bufferCost(k); }, 0);
+      out += '<tr class="pool-sec ef-grp"><td colspan="' + FC.length + '">' + (isCat ? wsTag(sname) : '<span class="pool-sec-n">' + esc(sname) + '</span>') + ' <span class="muted">' + list.length + ' item · dipakai ' + rp(efU) + '</span>' +
+        (canEdit() ? '<button type="button" class="btn sm ghost" data-act="ef-new" data-id="' + f.id + '" data-ws="' + esc(isCat ? sname : '') + '">+ Item' + (isCat ? ' ' + esc(sname) : '') + ' dari EF</button>' : '') + '</td></tr>';
+      list.forEach(function (k) { out += row(k, true, 1, false); });
+      return;
+    }
     out += '<tr class="pool-sec" data-rg="pool:' + esc(f.id) + '" data-sec="' + esc(sname) + '" data-hdr="1"><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname || 'No section') + '</span>' + (sw ? wsTag(sw) + ' ' : '') + '<span class="muted">' + list.length + ' item · used ' + rp(used) + (reimb ? ' · ' + reimb + ' reimbursement' : '') + '</span>' +
       (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
     list.forEach(function (k) { out += row(k, true, 1, false); });
   });
-  if (canEdit()) out += '<tr class="pool-sec pool-sec-add"><td colspan="' + FC.length + '"><button type="button" class="btn sm ghost" data-act="pool-sections" data-id="' + f.id + '">+ Section baru</button><span class="muted">kelompokkan item di ' + esc(f.item) + ', mis. Mobile Legends, Konsumsi</span></td></tr>';
+  if (canEdit() && !isEF) out += '<tr class="pool-sec pool-sec-add"><td colspan="' + FC.length + '"><button type="button" class="btn sm ghost" data-act="pool-sections" data-id="' + f.id + '">+ Section baru</button><span class="muted">kelompokkan item di ' + esc(f.item) + ', mis. Mobile Legends, Konsumsi</span></td></tr>';
   return out;
 }
 function poolSectionsDialog(id) {
@@ -3851,7 +3894,7 @@ function renderFinance() {
       item: '<td class="fin-item-cell">' + (canEdit() && (!mirror || (child && fromPool(f) && !mirrorTag)) ? ROW_GRIP + ROW_UD : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') +
-          (f.kind === 'allocation' && canEdit() ? ' <button type="button" class="btn sm pool-sec-btn" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">⚙ Section' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : ' · tambah') + '</button>' : '') + '</td>',
+          (f.kind === 'allocation' && canEdit() && f !== efAlloc() ? ' <button type="button" class="btn sm pool-sec-btn" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">⚙ Section' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : ' · tambah') + '</button>' : '') + '</td>',
       invQty: '<td class="num r">' + (numOrNull(f.invQty) != null ? rpFmt.format(numOrNull(f.invQty)) + ((f.invUnit || f.unit) ? ' <span class="faint">' + esc(f.invUnit || f.unit) + '</span>' : '') : '<span class="faint">—</span>') + '</td>',
       invUnitCost: '<td class="num r">' + rp(numOrNull(f.invUnitCost)) + '</td>',
       qty: '<td class="num r">' + qtyTxt + '</td>', unitCost: '<td class="num r">' + rp(numOrNull(f.unitCost)) + '</td>', est: '<td class="num r">' + rp(c.est) + '</td>',
@@ -3862,8 +3905,9 @@ function renderFinance() {
     };
     var wc = wsColor(f.workstream);
     var parP = f.parentId ? finById(f.parentId) : null, poolRow = !mirrorTag && ((parP && parP.kind === 'allocation') || (child && fromPool(f)));
-    var rg = poolRow ? 'pool:' + (parP && parP.kind === 'allocation' ? parP.id : f.fundPool) : mirror ? '' : f.parentId ? 'p:' + f.parentId : 'w:' + f.workstream;
-    return '<tr data-rg="' + esc(rg) + '"' + (poolRow ? ' data-sec="' + esc(parP && parP.kind === 'allocation' ? (f.section || '') : (f.poolSection || '')) + '"' : '') + '" class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
+    var efP = poolRow && ((parP && parP === efAlloc()) || (!parP && finById(f.fundPool) === efAlloc()));
+    var rg = efP ? 'efg:' + (f.reimburse && parP && ui.finAmt !== 'reimb' ? 'Reimbursement' : efGroupOf(f)) : poolRow ? 'pool:' + (parP && parP.kind === 'allocation' ? parP.id : f.fundPool) : mirror ? '' : f.parentId ? 'p:' + f.parentId : 'w:' + f.workstream;
+    return '<tr data-rg="' + esc(rg) + '"' + (poolRow && !efP ? ' data-sec="' + esc(parP && parP.kind === 'allocation' ? (f.section || '') : (f.poolSection || '')) + '"' : '') + '" class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
       if (col.custom) return cfCell('finance', col, f);
       if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
       var h = cell[col.key] || '<td></td>';
@@ -3884,9 +3928,9 @@ function renderFinance() {
       if (f.kind === 'allocation') kids = kids.concat(poolLinked(f).sort(rowOrder));   // v42: items from other categories paid by this pool
       var folded = f.kind === 'vendor' && kids.length > 0 && finCollapsed(f);
         body += row(f, !!f.parentId, f.kind === 'vendor' && !folded ? 1 + kids.length : 1, false);
-        if (!folded && f.kind === 'allocation' && (poolSections(f).length || (f === efAlloc() && reimbRows().length))) body += poolSectionRows(f, kids, row, FC);
+        if (!folded && f.kind === 'allocation' && (poolSections(f).length || (f === efAlloc() && (kids.length || reimbRows().length)))) body += poolSectionRows(f, kids, row, FC);
         else if (!folded) {
-          if (f.kind === 'allocation' && canEdit()) body += '<tr class="pool-sec pool-sec-add"><td colspan="' + FC.length + '"><button type="button" class="btn sm ghost" data-act="pool-sections" data-id="' + f.id + '">+ Tambah section</button><span class="muted">kelompokkan item di ' + esc(f.item) + ', mis. Mobile Legends, Konsumsi</span></td></tr>';
+          if (f.kind === 'allocation' && canEdit() && f !== efAlloc()) body += '<tr class="pool-sec pool-sec-add"><td colspan="' + FC.length + '"><button type="button" class="btn sm ghost" data-act="pool-sections" data-id="' + f.id + '">+ Tambah section</button><span class="muted">kelompokkan item di ' + esc(f.item) + ', mis. Mobile Legends, Konsumsi</span></td></tr>';
           kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
         }
     });
@@ -4100,7 +4144,7 @@ function fundingFields(f) {
       return '<div class="fund-more" id="poolMore"' + (f.fundSource === 'pool' ? '' : ' hidden') + '>' +
         '<label for="f-fundPool">Ambil dari</label><select class="select" id="f-fundPool" name="fundPool">' + opts(pools.map(function (x) { var cx = calc(x); return { value: x.id, label: x.item + ' — sisa ' + rp(cx.fundLeft) }; }), curP) + '</select>' +
         '<label for="f-poolSection">Section di pool</label><select class="select" id="f-poolSection" name="poolSection">' + opts([{ value: '', label: '— Tanpa section —' }].concat(secs.map(function (n) { return { value: n, label: n }; })), f.poolSection || '') + '</select>' +
-        '<span class="hint">Item tetap ada di kategori ini, dan juga muncul di dalam Emergency Fund (di section yang dipilih). Biayanya mengurangi sisa Emergency Fund. Belum ada section-nya? Buat lewat tombol "⚙ Section" di baris Emergency Fund.</span></div>';
+        '<span class="hint">Item tetap ada di kategori ini, dan juga muncul di dalam Emergency Fund (dikelompokkan per kategori). Biayanya mengurangi sisa Emergency Fund. Di Emergency Fund item otomatis dikelompokkan per kategori / program.</span></div>';
     })() +
     '<div class="fund-more" id="fundMore"' + (f.fundSource ? '' : ' hidden') + '>' +
       '<label for="f-fundFrom">Ambil dari</label><select class="select" id="f-fundFrom" name="fundFrom">' + opts(src, cur) + '</select>' +
@@ -4246,10 +4290,13 @@ function finForm(f, presetTask, preset) {
       fw.hidden = vendorKid;                                   // line items of a vendor invoice follow the invoice
       more.hidden = !fs.value || fs.value === 'pool'; tw.hidden = fs.value !== 'topup';
       var pm = document.getElementById('poolMore'); if (pm) pm.hidden = fs.value !== 'pool';
+      var fpS = document.getElementById('f-fundPool'), psW = document.getElementById('f-poolSection');
+      if (fpS && psW) { var efSel = finById(fpS.value) === efAlloc(); psW.hidden = efSel; var psL = psW.previousElementSibling; if (psL) psL.hidden = efSel; }
       var ti = document.getElementById('f-topup'); if (ti) ti.placeholder = par ? 'Isi jumlahnya, mis. Rp 500.000' : 'Otomatis: sebesar kelebihan biaya';
     };
     fs.addEventListener('change', syncFund); if (pp) pp.addEventListener('change', syncFund); syncFund();
     var fpSel = document.getElementById('f-fundPool'), psSel = document.getElementById('f-poolSection');
+    if (fpSel && psSel) fpSel.addEventListener('change', syncFund);
     if (fpSel && psSel) fpSel.addEventListener('change', function () {
       var secs = (window.__poolSecs || {})[fpSel.value] || [];
       psSel.innerHTML = '<option value="">— Tanpa section —</option>' + secs.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
@@ -4617,6 +4664,7 @@ function handleAct(el, e) {
     case 'row-up': case 'row-down': e.preventDefault(); e.stopPropagation(); if (!canEdit()) break; var trr = el.closest('tr[data-rg]'); if (trr) rowStep(trr, act === 'row-up' ? -1 : 1); break;
     case 'fin-check': finCheckDialog(); break;
     case 'fc-fix': e.preventDefault(); finCheckFix(id, el.dataset.fix); break;
+    case 'ef-new': if (!canEdit()) break; closeModal(); finForm(null, null, el.dataset.ws ? { workstream: el.dataset.ws, fundSource: 'pool', fundPool: id } : { parentId: id, workstream: (finById(id) || {}).workstream, taskId: '' }); break;
     case 'p-prev': ui.pSlide = Math.max(0, (ui.pSlide || 0) - 1); render(); break;
     case 'p-next': ui.pSlide = (ui.pSlide || 0) + 1; render(); break;
     case 'p-go': ui.pSlide = +el.dataset.i || 0; render(); break;

@@ -1,3 +1,16 @@
+GX27 — Update v51 (3 Nov 2026)
+
+- Emergency Fund tidak pakai section manual lagi. Semua item yang dibayar dari Emergency Fund otomatis dikelompokkan:
+  · item dari kategori lain (Sumber Budget = Emergency Fund) → di grup kategorinya (mis. GX Fit Race / HYROX, GX Mobile Legends)
+  · item EF sendiri → grup program dari task-nya atau dari namanya ("Mobile Legends - ...", "Mobil Legends - ...")
+  · item EF yang namanya berawalan sama ("Anniv Ceremony — ...") → grup "Anniv Ceremony"
+  · sisanya → "Lain-lain"; item yang dicentang Reimbursement → grup "Reimbursement"
+  Tiap grup punya tombol "+ Item ... dari EF" (langsung kategori itu + Sumber Budget Emergency Fund).
+
+GX27 — Update v50 (3 Nov 2026)
+
+- Tombol urutan (⋮⋮ geser, ▲ naik, ▼ turun) sekarang selalu kelihatan di kiri nama item / task, lebih besar dan gampang diklik.
+
 GX27 — Update v49 (3 Nov 2026)
 
 Baru di v49:
