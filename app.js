@@ -385,19 +385,28 @@ function rowStep(tr, dir) {
 var ROW_UD = '<span class="row-ud"><button type="button" data-act="row-up" title="Naikkan" aria-label="Naikkan">▲</button><button type="button" data-act="row-down" title="Turunkan" aria-label="Turunkan">▼</button></span>';
 var rowDrag = null;
 document.addEventListener('pointerdown', function (e) {
-  var g = e.target.closest && e.target.closest('.row-grip'); if (!g || (e.button && e.button !== 0)) return;
+  var g = e.target.closest && e.target.closest('.row-grip');
+  // v54: a Finance category header can be grabbed anywhere (the coloured title too), not only by ⋮⋮
+  if (!g && e.target.closest && e.target.closest('tr.group[data-rg="cats"]') && !e.target.closest('button,a,input,select,textarea')) g = e.target.closest('tr.group[data-rg="cats"]');
+  if (!g || (e.button && e.button !== 0)) return;
   var tr = g.closest('tr[data-rg]'); if (!tr || !tr.getAttribute('data-rg')) return;
   e.preventDefault(); e.stopPropagation();
   if (!canEdit()) { toast('Hanya editor yang bisa mengubah urutan.', true); return; }
   var tb = tr.parentNode, rg = tr.getAttribute('data-rg');
   var sibs = [].filter.call(tb.querySelectorAll('tr[data-rg]'), function (r) { return r.getAttribute('data-rg') === rg; });
   if (sibs.length < 2) { toast('Tidak ada baris lain di kelompok ini untuk ditukar.'); return; }
-  rowDrag = { tr: tr, sibs: sibs, target: null, after: false, y0: e.clientY, moved: false };
+  rowDrag = { tr: tr, sibs: sibs, target: null, after: false, y0: e.clientY, moved: false, lastY: e.clientY, lastX: e.clientX };
+  rowDrag.timer = setInterval(function () {                 // keep scrolling while the pointer rests near the top / bottom edge
+    var d = rowDrag; if (!d) return;
+    var sp = d.lastY < 70 ? -(70 - d.lastY) / 2 : d.lastY > window.innerHeight - 70 ? (d.lastY - (window.innerHeight - 70)) / 2 : 0;
+    if (sp) { window.scrollBy(0, Math.max(-30, Math.min(30, sp))); document.dispatchEvent(new PointerEvent('pointermove', { clientX: d.lastX, clientY: d.lastY, bubbles: true })); }
+  }, 30);
   try { g.setPointerCapture(e.pointerId); } catch (er) {}
   tr.classList.add('row-dragging'); document.body.classList.add('rd-dragging');
 }, true);
 document.addEventListener('pointermove', function (e) {
   var d = rowDrag; if (!d) return;
+  if (e.isTrusted) { d.lastY = e.clientY; d.lastX = e.clientX; }
   if (Math.abs(e.clientY - d.y0) > 3) d.moved = true;
   d.sibs.forEach(function (r) { r.classList.remove('drop-before', 'drop-after'); });
   d.target = null;
@@ -411,10 +420,9 @@ document.addEventListener('pointermove', function (e) {
     if (e.clientY < f0.top && d.sibs[0] !== d.tr) { d.target = d.sibs[0]; d.after = false; d.target.classList.add('drop-before'); }
     else if (e.clientY > l0.bottom && d.sibs[d.sibs.length - 1] !== d.tr) { d.target = d.sibs[d.sibs.length - 1]; d.after = true; d.target.classList.add('drop-after'); }
   }
-  if (e.clientY < 40) window.scrollBy(0, -12); else if (e.clientY > window.innerHeight - 40) window.scrollBy(0, 12);
 }, true);
 function rowDragEnd() {
-  var d = rowDrag; if (!d) return; rowDrag = null;
+  var d = rowDrag; if (!d) return; rowDrag = null; clearInterval(d.timer);
   d.tr.classList.remove('row-dragging'); document.body.classList.remove('rd-dragging');
   d.sibs.forEach(function (r) { r.classList.remove('drop-before', 'drop-after'); });
   if (!d.target || !d.moved) return;
@@ -451,6 +459,12 @@ function poolDrop(d) {
   commit(movedTo ? '"' + (moved ? moved.item : 'Item') + '" dipindah ke ' + movedTo : 'Urutan diubah');
 }
 function rowsReorder(rg, ids, movedId) {
+  if (rg === 'cats') {                                       // Finance category blocks
+    var cur = finCategories(), rest = cur.filter(function (w) { return ids.indexOf(w) < 0; });
+    db.settings.finCatOrder = ids.concat(rest).map(wsBase);
+    commit('Urutan kategori diubah');
+    return;
+  }
   if (rg === 'tasks') {
     var byOrd = db.tasks.slice().sort(function (a, b) { var oa = a.ord != null ? a.ord : 1e9, ob = b.ord != null ? b.ord : 1e9; return oa - ob; }), all;
     if (ui.sort.key !== 'manual') {                          // first drag: start from the order on screen
@@ -468,6 +482,42 @@ function rowsReorder(rg, ids, movedId) {
   ids.forEach(function (x, k) { var f = finById(x); if (f) f.ord = k + 1; });
   commit('Urutan diubah');
 }
+/* v53: "⇅ Atur Urutan" — a compact list to order Finance categories and the items inside a category:
+   drag ⋮⋮, or ⤒ / ⤓ to send something straight to the top / bottom. Easier than dragging across a long table. */
+var ordCat = '';
+function finOrderItems(w) { return db.finance.filter(function (f) { return f.workstream === w && !f.parentId; }).sort(rowOrder); }
+function finOrderDialog(cat) {
+  if (cat != null) ordCat = cat;
+  var cats = finCategories(); if (ordCat && cats.indexOf(ordCat) < 0) ordCat = '';
+  var catRows = cats.map(function (w, i) {
+    var n = db.finance.filter(function (f) { return f.workstream === w; }).length;
+    return '<div class="ord-row' + (w === ordCat ? ' on' : '') + '" data-ri="' + i + '">' + DRAG_GRIP + '<span class="ord-n">' + (i + 1) + '</span>' + wsTag(w) + '<span class="muted">' + n + ' item</span>' +
+      '<span class="ord-btns"><button type="button" class="btn sm ghost" data-act="ord-top" data-k="cat" data-i="' + i + '" title="Pindah ke paling atas"' + (i === 0 ? ' disabled' : '') + '>⤒ Atas</button><button type="button" class="btn sm ghost" data-act="ord-bot" data-k="cat" data-i="' + i + '" title="Pindah ke paling bawah"' + (i === cats.length - 1 ? ' disabled' : '') + '>⤓ Bawah</button>' +
+      '<button type="button" class="btn sm' + (w === ordCat ? ' primary' : '') + '" data-act="ord-open" data-w="' + esc(w) + '">Item ›</button></span></div>';
+  }).join('');
+  var items = ordCat ? finOrderItems(ordCat) : [];
+  var itemRows = items.map(function (f, i) {
+    return '<div class="ord-row" data-ri="' + i + '">' + DRAG_GRIP + '<span class="ord-n">' + (i + 1) + '</span><b class="ord-it">' + esc(f.item) + '</b>' +
+      '<span class="ord-btns"><button type="button" class="btn sm ghost" data-act="ord-top" data-k="item" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + '>⤒ Atas</button><button type="button" class="btn sm ghost" data-act="ord-bot" data-k="item" data-i="' + i + '"' + (i === items.length - 1 ? ' disabled' : '') + '>⤓ Bawah</button></span></div>';
+  }).join('');
+  openModal('<div><div class="modal-h"><h3>Atur Urutan Finance</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b ord-grid">' +
+    '<section><h4>Kategori</h4><p class="muted">Geser ⋮⋮ atau pakai ⤒ / ⤓. Urutan ini dipakai di tabel Finance.</p><div class="cat-list ord-list" data-reorder="hook:fincat">' + catRows + '</div></section>' +
+    '<section><h4>' + (ordCat ? 'Item di ' + esc(ordCat) : 'Item') + '</h4>' + (ordCat ? '<p class="muted">Urutan item di dalam kategori ini (sub item ikut induknya).</p><div class="cat-list ord-list" data-reorder="hook:finitem">' + (itemRows || '<p class="faint">Belum ada item.</p>') + '</div>' : '<p class="faint">Klik "Item ›" di salah satu kategori untuk mengurutkan item-nya.</p>') + '</section>' +
+    '</div><div class="modal-f"><button type="button" class="btn ghost" data-act="ord-reset">Kembalikan urutan sheet</button><div class="right"><button type="button" class="btn primary" data-act="modal-cancel">Selesai</button></div></div></div>', 'wide');
+}
+function finOrderMove(kind, from, to) {
+  if (from === to || from < 0 || to < 0) return;
+  if (kind === 'cat') {
+    var cats = finCategories(); if (to >= cats.length) return;
+    cats.splice(to, 0, cats.splice(from, 1)[0]); db.settings.finCatOrder = cats.map(wsBase);
+  } else {
+    var items = finOrderItems(ordCat); if (to >= items.length) return;
+    items.splice(to, 0, items.splice(from, 1)[0]); items.forEach(function (f, k) { f.ord = k + 1; });
+  }
+  commit('Urutan diubah'); finOrderDialog();
+}
+REORDER_HOOKS.fincat = function (from, to) { finOrderMove('cat', from, to); };
+REORDER_HOOKS.finitem = function (from, to) { finOrderMove('item', from, to); };
 var rdDrag = null;
 document.addEventListener('pointerdown', function (e) {
   var g = e.target.closest && e.target.closest('.drag-h'); if (!g || (e.button && e.button !== 0)) return;
@@ -3425,7 +3475,7 @@ function taskCell(key, t) {
         finTag = '<button type="button" class="src fin fin-tog" data-act="task-fin-toggle" data-id="' + t.id + '" aria-expanded="' + fo + '" title="' + (fo ? 'Sembunyikan' : 'Tampilkan') + ' item Finance">' + (fo ? '▾' : '▸') + ' Finance · ' + nfin + ' Item</button> ';
       } else if (nfin) finTag = '<span class="src fin" title="Tertaut ke Finance &amp; Procurement">Finance · ' + nfin + ' Item</span> ';
       var alc = canEdit() ? allocForTask(t) : null;
-      return '<td>' + (canEdit() ? ROW_GRIP + ROW_UD : '') + '<span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span>' +
+      return '<td>' + (canEdit() ? ROW_GRIP : '') + '<span class="tname">' + esc(t.name) + '</span><span class="tsub">' + finTag + (t.notes ? esc(t.notes.split('\n')[0]) + ' · ' : '') + srcTag(t.source) + '</span>' +
         (alc ? '<button type="button" class="btn sm ghost task-add-sub" data-act="new-sub" data-id="' + alc.id + '" title="Tambah pemakaian dana di bawah ' + esc(alc.item) + '">+ Sub Item</button>' : '') + '</td>';
     case 'workstream': return '<td>' + wsTags(t) + '</td>';
     case 'category': return '<td class="muted" style="white-space:nowrap">' + esc(t.category) + '</td>';
@@ -3786,9 +3836,12 @@ function fileCell(v) {
   return '<span class="file-name" title="' + esc(v) + '">' + esc(v) + '</span>';
 }
 function finCategories() {
-  var order = {}, seq = 0;
-  db.finance.slice().sort(rowOrder).forEach(function (f) { if (!(f.workstream in order)) order[f.workstream] = seq++; });
-  return Object.keys(order).sort(function (a, b) { return order[a] - order[b]; });
+  // v52: category order = your own order (drag ⋮⋮ on a category header), then the sheet order for the rest
+  var order = {}, seq = 0, saved = (db.settings && Array.isArray(db.settings.finCatOrder)) ? db.settings.finCatOrder : [];
+  db.finance.slice().sort(function (a, b) { return (a.sheetRow || 9999) - (b.sheetRow || 9999) || (a.createdAt || 0) - (b.createdAt || 0); })
+    .forEach(function (f) { if (!(f.workstream in order)) order[f.workstream] = seq++; });
+  var pos = function (w) { var i = saved.indexOf(wsBase(w)); return i < 0 ? 1e6 + order[w] : i; };
+  return Object.keys(order).sort(function (a, b) { return pos(a) - pos(b); });
 }
 // filter list: budget categories + programs that only have items through a Budget Pool section (e.g. EF → Mobile Legends)
 function finFilterCats() {
@@ -3812,7 +3865,7 @@ function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
   var h = pageHead('Finance &amp; Procurement', '',
-    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Manage Categories</button><button class="btn" data-act="manage-columns" data-table="finance">Manage Columns</button>' + (canEdit() ? '<button class="btn" data-act="fin-form-cfg">Atur Form</button>' : '') + '<button class="btn" data-act="fin-check">Cek Data' + (function () { var n = finChecks().filter(function (x) { return x.lvl !== 'info'; }).length; return n ? ' <span class="fc-n">' + n + '</span>' : ' ✓'; })() + '</button><button class="btn" data-act="sheet-upload">Upload Sheet</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
+    (meta && meta.url ? '<a class="btn admin-only" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open Budget Sheet ↗</a>' : '') + '<button class="btn" data-act="manage-ws">Manage Categories</button><button class="btn" data-act="manage-columns" data-table="finance">Manage Columns</button>' + (canEdit() ? '<button class="btn" data-act="fin-order">⇅ Atur Urutan</button><button class="btn" data-act="fin-form-cfg">Atur Form</button>' : '') + '<button class="btn" data-act="fin-check">Cek Data' + (function () { var n = finChecks().filter(function (x) { return x.lvl !== 'info'; }).length; return n ? ' <span class="fc-n">' + n + '</span>' : ' ✓'; })() + '</button><button class="btn" data-act="sheet-upload">Upload Sheet</button><button class="btn" data-act="import-csv">Import</button><button class="btn primary" data-act="new-fin">+ Budget Item</button>');
   if (db.budgetUpdateAvailable && canEdit()) {
     var sm = SHEET_SEED.meta || {};
     h += '<div class="banner warn" role="status"><div><b>Data budget dari sheet terbaru tersedia</b> (' + esc(sm.file || 'sheet') + ' · snapshot ' + fmtDate(sm.snapshot) + ' · ' + (SHEET_SEED.items || []).length + ' baris). ' +
@@ -3891,7 +3944,7 @@ function renderFinance() {
       iref = fileCell(f.invoiceRef);
     }
     var cell = {
-      item: '<td class="fin-item-cell">' + (canEdit() && (!mirror || (child && fromPool(f) && !mirrorTag)) ? ROW_GRIP + ROW_UD : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
+      item: '<td class="fin-item-cell">' + (canEdit() && (!mirror || (child && fromPool(f) && !mirrorTag)) ? ROW_GRIP : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') +
           (f.kind === 'allocation' && canEdit() && f !== efAlloc() ? ' <button type="button" class="btn sm pool-sec-btn" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">⚙ Section' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : ' · tambah') + '</button>' : '') + '</td>',
@@ -3917,7 +3970,7 @@ function renderFinance() {
   var inList = {}; list.forEach(function (f) { inList[f.id] = 1; });
   finCategories().filter(function (w) { return groups[w]; }).forEach(function (w) {
     var ob = offBudgetOf(w), g = groups[w].slice().sort(rowOrder), st = totals(g, { all: !!ob });
-    body += '<tr class="group' + (ob ? ' off-budget' : '') + '"><td colspan="' + FC.length + '">' + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' item</span>' +
+    body += '<tr class="group' + (ob ? ' off-budget' : '') + '"' + (canEdit() && !ui.finWs ? ' data-rg="cats" data-id="' + esc(w) + '"' : '') + '><td colspan="' + FC.length + '">' + (canEdit() && !ui.finWs ? ROW_GRIP : '') + wsTag(w) + ' <span class="muted num" style="font-size:12px">' + g.length + ' item</span>' +
       (ob ? ' <span class="ob-badge" title="Tidak dihitung di budget event">Outside event budget · ' + esc(ob) + '</span>' : '') +
       (canEdit() ? ' <button type="button" class="btn sm ghost add-item" data-act="new-fin" data-ws="' + esc(w) + '">+ Item di ' + esc(w) + '</button>' +
         ' <button type="button" class="btn sm ghost add-item" data-act="off-budget" data-ws="' + esc(w) + '" title="Atur apakah kategori ini masuk budget event">' + (ob ? 'Budget: ' + esc(ob) : 'Budget: Event') + '</button>' : '') + '</td></tr>';
@@ -4665,6 +4718,10 @@ function handleAct(el, e) {
     case 'fin-check': finCheckDialog(); break;
     case 'fc-fix': e.preventDefault(); finCheckFix(id, el.dataset.fix); break;
     case 'ef-new': if (!canEdit()) break; closeModal(); finForm(null, null, el.dataset.ws ? { workstream: el.dataset.ws, fundSource: 'pool', fundPool: id } : { parentId: id, workstream: (finById(id) || {}).workstream, taskId: '' }); break;
+    case 'fin-order': finOrderDialog(); break;
+    case 'ord-open': finOrderDialog(el.dataset.w); break;
+    case 'ord-top': case 'ord-bot': (function () { var k = el.dataset.k, i = +el.dataset.i, n = k === 'cat' ? finCategories().length : finOrderItems(ordCat).length; finOrderMove(k, i, act === 'ord-top' ? 0 : n - 1); })(); break;
+    case 'ord-reset': if (!canEdit()) break; db.settings.finCatOrder = []; db.finance.forEach(function (f) { if (!f.parentId) delete f.ord; }); commit('Urutan kembali ke urutan sheet'); finOrderDialog(); break;
     case 'p-prev': ui.pSlide = Math.max(0, (ui.pSlide || 0) - 1); render(); break;
     case 'p-next': ui.pSlide = (ui.pSlide || 0) + 1; render(); break;
     case 'p-go': ui.pSlide = +el.dataset.i || 0; render(); break;

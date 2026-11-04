@@ -1,3 +1,20 @@
+GX27 — Update v54 (4 Nov 2026)
+
+- Judul kategori berwarna di Finance (mis. GX Connect, GX Game Pass) sekarang bisa langsung ditekan & digeser naik/turun
+  (tidak harus pas di ⋮⋮). Tombol di judul (+ Item, Budget) tetap bisa diklik seperti biasa.
+
+GX27 — Update v53 (4 Nov 2026)
+
+- Tombol "⇅ Atur Urutan" di Finance: daftar ringkas semua kategori (dan item per kategori) — geser ⋮⋮ atau klik ⤒ Atas / ⤓ Bawah.
+  Contoh: GX Game Pass → ⤒ Atas = langsung paling atas. "Kembalikan urutan sheet" untuk reset.
+- Geser ⋮⋮ di tabel sekarang ikut scroll terus selama kursor di tepi atas/bawah layar.
+
+GX27 — Update v52 (4 Nov 2026)
+
+- Tombol ▲▼ dihapus; urutan cukup pakai ⋮⋮ (tekan & geser).
+- Urutan KATEGORI di Finance bisa diatur: geser ⋮⋮ di judul kategori (mis. GX Connect ke bawah). Tersimpan untuk semua orang.
+- Fix: mengurutkan item tidak lagi ikut memindahkan kategorinya ke paling atas.
+
 GX27 — Update v51 (3 Nov 2026)
 
 - Emergency Fund tidak pakai section manual lagi. Semua item yang dibayar dari Emergency Fund otomatis dikelompokkan:

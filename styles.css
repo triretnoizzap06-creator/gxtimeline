@@ -1595,3 +1595,28 @@ td > .row-ud button{font-size:10px;line-height:14px;width:18px;height:14px;borde
 tr.row:hover td > .row-grip,tr.row:hover td > .row-ud{opacity:1}
 td > .row-ud button:hover{border-color:var(--accent);color:var(--accent)}
 @media (hover:none){td:has(> .row-grip){padding-left:46px !important}td > .row-ud button{width:22px;height:18px;font-size:12px;line-height:18px}td > .row-grip,td > .row-ud{opacity:.8}}
+/* v52: only the ⋮⋮ handle (▲▼ removed); category headers can be dragged too */
+td:has(> .row-grip){padding-left:26px !important}
+@media (hover:none){td:has(> .row-grip){padding-left:30px !important}}
+td > .row-grip{left:6px;opacity:.5}
+tr.group > td > .row-grip{opacity:.6}
+/* v53: Atur Urutan dialog */
+.ord-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.ord-grid h4{margin:0 0 4px}
+.ord-grid p{margin:0 0 8px;font-size:12.5px}
+.ord-list{max-height:60vh}
+.ord-row{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 26px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.ord-row.on{border-color:var(--accent)}
+.ord-n{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:18px}
+.ord-it{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-btns{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.ord-row .muted{font-size:12px}
+@media (max-width:760px){.ord-grid{grid-template-columns:1fr}}
+.ord-row .muted{white-space:nowrap}
+.ord-btns{flex-wrap:nowrap}
+.ord-btns .btn{white-space:nowrap;padding-inline:6px}
+.ord-row>:nth-child(3){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* v54: whole category header is draggable */
+tr.group[data-rg="cats"] > td{cursor:grab;user-select:none}
+tr.group[data-rg="cats"] > td button,tr.group[data-rg="cats"] > td a{cursor:pointer}
+tr.group[data-rg="cats"]:hover > td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
