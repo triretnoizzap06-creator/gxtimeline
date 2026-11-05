@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Quiz · GX CS Knowledge Base</title>
+<link rel="icon" href="mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F5F5F7;--card:#fff;--ink:#1D1D1F;--muted:#6E6E73;--line:#E5E5EA;--y:#F5C518;--ok:#16A34A;--okbg:#DCFCE7;--bad:#DC2626;--badbg:#FEE2E2;
+  --k1:#E21B3C;--k2:#1368CE;--k3:#C88A00;--k4:#26890C;--font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:10px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--line)}
+.top img{height:22px;display:block}.top .sp{flex:1}.top b{font-size:14px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}.btn.y{background:var(--y);border-color:var(--y);color:#111}.btn.sm{padding:6px 10px;font-size:12.5px}.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.5;cursor:default}
+main{max-width:1100px;margin:0 auto;padding:26px 18px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}.lead{color:var(--muted);margin:0 0 20px;font-size:14.5px}
+.h2{font-size:12.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--y)}
+.join{display:flex;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}
+.join input{flex:1;min-width:180px;border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:20px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;text-align:center;outline:none}.join input:focus{border-color:var(--y)}
+.sets{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.set{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.set b{font-size:16px}.set span{font-size:13px;color:var(--muted)}.set .row{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.set.admin{border-top:5px solid #C88A00}.set.sdm{border-top:5px solid #DB2777}.set.teknis{border-top:5px solid #16A34A}.set.helpdesk{border-top:5px solid #0E7490}.set.umum{border-top:5px solid #7C3AED}.set.all{border-top:5px solid var(--ink)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+.fg label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:5px}
+.fg select,.fg input{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--bg)}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}.tbl th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--line)}
+.tbl td{padding:9px 6px;border-bottom:1px solid var(--line)}.tbl tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;background:var(--line);color:var(--muted)}.pill.open{background:var(--okbg);color:var(--ok)}
+/* host */
+.host{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px;align-items:start}
+.pin{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;text-align:center}
+.pin small{display:block;font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--muted)}
+.pin .code{font-family:Montserrat,var(--font);font-size:clamp(40px,6vw,64px);font-weight:900;letter-spacing:.12em;margin:6px 0 10px}
+.qr{display:flex;justify-content:center;margin:10px auto 12px;min-height:220px}.qr img,.qr canvas{border-radius:10px}
+.url{font-size:12.5px;color:var(--muted);word-break:break-all}
+.lb{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}
+.lbr{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 4px;border-top:1px solid var(--line)}.lbr:first-of-type{border-top:0}
+.lbr .rk{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:900;background:var(--bg);font-size:13px}
+.lbr:nth-of-type(1) .rk{background:#FDE68A}.lbr:nth-of-type(2) .rk{background:#E5E7EB}.lbr:nth-of-type(3) .rk{background:#FED7AA}
+.lbr b{font-size:14.5px}.lbr span{font-size:12px;color:var(--muted);display:block}.lbr .sc{font-weight:900;font-size:17px}
+.lbr.me{background:#FFF8DB;border-radius:10px}
+/* play */
+.play{max-width:900px;margin:0 auto}
+.qhead{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-weight:800;font-size:14px}.qhead .sp{flex:1}
+.timer{height:10px;background:var(--line);border-radius:999px;overflow:hidden;margin-bottom:16px}.timer i{display:block;height:100%;background:var(--y);width:100%}
+.qbox{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 22px;text-align:center;font-size:clamp(18px,2.6vw,26px);font-weight:800;line-height:1.3;margin-bottom:14px;min-height:120px;display:grid;place-items:center}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{display:flex;align-items:center;gap:14px;border:0;border-radius:14px;padding:18px 16px;min-height:84px;color:#fff;font-size:clamp(14px,1.8vw,18px);font-weight:800;text-align:left;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.18);transition:transform .08s,opacity .2s}
+.tile:active{transform:translateY(2px)}.tile .sh{flex:none;width:30px;height:30px;display:grid;place-items:center}.tile .sh svg{width:28px;height:28px;fill:#fff}
+.tile.t0{background:var(--k1)}.tile.t1{background:var(--k2)}.tile.t2{background:var(--k3)}.tile.t3{background:var(--k4)}
+.tile.dim{opacity:.28}.tile.right{outline:4px solid #fff;box-shadow:0 0 0 7px var(--ok)}.tile.pick{outline:4px solid #fff;box-shadow:0 0 0 7px var(--ink)}
+.fb{margin-top:14px;border-radius:14px;padding:14px 16px;font-weight:800;font-size:17px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fb.ok{background:var(--okbg);color:#14532D}.fb.bad{background:var(--badbg);color:#7F1D1D}.fb.lock{background:#EEF2FF;color:#312E81}
+.fb p{margin:0;width:100%;font-weight:500;font-size:13.5px;color:inherit;opacity:.9}.fb .sp{flex:1}
+.res{text-align:center;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 18px;margin-bottom:16px}
+.res .big{font-family:Montserrat,var(--font);font-size:clamp(40px,7vw,64px);font-weight:900;line-height:1}
+.res .kp{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;margin-top:14px}.res .kp b{display:block;font-size:22px}.res .kp span{font-size:12px;color:var(--muted)}
+.rv{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.rv .qt{font-weight:800;margin-bottom:8px;font-size:14.5px}.rv .o{font-size:13.5px;padding:6px 10px;border-radius:8px;margin:4px 0;background:var(--bg)}
+.rv .o.ok{background:var(--okbg);color:#14532D;font-weight:700}.rv .o.bad{background:var(--badbg);color:#7F1D1D;text-decoration:line-through}
+.rv .ex{font-size:13px;color:var(--muted);margin-top:6px}.rv .pts{float:right;font-weight:800;font-size:13px}
+.msg{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;color:var(--muted);font-size:14px}
+.banner{border-radius:12px;padding:10px 14px;font-size:13px;margin:0 0 14px;background:#FEF3C7;color:#92400E}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1D1D1F;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:opacity .2s}.toast.on{opacity:1}
+.hidden{display:none!important}
+@media (max-width:760px){.host{grid-template-columns:1fr}.tiles{grid-template-columns:1fr}.tile{min-height:64px;padding:14px}.qbox{padding:20px 14px;min-height:90px}main{padding:18px 14px 50px}.top{padding:10px 14px}}
+</style>
+</head>
+<body>
+<header class="top"><a href="/"><img src="wordmark.png" alt="GlobalXtreme"></a><b>Quiz</b><span class="sp"></span><a class="btn sm" href="/knowledge-base">Knowledge Base</a></header>
+<main id="app"><div class="msg">Memuat…</div></main>
+<div class="toast" id="toast"></div>
+<script src="kb-data.js"></script>
+<script src="qrcode.js"></script><!-- qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) -->
+<script>
+/* Quiz Knowledge Base — terpisah dari materi. Mode:
+   • Latihan (per kategori, ada timer, skor tersimpan di HP sendiri)
+   • Live quiz ala Kahoot: SPV membuat sesi → tim scan QR / masukkan PIN di HP → timer per soal → leaderboard → review jawaban
+   Skor live dihitung di server (kunci jawaban tidak dikirim ke HP pemain sebelum selesai). */
+const $ = s => document.querySelector(s), app = $('#app');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(m) { const e = $('#toast'); e.textContent = m; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2600); }
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const CATS = window.KB_CATS || [], BASE = window.KB_MATERI || [];
+const SETS = [...CATS.map(c => [c[0], c[1]]), ['all', 'Semua materi']];
+const SETNAME = Object.fromEntries(SETS);
+const SHAPES = ['<svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/></svg>', '<svg viewBox="0 0 24 24"><path d="M12 2 22 12 12 22 2 12z"/></svg>', '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>', '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>'];
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fmtS = ms => (ms / 1000).toFixed(1) + ' dtk';
+let HIDDEN = new Set(), IS_SPV = false, ONLINE = true;
+
+/* ---------- soal per set (dari kb-data.js; materi yang dihapus SPV ikut tidak dipakai) ---------- */
+function questions(set) {
+  return BASE.filter(m => !HIDDEN.has(m.id) && (set === 'all' || m.cat === set)).flatMap(m => (m.quiz || []).map(q => ({ ...q, src: m.title })));
+}
+function prepare(list, n) {   // acak soal & urutan opsi
+  return shuffle(list).slice(0, n || list.length).map(q => { const p = shuffle([...q.o.keys()]); return { q: q.q, o: p.map(i => q.o[i]), a: p.indexOf(q.a), e: q.e, src: q.src }; });
+}
+
+/* ---------- API (+ mode preview tanpa server: disimpan di browser ini) ---------- */
+async function call(path, opt = {}) {
+  try { const r = await fetch('/api/quiz' + path, { cache: 'no-store', credentials: 'same-origin', ...opt, headers: opt.body ? { 'content-type': 'application/json' } : {} }); const j = await r.json(); return { status: r.status, j }; }
+  catch (e) { return null; }
+}
+const LOCAL = {
+  all: () => LS.get('gx-quiz-local', {}), save: d => LS.set('gx-quiz-local', d),
+  create(c) { const d = this.all(), code = Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join(''); d[code] = { ...c, code, status: 'open', created_at: new Date().toISOString(), results: [] }; this.save(d); return code; },
+  get(code) { return this.all()[code]; },
+};
+const pts = (ok, ms, t) => ok ? Math.round(1000 * (1 - Math.min(1, ms / (t * 1000)) / 2)) : 0;
+const API = {
+  async session(code) { const r = await call('?code=' + code); if (r) { ONLINE = true; return r.status === 200 ? r.j.session : null; } ONLINE = false; const s = LOCAL.get(code); return s ? { ...s, questions: s.questions.map(x => ({ q: x.q, o: x.o })) } : null; },
+  async board(code) { const r = await call('?code=' + code + '&board=1'); if (r) return r.j.board || []; const s = LOCAL.get(code); return s ? s.results.slice().sort((a, b) => b.score - a.score || a.duration_ms - b.duration_ms) : []; },
+  async submit(code, player, answers) {
+    const r = await call('', { method: 'POST', body: JSON.stringify({ code, player, answers }) }); if (r) return r;
+    const d = LOCAL.all(), s = d[code]; if (!s) return { status: 404, j: { error: 'not-found' } };
+    if (s.results.some(x => x.player.toLowerCase() === player.toLowerCase())) return { status: 409, j: { error: 'name-taken', detail: 'Nama ini sudah dipakai di sesi ini — pakai nama lain.' } };
+    const ans = s.questions.map((x, i) => { const a = answers[i] || {}; const ms = Math.min(s.timer_s * 1000, a.ms || s.timer_s * 1000); return { c: a.c ?? null, ms, p: pts(a.c === x.a, ms, s.timer_s) }; });
+    const row = { player, score: ans.reduce((t, a) => t + a.p, 0), correct: ans.filter((a, i) => a.c === s.questions[i].a).length, total: s.questions.length, duration_ms: ans.reduce((t, a) => t + a.ms, 0) };
+    s.results.push(row); LOCAL.save(d); const B = await this.board(code);
+    return { status: 200, j: { result: row, rank: B.findIndex(x => x.player === player) + 1, players: B.length, review: s.questions.map((x, i) => ({ ...x, ...ans[i] })) } };
+  },
+  async create(c) { const r = await call('', { method: 'POST', body: JSON.stringify({ create: c }) }); if (r) return r; return { status: 200, j: { code: LOCAL.create(c) } }; },
+  async list() { const r = await call('?list=1'); if (r) return r; const d = LOCAL.all(); return { status: 200, j: { sessions: Object.values(d).reverse().map(s => ({ ...s, n: s.questions.length, players: s.results.length })) } }; },
+  async setStatus(code, close) { const r = await call('', { method: 'POST', body: JSON.stringify(close ? { close: code } : { reopen: code }) }); if (r) return r; const d = LOCAL.all(); if (d[code]) d[code].status = close ? 'closed' : 'open'; LOCAL.save(d); return { status: 200, j: {} }; },
+  async del(code) { const r = await call('?code=' + code, { method: 'DELETE' }); if (r) return r; const d = LOCAL.all(); delete d[code]; LOCAL.save(d); return { status: 200, j: {} }; },
+};
+const joinUrl = code => new URL('/quiz?c=' + code, location.href).href;
+
+/* ======================= HOME ======================= */
+function home() {
+  history.replaceState(null, '', location.pathname);
+  const best = LS.get('gx-quiz-best', {});
+  app.innerHTML = `<h1>Quiz Knowledge Base</h1><p class="lead">Masukkan PIN dari SPV untuk ikut live quiz, atau latihan sendiri per kategori. Setiap soal ada timernya — makin cepat jawab benar, makin besar poinnya.</p>
+    <form class="join" id="joinF"><input id="pinIn" placeholder="PIN" maxlength="8" autocomplete="off" aria-label="PIN quiz"><button class="btn y" style="font-size:16px;padding:12px 22px">Ikut quiz →</button></form>
+    ${IS_SPV ? `<div class="h2">Live quiz (SPV)</div><div class="panel"><div class="fg">
+      <div><label>Set soal</label><select id="hSet">${SETS.map(([k, l]) => `<option value="${k}" ${k === 'admin' ? 'selected' : ''}>${esc(l)} (${questions(k).length} soal)</option>`).join('')}</select></div>
+      <div><label>Jumlah soal</label><select id="hN"><option value="10">10 soal acak</option><option value="20">20 soal acak</option><option value="35" selected>35 soal</option><option value="0">Semua soal</option></select></div>
+      <div><label>Waktu per soal</label><select id="hT"><option value="10">10 detik</option><option value="20" selected>20 detik</option><option value="30">30 detik</option><option value="45">45 detik</option></select></div>
+      <div><label>Judul sesi</label><input id="hTitle" placeholder="mis. Test Administrasi — Nov 2026"></div></div>
+      <button class="btn pri" id="hCreate">Buat sesi & tampilkan QR</button></div>
+      <div class="h2">Riwayat sesi</div><div id="sessList" class="panel"><div class="msg" style="border:0;padding:0">Memuat…</div></div>` : ''}
+    <div class="h2">Latihan per kategori</div><div class="sets">${SETS.map(([k, l]) => { const n = questions(k).length, b = best[k]; return `<div class="set ${k}"><b>${esc(l)}</b><span>${n} soal${b ? ` · skor terbaikmu ${b.score} (${b.correct}/${b.total})` : ''}</span><div class="row"><button class="btn sm" data-prac="${k}" data-n="10">10 soal</button><button class="btn sm pri" data-prac="${k}" data-n="35">35 soal</button></div></div>`; }).join('')}</div>`;
+  $('#joinF').onsubmit = e => { e.preventDefault(); const c = $('#pinIn').value.trim().toUpperCase(); if (c) go('?c=' + c); };
+  if (IS_SPV) { $('#hCreate').onclick = createSession; loadSessions(); }
+}
+async function loadSessions() {
+  const r = await API.list(), el = $('#sessList'); if (!el) return;
+  if (!r || r.status !== 200) { el.innerHTML = `<div class="msg" style="border:0;padding:0">${r && r.j.error === 'schema-missing' ? 'Tabel quiz belum dibuat — jalankan <b>spv-schema.sql</b> di Supabase.' : 'Gagal memuat sesi.'}</div>`; return; }
+  const S = r.j.sessions || [];
+  el.innerHTML = S.length ? `<table class="tbl"><thead><tr><th>PIN</th><th>Sesi</th><th>Soal</th><th>Peserta</th><th>Status</th><th></th></tr></thead><tbody>${S.map(s => `<tr><td><b>${esc(s.code)}</b></td><td>${esc(s.title || SETNAME[s.set_key] || s.set_key)}<br><span style="font-size:11.5px;color:var(--muted)">${new Date(s.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></td><td>${s.n} · ${s.timer_s}s</td><td>${s.players}</td><td><span class="pill ${s.status}">${s.status === 'open' ? 'Buka' : 'Tutup'}</span></td><td><button class="btn sm" data-host="${esc(s.code)}">Buka</button></td></tr>`).join('')}</tbody></table>` : '<div class="msg" style="border:0;padding:0">Belum ada sesi.</div>';
+}
+async function createSession() {
+  const set = $('#hSet').value, all = questions(set); if (!all.length) return toast('Set ini belum punya soal');
+  const qs = prepare(all, +$('#hN').value), title = $('#hTitle').value.trim() || `Quiz ${SETNAME[set]} — ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  $('#hCreate').disabled = true;
+  const r = await API.create({ title, set_key: set, timer_s: +$('#hT').value, questions: qs });
+  $('#hCreate').disabled = false;
+  if (r.status === 200) go('?host=' + r.j.code); else toast(r.j.error === 'login-required' ? 'Login SPV dulu di Helpdesk Management' : (r.j.detail || 'Gagal membuat sesi'));
+}
+
+/* ======================= HOST ======================= */
+let poll = null;
+async function host(code) {
+  const s = await API.session(code); if (!s) { app.innerHTML = '<div class="msg">Sesi tidak ditemukan.</div>'; return; }
+  const url = joinUrl(code);
+  app.innerHTML = `<p style="margin:0 0 14px"><button class="btn sm" data-home>← Semua sesi</button></p><h1>${esc(s.title || 'Live quiz')}</h1><p class="lead">${esc(SETNAME[s.set_key] || '')} · ${s.questions.length} soal · ${s.timer_s} detik per soal</p>
+    <div class="host"><div class="pin"><small>SCAN ATAU MASUKKAN PIN</small><div class="code">${esc(code)}</div><div class="qr" id="qr"></div><div class="url">${esc(url)}</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px"><button class="btn sm" id="cpy">Salin link</button><button class="btn sm" id="tog">${s.status === 'open' ? 'Tutup sesi' : 'Buka lagi'}</button><button class="btn sm danger" id="del">Hapus</button></div></div>
+      <div class="lb"><div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px"><b style="font-size:17px">Leaderboard</b><span id="cnt" style="color:var(--muted);font-size:13px"></span><span style="flex:1"></span><span class="pill ${s.status}">${s.status === 'open' ? 'Live' : 'Ditutup'}</span></div><div id="lb"></div></div></div>`;
+  try { const qr = qrcode(0, 'M'); qr.addData(url); qr.make(); $('#qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); const sv = $('#qr svg'); sv.style.width = '230px'; sv.style.height = '230px'; } catch (e) { $('#qr').innerHTML = '<div class="msg">QR tidak bisa dimuat — bagikan link/PIN.</div>'; }
+  $('#cpy').onclick = async () => { try { await navigator.clipboard.writeText(url); toast('Link disalin ✓'); } catch (e) { prompt('Salin link:', url); } };
+  $('#tog').onclick = async () => { await API.setStatus(code, s.status === 'open'); host(code); };
+  $('#del').onclick = async () => { if (confirm('Hapus sesi ' + code + ' beserta semua hasilnya?')) { await API.del(code); go(''); } };
+  const tick = async () => { const B = await API.board(code); const el = $('#lb'); if (!el) return; $('#cnt').textContent = B.length + ' peserta';
+    el.innerHTML = B.length ? B.map((x, i) => `<div class="lbr"><span class="rk">${i + 1}</span><div><b>${esc(x.player)}</b><span>${x.correct}/${x.total} benar · ${fmtS(x.duration_ms)}</span></div><span class="sc">${x.score}</span></div>`).join('') : '<div class="msg" style="border:0;padding:8px 0">Menunggu peserta… minta tim scan QR di HP.</div>'; };
+  tick(); clearInterval(poll); poll = setInterval(() => { if (!$('#lb')) return clearInterval(poll); if (!document.hidden) tick(); }, 3000);
+}
+
+/* ======================= PLAY ======================= */
+let G = null, timerRaf = null;
+async function joinScreen(code) {
+  const done = LS.get('gx-quiz-done', {})[code];
+  if (done) return result(done);   // sudah pernah main → tampilkan hasil & review lagi
+  const s = await API.session(code);
+  if (!s) { app.innerHTML = `<div class="msg">PIN <b>${esc(code)}</b> tidak ditemukan. Cek lagi PIN dari SPV.</div><p><button class="btn" data-home>← Kembali</button></p>`; return; }
+  if (s.status !== 'open') { app.innerHTML = `<div class="msg">Sesi <b>${esc(s.title)}</b> sudah ditutup.</div><p><button class="btn" data-home>← Kembali</button></p>`; return; }
+  app.innerHTML = `<div class="play"><div class="res"><div style="font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--muted)">PIN ${esc(code)}</div><h1 style="margin:8px 0 4px">${esc(s.title)}</h1><p class="lead" style="margin:0 0 18px">${s.questions.length} soal · ${s.timer_s} detik per soal · jawab cepat & tepat untuk poin maksimal</p>
+    <form id="nameF" style="display:flex;gap:10px;max-width:420px;margin:0 auto;flex-wrap:wrap"><input id="nm" placeholder="Nama kamu" maxlength="40" value="${esc(LS.get('gx-quiz-name', ''))}" style="flex:1;min-width:180px;border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:17px;font-weight:700;outline:none"><button class="btn y" style="font-size:16px">Mulai</button></form></div></div>`;
+  $('#nameF').onsubmit = e => { e.preventDefault(); const n = $('#nm').value.trim(); if (n.length < 2) return toast('Isi nama minimal 2 huruf'); LS.set('gx-quiz-name', n); start({ mode: 'live', code, title: s.title, timer: s.timer_s, qs: s.questions, player: n }); };
+}
+function start(g) { G = { ...g, i: 0, answers: [], score: 0, correct: 0 }; question(); }
+function question() {
+  const q = G.qs[G.i], T = G.timer * 1000; G.t0 = performance.now(); G.locked = false;
+  app.innerHTML = `<div class="play"><div class="qhead"><span>Soal ${G.i + 1} / ${G.qs.length}</span><span class="sp"></span><span id="tl">${G.timer}</span><span>· ${G.mode === 'live' ? 'PIN ' + esc(G.code) : 'Skor ' + G.score}</span></div>
+    <div class="timer"><i id="tb"></i></div><div class="qbox">${esc(q.q)}</div>
+    <div class="tiles">${q.o.map((o, j) => `<button class="tile t${j % 4}" data-c="${j}"><span class="sh">${SHAPES[j % 4]}</span><span>${esc(o)}</span></button>`).join('')}</div><div id="fb"></div></div>`;
+  cancelAnimationFrame(timerRaf);
+  const step = () => { const el = performance.now() - G.t0, left = Math.max(0, T - el); const tb = $('#tb'); if (!tb || G.locked) return;
+    tb.style.width = (left / T * 100) + '%'; $('#tl').textContent = Math.ceil(left / 1000); if (left <= 0) return answer(null); timerRaf = requestAnimationFrame(step); };
+  timerRaf = requestAnimationFrame(step);
+  window.scrollTo(0, 0);
+}
+function answer(c) {
+  if (G.locked) return; G.locked = true; cancelAnimationFrame(timerRaf);
+  const ms = Math.min(G.timer * 1000, Math.round(performance.now() - G.t0)), q = G.qs[G.i];
+  G.answers.push({ c, ms });
+  document.querySelectorAll('.tile').forEach(t => { const j = +t.dataset.c; t.disabled = true; if (G.mode === 'practice') { if (j === q.a) t.classList.add('right'); else t.classList.add('dim'); } else { if (j === c) t.classList.add('pick'); else t.classList.add('dim'); } });
+  const last = G.i === G.qs.length - 1, nextBtn = `<span class="sp"></span><button class="btn pri" id="nx">${last ? 'Lihat hasil' : 'Soal berikutnya →'}</button>`;
+  if (G.mode === 'practice') {
+    const ok = c === q.a, p = pts(ok, ms, G.timer); G.score += p; if (ok) G.correct++;
+    $('#fb').innerHTML = `<div class="fb ${ok ? 'ok' : 'bad'}">${c == null ? '⏱ Waktu habis' : ok ? '✓ Benar! +' + p : '✗ Kurang tepat'}${nextBtn}<p>${esc(q.e)}</p></div>`;
+  } else $('#fb').innerHTML = `<div class="fb lock">${c == null ? '⏱ Waktu habis — jawaban kosong' : '🔒 Jawaban terkunci'}${nextBtn}<p>Benar/salah & poin keluar di akhir quiz.</p></div>`;
+  $('#nx').onclick = next; $('#nx').focus();
+  if (G.mode === 'live') setTimeout(() => { if ($('#nx') && G.locked && G.qs[G.i] === q) next(); }, 1200);
+}
+async function next() {
+  if (G.i < G.qs.length - 1) { G.i++; return question(); }
+  if (G.mode === 'practice') {
+    const res = { mode: 'practice', set: G.set, title: 'Latihan ' + SETNAME[G.set], score: G.score, correct: G.correct, total: G.qs.length, duration_ms: G.answers.reduce((t, a) => t + a.ms, 0), review: G.qs.map((q, i) => ({ ...q, c: G.answers[i].c, ms: G.answers[i].ms, p: pts(G.answers[i].c === q.a, G.answers[i].ms, G.timer) })) };
+    const best = LS.get('gx-quiz-best', {}); if (!best[G.set] || res.score > best[G.set].score) { best[G.set] = { score: res.score, correct: res.correct, total: res.total }; LS.set('gx-quiz-best', best); }
+    const hist = LS.get('gx-quiz-history', []); hist.unshift({ set: G.set, score: res.score, correct: res.correct, total: res.total, at: new Date().toISOString() }); LS.set('gx-quiz-history', hist.slice(0, 30));
+    return result(res);
+  }
+  app.innerHTML = '<div class="msg">Mengirim jawaban…</div>';
+  const r = await API.submit(G.code, G.player, G.answers);
+  if (r.status === 409 && r.j.error === 'name-taken') { const n = prompt(r.j.detail + '\n\nNama baru:', G.player + ' 2'); if (n && n.trim().length >= 2) { G.player = n.trim(); LS.set('gx-quiz-name', G.player); G.i = G.qs.length - 1; return next(); } }
+  if (r.status !== 200) { app.innerHTML = `<div class="msg">Gagal mengirim: ${esc(r.j.detail || r.j.error)}</div><p><button class="btn" id="retry">Coba kirim lagi</button></p>`; $('#retry').onclick = () => { G.i = G.qs.length - 1; next(); }; return; }
+  const res = { mode: 'live', code: G.code, title: G.title, player: G.player, ...r.j.result, rank: r.j.rank, players: r.j.players, review: r.j.review };
+  const done = LS.get('gx-quiz-done', {}); done[G.code] = res; LS.set('gx-quiz-done', done);
+  result(res);
+}
+async function result(res) {
+  app.innerHTML = `<div class="play"><div class="res"><div style="font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--muted)">${esc(res.title || '')}</div>
+    <div class="big" style="margin-top:10px">${res.score}</div><div style="color:var(--muted);font-weight:700">poin${res.player ? ' · ' + esc(res.player) : ''}</div>
+    <div class="kp"><div><b>${res.correct}/${res.total}</b><span>Benar</span></div><div><b>${fmtS(res.duration_ms)}</b><span>Total waktu</span></div>${res.rank ? `<div><b>#${res.rank}</b><span>dari ${res.players} peserta</span></div>` : ''}</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px"><button class="btn pri" id="toRv">Review jawaban</button>${res.mode === 'practice' ? `<button class="btn" data-prac="${res.set}" data-n="${res.total}">Ulangi latihan</button>` : ''}<button class="btn" data-home>Quiz lain</button></div></div>
+    ${res.mode === 'live' ? '<div class="lb" style="margin-bottom:16px"><b style="font-size:17px">Leaderboard</b><div id="lb"></div></div>' : historyHtml(res.set)}
+    <div id="rv"><div class="h2">Review jawaban</div>${res.review.map((q, i) => `<div class="rv"><span class="pts">${q.c === q.a ? '+' + q.p : '0'}</span><div class="qt">${i + 1}. ${esc(q.q)}</div>
+      ${q.o.map((o, j) => `<div class="o ${j === q.a ? 'ok' : j === q.c ? 'bad' : ''}">${j === q.a ? '✓ ' : j === q.c ? '✗ ' : ''}${esc(o)}</div>`).join('')}
+      ${q.c == null ? '<div class="ex"><b>Tidak dijawab (waktu habis).</b></div>' : ''}<div class="ex">${esc(q.e)}${q.src ? ` <i>— ${esc(q.src)}</i>` : ''}</div></div>`).join('')}</div></div>`;
+  $('#toRv').onclick = () => $('#rv').scrollIntoView({ behavior: 'smooth' });
+  if (res.mode === 'live') {
+    const tick = async () => { const B = await API.board(res.code), el = $('#lb'); if (!el) return clearInterval(poll);
+      el.innerHTML = B.slice(0, 20).map((x, i) => `<div class="lbr ${x.player.toLowerCase() === (res.player || '').toLowerCase() ? 'me' : ''}"><span class="rk">${i + 1}</span><div><b>${esc(x.player)}</b><span>${x.correct}/${x.total} benar · ${fmtS(x.duration_ms)}</span></div><span class="sc">${x.score}</span></div>`).join(''); };
+    tick(); clearInterval(poll); poll = setInterval(() => { if (!document.hidden) tick(); }, 4000);
+  }
+  window.scrollTo(0, 0);
+}
+function historyHtml(set) {
+  const H = LS.get('gx-quiz-history', []).filter(h => h.set === set).slice(0, 8);
+  return H.length ? `<div class="lb" style="margin-bottom:16px"><b style="font-size:17px">Riwayat latihanmu — ${esc(SETNAME[set])}</b>${H.map((h, i) => `<div class="lbr"><span class="rk">${i + 1}</span><div><b>${h.correct}/${h.total} benar</b><span>${new Date(h.at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></div><span class="sc">${h.score}</span></div>`).join('')}</div>` : '';
+}
+function practice(set, n) { const all = questions(set); if (!all.length) return toast('Belum ada soal'); history.replaceState(null, '', '?set=' + set); start({ mode: 'practice', set, timer: 20, qs: prepare(all, n) }); }
+
+/* ======================= ROUTER ======================= */
+function go(qs) { history.pushState(null, '', location.pathname + qs); route(); }
+function route() {
+  clearInterval(poll); cancelAnimationFrame(timerRaf);
+  const p = new URLSearchParams(location.search);
+  if (p.get('c')) return joinScreen(p.get('c').toUpperCase());
+  if (p.get('host')) return host(p.get('host').toUpperCase());
+  if (p.get('set') && SETNAME[p.get('set')]) return practice(p.get('set'), 0);
+  home();
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-home]')) return go('');
+  const pr = e.target.closest('[data-prac]'); if (pr) return practice(pr.dataset.prac, +pr.dataset.n);
+  const h = e.target.closest('[data-host]'); if (h) return go('?host=' + h.dataset.host);
+  const t = e.target.closest('.tile[data-c]'); if (t && G && !G.locked) answer(+t.dataset.c);
+});
+document.addEventListener('keydown', e => { if (G && !G.locked && /^[1-6]$/.test(e.key) && document.querySelector('.tile')) { const t = document.querySelector(`.tile[data-c="${+e.key - 1}"]`); if (t) answer(+e.key - 1); } });
+addEventListener('popstate', route);
+(async () => {
+  try { const r = await fetch('/api/todo?doc=knowledge-base', { cache: 'no-store', credentials: 'same-origin' }); const j = await r.json(); IS_SPV = !!j.canEdit; HIDDEN = new Set((j.data && j.data.materi && j.data.materi.hidden) || []); }
+  catch (e) { ONLINE = false; IS_SPV = true; app.insertAdjacentHTML('beforebegin', '<div style="max-width:1100px;margin:16px auto 0;padding:0 18px"><div class="banner" style="margin:0"><b>Mode preview</b> — server belum tersambung; sesi & leaderboard hanya tersimpan di browser ini.</div></div>'); }
+  route();
+})();
+</script>
+</body>
+</html>

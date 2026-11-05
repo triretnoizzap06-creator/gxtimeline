@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helpdesk Employee Directory · GX CS</title>
+<link rel="icon" href="mark.png">
+<script>(function(){try{var m=localStorage.getItem("gx-theme");if(m==="dark"||m==="light")document.documentElement.setAttribute("data-theme",m)}catch(e){}})()</script>
+<style>
+:root{
+  --bg:#F5F5F7;--card:#FFFFFF;--panel:rgba(255,255,255,.86);--ink:#111114;--muted:#6E6E73;--line:#E4E4E7;--hover:rgba(0,0,0,.04);
+  --y:#FFD000;--ytint:#FFF7D1;--yink:#854D0E;--red:#DC2626;--redt:#FEE2E2;--amber:#B45309;--ambt:#FEF3C7;--green:#15803D;--greent:#DCFCE7;--grey:#F4F4F5;
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0B0D;--card:#161618;--panel:rgba(22,22,24,.86);--ink:#F5F5F7;--muted:#9A9AA0;--line:#2C2C2E;--hover:rgba(255,255,255,.06);--ytint:#3A3115;--yink:#FFD866;--redt:#3B1416;--red:#F87171;--ambt:#3A2A10;--amber:#FBBF24;--greent:#0F2E1B;--green:#4ADE80;--grey:#232326;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0B0B0D;--card:#161618;--panel:rgba(22,22,24,.86);--ink:#F5F5F7;--muted:#9A9AA0;--line:#2C2C2E;--hover:rgba(255,255,255,.06);--ytint:#3A3115;--yink:#FFD866;--redt:#3B1416;--red:#F87171;--ambt:#3A2A10;--amber:#FBBF24;--greent:#0F2E1B;--green:#4ADE80;--grey:#232326;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+.bar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 18px;background:var(--panel);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand img{width:28px;height:28px}
+.brand small{display:block;color:var(--muted);font-size:11px;font-weight:600}
+.brand b{display:block;font-size:15px;font-weight:700}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.y{background:var(--y);border-color:var(--y);color:#111}
+.btn.sm{padding:5px 11px;font-size:12px}
+.btn.danger{color:var(--red)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);padding:6px 10px;border-radius:999px;background:var(--hover)}
+.pill i{width:8px;height:8px;border-radius:50%;background:#A1A1AA}.pill.ok i{background:#22C55E}.pill.warn i{background:#F59E0B}.pill.err i{background:#EF4444}
+main{max-width:1200px;margin:0 auto;padding:24px 18px 70px}
+h1{font-size:24px;letter-spacing:-.01em;margin:0}
+.lede{color:var(--muted);font-size:14px;margin:6px 0 0}
+.today{font-size:13px;color:var(--muted);margin-top:4px}
+.today b{color:var(--ink)}
+h2{font-size:17px;margin:30px 0 12px;display:flex;align-items:center;gap:8px}
+h2 .count{font-size:12px;font-weight:700;background:var(--grey);color:var(--muted);border-radius:999px;padding:2px 9px}
+.note{font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-top:14px}
+.note b{color:var(--ink)}
+.note.warn{border-color:#FCD34D;background:var(--ambt);color:var(--amber)}
+
+/* notifications */
+.notif{display:grid;grid-template-columns:1.1fr 1fr 1.25fr;gap:14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+.panel h3{margin:0 0 12px;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.panel h3 svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bday{background:linear-gradient(135deg,var(--ytint),var(--card) 70%);border-color:#FDE68A}
+.bday.none{background:var(--card);border-color:var(--line)}
+.hb{display:flex;align-items:center;gap:12px;padding:8px 0}
+.hb+.hb{border-top:1px dashed var(--line)}
+.hb .t b{display:block;font-size:15px}
+.hb .t span{font-size:13px;color:var(--muted)}
+.hb .cake{margin-left:auto;font-size:22px}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.row{display:flex;align-items:center;gap:10px;padding:8px 0;min-width:0}
+.row+.row{border-top:1px solid var(--line)}
+.row .t{min-width:0;flex:1}
+.row .t b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .r{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+.row .r b{display:block;font-size:13px;color:var(--ink)}
+.av{flex:none;width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--grey);display:grid;place-items:center;font-weight:800;font-size:14px;color:var(--muted)}
+.av img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;transform:scale(1.5);transform-origin:50% 20%}
+.av.lg{width:56px;height:56px;box-shadow:0 0 0 3px var(--y)}
+.chip{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.02em;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.chip.exp{background:var(--redt);color:var(--red)}.chip.soon{background:var(--ambt);color:var(--amber)}.chip.ok{background:var(--greent);color:var(--green)}.chip.na{background:var(--grey);color:var(--muted)}
+
+/* directory */
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.search{flex:1;min-width:220px;max-width:420px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 12px;font-size:14px}
+.search:focus{outline:2px solid var(--y);outline-offset:-1px}
+.sel{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.emp{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.emp .ph{position:relative;aspect-ratio:4/3;background:var(--grey);overflow:hidden}
+.emp .ph img{width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.emp .ph .ini{position:absolute;inset:0;display:grid;place-items:center;font-size:42px;font-weight:800;color:var(--muted)}
+.emp .ph .chip{position:absolute;top:10px;right:10px}
+.emp .bd{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.emp h3{margin:0;font-size:16px;line-height:1.3}
+.emp .nick{font-weight:600;color:var(--muted)}
+.emp .eid{display:inline-block;margin-top:4px;background:var(--ytint);color:var(--yink);border-radius:999px;padding:2px 9px;font-size:11.5px!important;font-weight:700}
+.emp .eid.miss{background:var(--grey)}
+.emp .eid-x{font-size:12.5px;color:var(--muted);font-weight:600}
+.emp .eid.miss{color:var(--amber)}
+.emp dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:13px}
+.emp dt{color:var(--muted)}
+.emp dd{margin:0;text-align:right;font-weight:600}
+.emp dd.miss{color:var(--muted);font-weight:500;font-style:italic}
+.emp .foot{margin-top:auto;display:flex;gap:6px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+.emp.inactive{opacity:.6}
+
+/* dialogs */
+.modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.box{background:var(--card);border-radius:18px;padding:20px;width:min(560px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.box h3{margin:0 0 4px;font-size:18px}
+.box p{margin:0 0 14px;font-size:13px;color:var(--muted)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f.full{grid-column:1/-1}
+.f label{font-size:12px;font-weight:600;color:var(--muted)}
+.inp{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:9px 10px;font-size:14px;width:100%}
+.inp:focus{outline:2px solid var(--y);outline-offset:-1px}
+.phrow{display:flex;gap:10px;align-items:center}
+.act{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.act .sp{margin-right:auto}
+.err{color:var(--red);font-size:12.5px;min-height:1em;margin-top:8px}
+.hist{font-size:12px;color:var(--muted);margin-top:4px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;background:#111;color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:92vw}
+.lock{max-width:420px;margin:60px auto;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px}
+.lock h2{justify-content:center;margin:0 0 6px}
+.lock p{color:var(--muted);font-size:14px;margin:0 0 14px}
+@media (max-width:900px){.notif{grid-template-columns:1fr}}
+@media (max-width:600px){.emp{flex-direction:row}.emp .ph{width:108px;flex:none;aspect-ratio:auto;min-height:100%}.emp .ph .chip{top:auto;bottom:8px;right:auto;left:8px;font-size:10px}.emp .bd{padding:12px;gap:8px}.emp h3{font-size:15px}.emp dl{font-size:12.5px;gap:4px 8px}}
+@media (max-width:600px){main{padding:16px 12px 60px}.bar{padding:8px 12px}.brand small{display:none}.fgrid{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.hide-m{display:none}h1{font-size:20px}}
+.att{border-top:1px solid var(--line,#E4E4E7);margin-top:10px;padding-top:9px;font-size:12px}
+.atth{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.atth b{font-size:12px;letter-spacing:.02em}
+.atp{font-weight:800;font-size:12px;padding:2px 8px;border-radius:999px;color:#fff}.atp.g{background:#15803D}.atp.y{background:#B45309}.atp.r{background:#B91C1C}
+.atm{display:flex;flex-wrap:wrap;gap:4px 6px;margin-bottom:5px}.atm span{padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.05)}.atm span.g b{color:#15803D}.atm span.y b{color:#B45309}.atm span.r b{color:#B91C1C}
+.ats{color:#71717A}
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="btn" href="/">← Dashboard</a>
+  <div class="brand"><img src="mark.png" alt=""><div><small>GlobalXtreme · Helpdesk</small><b>Helpdesk Employee Directory</b></div></div>
+  <span class="pill" id="status"><i></i><span>Loading…</span></span>
+  <button class="btn hidden" id="adminBtn">🔒 Admin</button>
+  <button class="btn y hidden" id="addBtn">+ Add employee</button>
+</header>
+
+<main id="main">
+  <h1>Helpdesk Employee Directory</h1>
+  <p class="lede">GlobalXtreme Helpdesk team — profiles, birthdays and contract reminders.</p>
+  <div class="today" id="today"></div>
+  <div id="notes"></div>
+
+  <section id="notifSec">
+    <h2>Notifications &amp; Reminders</h2>
+    <div class="notif">
+      <div class="panel bday" id="pToday"></div>
+      <div class="panel" id="pUpcoming"></div>
+      <div class="panel" id="pContract"></div>
+    </div>
+  </section>
+
+  <section id="dirSec">
+    <h2>Employee Directory <span class="count" id="count">0</span></h2>
+    <div class="tools">
+      <input class="search" id="q" type="search" placeholder="Search name, nickname or subdivision…" aria-label="Search name, nickname or subdivision">
+      <select class="sel" id="flt" aria-label="Filter">
+        <option value="all">All employees</option><option value="sub:Helpdesk">Helpdesk</option><option value="sub:Account Manager">Account Manager</option><option value="soon">Expiring soon</option><option value="exp">Expired</option><option value="missing">Data incomplete</option>
+      </select>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+
+<div class="modal hidden" id="login" role="dialog" aria-modal="true" aria-labelledby="lgT">
+  <form class="box" id="loginForm" style="width:min(380px,100%)">
+    <h3 id="lgT">Admin login</h3><p>Masukkan password publish (PUBLISH_KEY).</p>
+    <input class="inp" type="password" id="lgKey" autocomplete="current-password" required>
+    <div class="err" id="lgErr"></div>
+    <div class="act"><button type="button" class="btn" id="lgCancel">Batal</button><button class="btn y">Masuk</button></div>
+  </form>
+</div>
+
+<div class="modal hidden" id="editor" role="dialog" aria-modal="true" aria-labelledby="edT">
+  <form class="box" id="edForm">
+    <h3 id="edT">Edit employee</h3>
+    <p>Mengubah End Contract = perpanjangan kontrak; kontrak lama otomatis disimpan di riwayat dan reminder mengikuti tanggal terbaru.</p>
+    <div class="fgrid">
+      <div class="f full"><label for="fName">Full name</label><input class="inp" id="fName" required maxlength="120"></div>
+      <div class="f"><label for="fNick">Nickname</label><input class="inp" id="fNick" maxlength="40" placeholder="mis. Bagas"></div>
+      <div class="f"><label for="fSub">Subdivision</label><input class="inp" id="fSub" maxlength="60" list="subList" placeholder="Helpdesk / Account Manager"><datalist id="subList"><option value="Helpdesk"><option value="Account Manager"></datalist></div>
+      <div class="f"><label for="fBday">Birthday</label><input class="inp" type="date" id="fBday"></div>
+      <div class="f"><label for="fStart">Start Contract</label><input class="inp" type="date" id="fStart"></div>
+      <div class="f"><label for="fEnd">End Contract</label><input class="inp" type="date" id="fEnd"></div>
+      <div class="f full"><label for="fPhoto">Photo</label>
+        <div class="phrow"><span class="av lg" id="fPrev"></span><select class="inp" id="fPhoto"></select>
+          <label class="btn sm">Upload<input type="file" accept="image/*" id="fUpload" hidden></label></div></div>
+      <div class="f full"><label><input type="checkbox" id="fActive"> Active (tampil di notifikasi)</label><div class="hist" id="fHist"></div></div>
+    </div>
+    <div class="err" id="edErr"></div>
+    <div class="act"><button type="button" class="btn danger sp" id="edDel">Delete</button><button type="button" class="btn" id="edCancel">Cancel</button><button class="btn y" id="edSave">Save</button></div>
+  </form>
+</div>
+
+<script>
+'use strict';
+/* =================== konfigurasi =================== */
+const API = '/api/employees', KEY_PUB = 'gxcs-pub-key', TZ = 'Asia/Makassar';
+const UPCOMING_DAYS = 60;               // jendela daftar upcoming birthdays
+const PHOTO_FILES = ['photo-devin-bagaskara.jpg', 'photo-bayu-sukma-ramadhan.jpg', 'photo-ni-kadek-desi-mirayani.jpg', 'photo-gede-dimas-pery-narendra.jpg',
+  'photo-aa-ngurah-kiyana-adhisa-oka-pertama.jpg', 'photo-nilma-syahrani.jpg', 'photo-aulia-sevi-diana.jpg', 'photo-kadek-arisita-dhyana-putri.jpg'];
+
+/* =================== util =================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3400); }
+const initials = n => String(n || '?').split(/\s+/).filter(w => /[A-Za-z]/.test(w)).slice(0, 2).map(w => w.replace(/[^A-Za-z]/g, '')[0] || '').join('').toUpperCase();
+const avatar = (e, cls = '') => `<span class="av ${cls}">${e.photo ? `<img src="${esc(e.photo)}" alt="" loading="lazy">` : esc(initials(e.full_name))}</span>`;
+
+/* =================== tanggal (Asia/Makassar, WITA) ===================
+   Semua tanggal dihitung sebagai tanggal kalender (tanpa jam) supaya tidak bergeser karena zona waktu perangkat. */
+function todayWITA() {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const g = t => +p.find(x => x.type === t).value;
+  return { y: g('year'), m: g('month'), d: g('day') };
+}
+const parseD = s => { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return { y, m, d }; };
+const dnum = o => Date.UTC(o.y, o.m - 1, o.d) / 864e5;                       // nomor hari
+const daysIn = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+const fromNum = n => { const t = new Date(n * 864e5); return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() }; };
+const iso = o => `${o.y}-${String(o.m).padStart(2, '0')}-${String(o.d).padStart(2, '0')}`;
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const fmt = o => o ? `${o.d} ${MON[o.m - 1]} ${o.y}` : '';
+const fmtDM = o => `${o.d} ${MON[o.m - 1]}`;
+/* ulang tahun berikutnya (29 Feb → 28 Feb di tahun non-kabisat) */
+function nextBirthday(b, t) {
+  const at = y => ({ y, m: b.m, d: Math.min(b.d, daysIn(y, b.m)) });
+  let n = at(t.y); if (dnum(n) < dnum(t)) n = at(t.y + 1);
+  return n;
+}
+/* reminder = tepat 1 bulan kalender sebelum End Contract (31 Mar → 28/29 Feb) */
+function minusMonth(o) { const y = o.m === 1 ? o.y - 1 : o.y, m = o.m === 1 ? 12 : o.m - 1; return { y, m, d: Math.min(o.d, daysIn(y, m)) }; }
+/* selisih "X bulan Y hari" antara dua tanggal (a ≤ b) */
+function diffMD(a, b) {
+  let months = (b.y - a.y) * 12 + (b.m - a.m), d = b.d - a.d;
+  if (d < 0) { months -= 1; const pm = b.m === 1 ? 12 : b.m - 1, py = b.m === 1 ? b.y - 1 : b.y; d += daysIn(py, pm); }
+  return { months, days: d };
+}
+function remainText(t, end) {
+  const n = dnum(end) - dnum(t);
+  if (n === 0) return 'Ends today';
+  if (n < 0) return `Expired ${-n} day${n === -1 ? '' : 's'} ago`;
+  let { months, days } = diffMD(t, end);
+  const parts = []; const yrs = Math.floor(months / 12); if (yrs) parts.push(`${yrs} year${yrs > 1 ? 's' : ''}`); months %= 12;
+  if (months) parts.push(`${months} month${months > 1 ? 's' : ''}`); if (days || !parts.length) parts.push(`${days} day${days === 1 ? '' : 's'}`);
+  return `${parts.join(' ')} left · ${n} days`;
+}
+function contractStatus(e, t) {
+  const end = parseD(e.end_contract);
+  if (!end) return { key: 'na', label: 'No end date' };
+  const rem = minusMonth(end);
+  if (dnum(t) > dnum(end)) return { key: 'exp', label: 'Expired', end, rem };
+  if (dnum(t) >= dnum(rem)) return { key: 'soon', label: 'Expiring Soon', end, rem };
+  return { key: 'ok', label: 'Active', end, rem };
+}
+
+/* =================== state & sync =================== */
+const ST = { items: [], open: true, authed: false, online: null, err: null, today: todayWITA() };
+const canEdit = () => ST.online === true && (ST.open || ST.authed);
+async function api(path = '', opt = {}) {
+  const key = ls.get(KEY_PUB) || '';
+  const r = await fetch(API + path, { cache: 'no-store', ...opt, headers: { ...(opt.body ? { 'content-type': 'application/json' } : {}), ...(key ? { 'x-publish-key': key } : {}) } });
+  let j = {}; let isJson = false; try { j = await r.json(); isJson = true; } catch (e) {}
+  return { status: r.status, j, isJson };
+}
+function setStatus(cls, text) { const s = $('#status'); s.className = 'pill ' + cls; s.querySelector('span').textContent = text; }
+async function load(quiet) {
+  try {
+    const r = await api();
+    if (r.status === 200) { ST.items = r.j.items || []; ST.open = r.j.open !== false; ST.online = true; ST.err = null; if (!ST.open) ST.authed = true; }
+    else if (r.status === 401) { ST.online = true; ST.open = false; ST.authed = false; ST.err = 'locked'; ST.items = []; }
+    else { ST.online = r.isJson ? 'err' : false; ST.err = r.j.error || ('HTTP ' + r.status); ST.detail = r.j.detail; }
+  } catch (e) { ST.online = false; ST.err = 'offline'; }
+  render();
+  loadAtt();
+}
+
+/* attendance dari Helpdesk Performance Report (data online kuartal terbaru yang punya attendance bulanan) */
+const ATT = { period: null, by: new Map() };
+const MONTHS_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const nkey = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+async function loadAtt() {
+  try {
+    const L = await fetch('/api/perf?list=1', { cache: 'no-store' }); if (!L.ok) return; const items = ((await L.json()).items || []).map(x => x.period).sort().reverse();
+    for (const p of items) {
+      const r = await fetch('/api/perf?period=' + encodeURIComponent(p), { cache: 'no-store' }); if (!r.ok) continue; const d = (await r.json()).data || {};
+      const ag = (d.agents || []).filter(a => (a.attM || []).some(Boolean)); if (!ag.length) continue;
+      const q = +p.slice(-1), months = [0, 1, 2].map(i => (q - 1) * 3 + i), mins = (p === '2026-Q3' && !d.attMinsV) ? [12480, 12000, 12960] : (d.attMins || []);   // Q3: Jul 26 · Agu 25 · Sep 27 hari kerja
+      ATT.period = p; ATT.by = new Map();
+      ag.forEach(a => { const mo = [0, 1, 2].map(k => { const o = a.attM[k]; if (!o) return null; const M = +mins[k] || 12480, wd = M / 480, off = (+o.pl || 0) + (+o.sick || 0) + (+o.alpha || 0);
+          return { m: months[k], pct: Math.max(0, (wd - off) / wd * 100) * 0.7 + Math.max(0, (1 - (+o.late || 0) / M) * 100) * 0.3, o }; });   // 70% tingkat hadir + 30% ketepatan
+        const v = mo.filter(Boolean), tot = k => v.reduce((s, x) => s + (+x.o[k] || 0), 0);
+        ATT.by.set(nkey(a.name), { mo, avg: v.reduce((s, x) => s + x.pct, 0) / v.length, sick: tot('sick'), pl: tot('pl'), alpha: tot('alpha'), late: tot('late'), lateDays: tot('lateDays') }); });
+      break;
+    }
+    if (ATT.period) render();
+  } catch (e) {}
+}
+function attBlock(e) {
+  const a = ATT.by.get(nkey(e.full_name)); if (!a) return '';
+  const cls = v => v >= 95 ? 'g' : v >= 85 ? 'y' : 'r';
+  return `<div class="att"><div class="atth"><b>Attendance ${esc(ATT.period.replace('-', ' '))}</b><span class="atp ${cls(a.avg)}">${a.avg.toFixed(2)}%</span></div>
+    <div class="atm">${a.mo.map(x => x ? `<span class="${cls(x.pct)}">${MONTHS_EN[x.m]} <b>${x.pct.toFixed(2)}%</b></span>` : '').join('')}</div>
+    <div class="ats">Sick ${a.sick} · PL ${a.pl} · Alpha ${a.alpha} · Late ${a.late} min · Late ${a.lateDays} day${a.lateDays === 1 ? '' : 's'}</div></div>`;
+}
+
+/* =================== render =================== */
+function render() {
+  const t = ST.today = todayWITA();
+  $('#today').innerHTML = `Today: <b>${new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}</b> · WITA (Asia/Makassar)`;
+  const locked = ST.err === 'locked';
+  $('#adminBtn').classList.toggle('hidden', !(locked || (ST.online === true && !ST.open && !ST.authed)));
+  $('#addBtn').classList.toggle('hidden', !canEdit());
+  $('#notifSec').classList.toggle('hidden', locked);
+  $('#dirSec').classList.toggle('hidden', locked);
+  let notes = '';
+  if (locked) { setStatus('warn', 'Locked'); notes = `<div class="lock"><h2>🔒 Protected</h2><p>Data karyawan (ulang tahun & kontrak) dilindungi password. Masuk sebagai admin untuk melihat.</p><button class="btn y" onclick="openLogin()">Admin login</button></div>`; }
+  else if (ST.online === true) { setStatus('ok', 'Online · synced'); }
+  else if (ST.err === 'schema-missing') { setStatus('err', 'Table missing'); notes = `<div class="note warn">Tabel <b>hd_employees</b> belum ada. Jalankan <b>directory-schema.sql</b> di Supabase → SQL Editor → Run, lalu muat ulang.</div>`; }
+  else if (ST.err === 'storage-not-configured') { setStatus('err', 'Supabase not set'); notes = `<div class="note warn">Env <b>SUPABASE_URL</b> / <b>SUPABASE_SERVICE_ROLE_KEY</b> belum diisi di Vercel.</div>`; }
+  else { setStatus('err', ST.online === false ? 'Offline' : 'Server error'); notes = `<div class="note warn">Server <b>/api/employees</b> tidak bisa dihubungi${ST.detail ? ': ' + esc(ST.detail) : ''}. Data belum bisa ditampilkan.</div>`; }
+  const missing = ST.items.filter(e => !e.subdivision || !e.birthday || !e.start_contract || !e.end_contract);
+  if (ST.online === true && !locked && missing.length) notes += `<div class="note"><b>${missing.length} karyawan</b> datanya belum lengkap (Subdivision / Birthday / Contract). ${canEdit() ? 'Klik <b>Edit</b> di kartunya untuk melengkapi.' : ''}</div>`;
+  $('#notes').innerHTML = notes;
+  if (locked || ST.online !== true) { $('#grid').innerHTML = ''; return; }
+  renderNotif(t); renderGrid(t);
+}
+
+function renderNotif(t) {
+  const act = ST.items.filter(e => e.active);
+  // ulang tahun hari ini
+  const todayB = act.filter(e => { const b = parseD(e.birthday); return b && dnum(nextBirthday(b, t)) === dnum(t); });
+  $('#pToday').className = 'panel bday' + (todayB.length ? '' : ' none');
+  $('#pToday').innerHTML = `<h3><svg viewBox="0 0 24 24"><path d="M20 21v-8H4v8M2 21h20M12 13V9M8 9h8a2 2 0 0 0 2-2V6H6v1a2 2 0 0 0 2 2zM12 3v1"/></svg>Birthday today</h3>` +
+    (todayB.length ? todayB.map(e => { const b = parseD(e.birthday); return `<div class="hb">${avatar(e, 'lg')}<div class="t"><b>Happy birthday, ${esc(e.full_name)}!</b><span>Turns ${t.y - b.y} today · ${fmtDM(b)}</span></div><span class="cake">🎂</span></div>`; }).join('')
+      : `<div class="empty">No birthdays today.</div>`);
+  // upcoming
+  const up = act.filter(e => e.birthday).map(e => { const b = parseD(e.birthday), n = nextBirthday(b, t); return { e, b, n, days: dnum(n) - dnum(t) }; })
+    .filter(x => x.days > 0).sort((a, b) => a.days - b.days);
+  const within = up.filter(x => x.days <= UPCOMING_DAYS), list = within.length ? within : up.slice(0, 3);
+  const noB = act.filter(e => !e.birthday).length;
+  $('#pUpcoming').innerHTML = `<h3><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Upcoming birthdays</h3>` +
+    (list.length ? list.map(x => `<div class="row">${avatar(x.e)}<div class="t"><b>${esc(x.e.full_name)}</b><span>${esc(x.e.subdivision ? x.e.subdivision + ' · ' : '')}${fmtDM(x.n)} · turns ${x.n.y - x.b.y}</span></div><div class="r"><b>${x.days === 1 ? 'Tomorrow' : `in ${x.days} days`}</b></div></div>`).join('')
+      : `<div class="empty">No upcoming birthdays.</div>`) +
+    (!within.length && list.length ? `<div class="empty">No birthdays in the next ${UPCOMING_DAYS} days — showing the nearest.</div>` : '') +
+    (noB ? `<div class="empty">${noB} employee${noB > 1 ? 's' : ''} without birthday data.</div>` : '');
+  // kontrak
+  const cs = act.map(e => ({ e, s: contractStatus(e, t) })).filter(x => x.s.key === 'soon' || x.s.key === 'exp')
+    .sort((a, b) => dnum(a.s.end) - dnum(b.s.end));
+  const next = act.map(e => ({ e, s: contractStatus(e, t) })).filter(x => x.s.key === 'ok').sort((a, b) => dnum(a.s.rem) - dnum(b.s.rem))[0];
+  $('#pContract').innerHTML = `<h3><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 13v3M12 19h.01"/></svg>Contract reminders</h3>` +
+    (cs.length ? cs.map(x => `<div class="row">${avatar(x.e)}<div class="t"><b>${esc(x.e.full_name)}</b><span>${esc(x.e.subdivision || '—')} · ends ${fmt(x.s.end)}</span></div><div class="r"><span class="chip ${x.s.key}">${x.s.label}</span><b style="margin-top:4px">${remainText(t, x.s.end)}</b></div></div>`).join('')
+      : `<div class="empty">No contracts expiring within a month.</div>`) +
+    (next ? `<div class="empty">Next reminder: ${esc(next.e.full_name)} on ${fmt(next.s.rem)} (contract ends ${fmt(next.s.end)}).</div>` : '');
+}
+
+function renderGrid(t) {
+  const q = $('#q').value.trim().toLowerCase(), f = $('#flt').value;
+  const list = ST.items.filter(e => {
+    if (q && !(e.full_name.toLowerCase().includes(q) || String(e.nickname || '').toLowerCase().includes(q) || String(e.subdivision || '').toLowerCase().includes(q))) return false;
+    const s = contractStatus(e, t).key;
+    if (f === 'soon') return s === 'soon';
+    if (f === 'exp') return s === 'exp';
+    if (f === 'missing') return !e.subdivision || !e.birthday || !e.start_contract || !e.end_contract;
+    if (f.startsWith('sub:')) return (e.subdivision || '') === f.slice(4);
+    return true;
+  });
+  $('#count').textContent = list.length === ST.items.length ? ST.items.length : `${list.length} / ${ST.items.length}`;
+  const dd = (v, txt) => v ? `<dd>${txt}</dd>` : `<dd class="miss">not set</dd>`;
+  $('#grid').innerHTML = list.length ? list.map(e => {
+    const s = contractStatus(e, t), b = parseD(e.birthday);
+    return `<article class="emp ${e.active ? '' : 'inactive'}">
+      <div class="ph">${e.photo ? `<img src="${esc(e.photo)}" alt="${esc(e.full_name)}" loading="lazy">` : `<span class="ini">${esc(initials(e.full_name))}</span>`}<span class="chip ${s.key}">${s.label}</span></div>
+      <div class="bd"><div><h3>${esc(e.full_name)}${e.nickname ? ` <span class="nick">(${esc(e.nickname)})</span>` : ''}</h3><div class="eid ${e.subdivision ? '' : 'miss'}">${e.subdivision ? esc(e.subdivision) : 'Subdivision not set'}</div></div>
+        <dl><dt>Birthday</dt>${dd(b, b && fmt(b))}<dt>Start Contract</dt>${dd(e.start_contract, fmt(parseD(e.start_contract)))}<dt>End Contract</dt>${dd(e.end_contract, fmt(parseD(e.end_contract)))}</dl>
+        ${attBlock(e)}
+        <div class="foot"><span>${s.end ? remainText(t, s.end) : ''}${e.active ? '' : ' · inactive'}</span>${canEdit() ? `<button class="btn sm" data-edit="${e.id}">Edit</button>` : ''}</div></div></article>`;
+  }).join('') : `<div class="empty">No employee matches your search.</div>`;
+}
+
+/* =================== editor =================== */
+let EDIT = null;
+function openEditor(e) {
+  EDIT = e ? { ...e } : { id: null, full_name: '', nickname: '', subdivision: '', birthday: '', start_contract: '', end_contract: '', photo: '', active: true, contract_history: [] };
+  $('#edT').textContent = e ? 'Edit employee' : 'Add employee';
+  $('#fName').value = EDIT.full_name; $('#fNick').value = EDIT.nickname || ''; $('#fSub').value = EDIT.subdivision || '';
+  $('#fBday').value = EDIT.birthday || ''; $('#fStart').value = EDIT.start_contract || ''; $('#fEnd').value = EDIT.end_contract || '';
+  $('#fActive').checked = EDIT.active !== false;
+  const opts = ['', ...PHOTO_FILES]; if (EDIT.photo && !opts.includes(EDIT.photo)) opts.push(EDIT.photo);
+  $('#fPhoto').innerHTML = opts.map(p => `<option value="${esc(p)}">${p ? (p.startsWith('data:') ? 'Uploaded photo' : p.replace(/^photo-|\.jpg$/g, '').replace(/-/g, ' ')) : 'No photo'}</option>`).join('');
+  $('#fPhoto').value = EDIT.photo || ''; paintPrev();
+  const h = EDIT.contract_history || [];
+  $('#fHist').textContent = h.length ? 'Contract history: ' + h.map(x => `${x.start ? fmt(parseD(x.start)) : '?'} – ${x.end ? fmt(parseD(x.end)) : '?'}`).join(' · ') : '';
+  $('#edDel').classList.toggle('hidden', !e); $('#edErr').textContent = '';
+  $('#editor').classList.remove('hidden'); $('#fName').focus();
+}
+function paintPrev() { const p = $('#fPhoto').value; $('#fPrev').innerHTML = p ? `<img src="${esc(p)}" alt="">` : esc(initials($('#fName').value)); }
+$('#fPhoto').onchange = paintPrev;
+$('#fUpload').onchange = async ev => {
+  const file = ev.target.files[0]; if (!file) return;
+  try {
+    const url = await new Promise((res, rej) => { const img = new Image(), u = URL.createObjectURL(file);
+      img.onload = () => { const s = 480, c = document.createElement('canvas'), m = Math.min(img.width, img.height); c.width = c.height = s;
+        c.getContext('2d').drawImage(img, (img.width - m) / 2, 0, m, m, 0, 0, s, s); URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg', .82)); };
+      img.onerror = rej; img.src = u; });
+    const o = document.createElement('option'); o.value = url; o.textContent = 'Uploaded photo'; $('#fPhoto').appendChild(o); $('#fPhoto').value = url; paintPrev();
+  } catch (e) { toast('Foto tidak bisa dibaca'); }
+};
+$('#edCancel').onclick = () => $('#editor').classList.add('hidden');
+$('#edForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const body = { id: EDIT.id, full_name: $('#fName').value, nickname: $('#fNick').value, subdivision: $('#fSub').value, birthday: $('#fBday').value || null,
+    start_contract: $('#fStart').value || null, end_contract: $('#fEnd').value || null, photo: $('#fPhoto').value || null, active: $('#fActive').checked };
+  if (EDIT.id == null) delete body.id;
+  $('#edSave').disabled = true;
+  try {
+    const r = await api('', { method: 'POST', body: JSON.stringify(body) });
+    if (r.status === 200) { $('#editor').classList.add('hidden'); toast('Saved — synced for everyone'); await load(); }
+    else if (r.status === 401) { $('#edErr').textContent = 'Password admin dibutuhkan.'; }
+    else $('#edErr').textContent = r.j.detail || r.j.error || ('HTTP ' + r.status);
+  } catch (e) { $('#edErr').textContent = 'Server tidak terjangkau.'; }
+  $('#edSave').disabled = false;
+};
+$('#edDel').onclick = async () => {
+  if (!EDIT || EDIT.id == null) return;
+  if ($('#edDel').dataset.armed !== '1') { $('#edDel').dataset.armed = '1'; $('#edDel').textContent = 'Click again to delete'; setTimeout(() => { $('#edDel').dataset.armed = ''; $('#edDel').textContent = 'Delete'; }, 3000); return; }
+  const r = await api('?del=' + EDIT.id, { method: 'POST' });
+  if (r.status === 200) { $('#editor').classList.add('hidden'); toast('Employee deleted'); await load(); } else $('#edErr').textContent = r.j.detail || r.j.error || 'Gagal menghapus';
+};
+$('#grid').addEventListener('click', ev => { const b = ev.target.closest('[data-edit]'); if (!b) return; const e = ST.items.find(x => String(x.id) === b.dataset.edit); if (e) openEditor(e); });
+$('#addBtn').onclick = () => openEditor(null);
+
+/* =================== admin login =================== */
+function openLogin() { $('#lgErr').textContent = ''; $('#login').classList.remove('hidden'); $('#lgKey').focus(); }
+$('#adminBtn').onclick = openLogin;
+$('#lgCancel').onclick = () => $('#login').classList.add('hidden');
+$('#loginForm').onsubmit = async ev => {
+  ev.preventDefault(); const k = $('#lgKey').value;
+  try { const r = await fetch(API + '?check=1', { method: 'POST', headers: { 'x-publish-key': k } });
+    if (r.status === 200) { ls.set(KEY_PUB, k); $('#login').classList.add('hidden'); toast('Admin mode on'); await load(); } else $('#lgErr').textContent = 'Password salah.';
+  } catch (e) { $('#lgErr').textContent = 'Server tidak terjangkau.'; }
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#editor').classList.add('hidden'); $('#login').classList.add('hidden'); } });
+
+/* =================== init & auto-update =================== */
+$('#q').addEventListener('input', () => renderGrid(ST.today));
+$('#flt').addEventListener('change', () => renderGrid(ST.today));
+load();
+// tanggal diperbarui otomatis (ganti hari WITA) + sinkron data tiap 60 detik
+setInterval(() => {
+  const t = todayWITA();
+  if (iso(t) !== iso(ST.today)) render();
+  if (!document.hidden && $('#editor').classList.contains('hidden')) load(true);
+}, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true); });
+</script>
+</body>
+</html>

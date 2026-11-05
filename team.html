@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Dashboard Helpdesk</title>
+<link rel="icon" href="mark.png">
+<style>
+:root{--bg:#F5F5F7;--card:#fff;--ink:#1D1D1F;--muted:#6E6E73;--line:#E5E5EA;--y:#F5C518;--g:#16A34A;--gbg:#DCFCE7;--o:#D97706;--obg:#FEF3C7;--r:#DC2626;--rbg:#FEE2E2;--bbg:#DBEAFE;--grbg:#F4F4F5;--acc:#0E7490;--accbg:#CFFAFE;
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+body.am{--acc:#7C3AED;--accbg:#EDE9FE}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;padding:10px 20px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .logo{height:24px;display:block}.top .sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;color:inherit;white-space:nowrap}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+main{max-width:1100px;margin:0 auto;padding:26px 20px 60px}
+.hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.hero .ic{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#FFC93C,#F5A70A);font-size:24px}
+.hero h1{margin:0;font-size:24px;letter-spacing:-.01em}.hero p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.who{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.who select{border:1px solid var(--line);border-radius:9px;padding:7px 10px;background:#fff}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}.kpi span{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.kpi b{font-size:24px;font-weight:800}
+.kpi.r b{color:var(--r)}.kpi.o b{color:var(--o)}.kpi.g b{color:var(--g)}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 13px;font-size:13px;font-weight:600;cursor:pointer}.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.grp{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px}
+.card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.card.done{border-left-color:var(--g);opacity:.85}
+.ch{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}.ch .ti{flex:1;min-width:220px;font-weight:700;font-size:14.5px;white-space:pre-line;line-height:1.4}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:12px}
+.tag{padding:3px 9px;border-radius:99px;font-weight:700;background:var(--grbg);color:#3F3F46}.tag.acc{background:var(--accbg);color:var(--acc)}.tag.High{background:var(--rbg);color:#B91C1C}.tag.Medium{background:var(--obg);color:#B45309}.tag.Low{background:var(--grbg)}.tag.late{background:var(--r);color:#fff}
+.rm{margin-top:8px;font-size:13px;color:#52525B;white-space:pre-line;line-height:1.5;background:#FAFAFA;border-radius:8px;padding:8px 10px}
+.lks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.lk{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:7px;background:#FFF6D1;color:#7A5B00;text-decoration:none;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lk svg{width:11px;height:11px;flex:none;stroke:currentColor;fill:none;stroke-width:2.2}
+.act{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;align-items:flex-start}
+.sb{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:700;cursor:pointer}
+.sb[aria-pressed="true"].NOTSTARTED{background:var(--rbg);border-color:#FCA5A5;color:#B91C1C}.sb[aria-pressed="true"].INPROGRESS{background:var(--obg);border-color:#FCD34D;color:#B45309}.sb[aria-pressed="true"].DONE{background:var(--gbg);border-color:#86EFAC;color:#15803D}.sb[aria-pressed="true"].PLAN{background:var(--bbg);color:#1D4ED8}
+.note{flex:1;min-width:220px;display:flex;gap:6px}.note textarea{flex:1;border:1px solid #D2D2D7;border-radius:8px;padding:6px 9px;font-size:13px;resize:vertical;min-height:34px}
+.upd{font-size:11.5px;color:var(--muted);margin-top:6px}
+.empty{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted);font-size:14px}
+.banner{border-radius:12px;padding:11px 14px;font-size:13px;margin-bottom:16px}.banner.e{background:var(--rbg);color:#991B1B}.banner.w{background:var(--obg);color:#92400E}
+.ql{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:8px}
+.qlc{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px;text-decoration:none;font-size:13px;font-weight:600;color:inherit}.qlc:hover{border-color:var(--y)}
+.qlc i{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--accbg);font-style:normal}.qlc small{display:block;font-weight:500;color:var(--muted);font-size:11.5px}
+.tools{margin-top:30px}.tools-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px;margin-bottom:14px;border-bottom:2px solid var(--y)}.tools-h h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.tools-h .sp{flex:1}#tState{font-size:12px;color:var(--muted)}
+.tg{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.tg-h{display:flex;align-items:center;gap:8px;padding:12px 16px;background:#FAFAFA;border-bottom:1px solid var(--line);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.tg-h .cnt{color:var(--muted);font-weight:700}.tg-h .sp{flex:1}.tg-h .gedit{display:none;gap:4px}.editing .tg-h .gedit{display:inline-flex}
+.trow{display:grid;grid-template-columns:minmax(170px,1.05fr) minmax(230px,1.45fr) minmax(220px,1.25fr) 76px;gap:14px;align-items:center;padding:11px 16px;border-top:1px solid #F1F1F3}
+.trow.head{border-top:0;padding-top:9px;padding-bottom:9px;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.trow .nm{font-weight:800;font-size:14px;line-height:1.3}.trow .nm small{display:block;font-weight:500;font-size:12px;color:var(--muted);margin-top:2px}
+.fld{display:flex;align-items:center;gap:4px;background:#F4F4F5;border:1px solid #E4E4E7;border-radius:9px;padding:3px 3px 3px 10px;min-height:34px;min-width:0}
+.fld code{flex:1;min-width:0;font:600 12.5px ui-monospace,Menlo,monospace;color:#18181B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.fld.none{background:transparent;border-color:transparent;padding-left:2px}.fld.none code,.fld code.lock{color:#A1A1AA;font-family:var(--font);font-weight:500;cursor:default}
+.ib{border:0;background:#fff;box-shadow:0 0 0 1px #E4E4E7;border-radius:7px;padding:5px 9px;font-size:12px;font-weight:700;cursor:pointer;flex:none;color:inherit;text-decoration:none;white-space:nowrap}
+.ib:hover{box-shadow:0 0 0 1px var(--y)}.ib.open{background:var(--ink);color:#fff;box-shadow:none}
+.trow .act2{display:flex;gap:4px;justify-content:flex-end}.trow .ed{display:none;gap:4px}.editing .trow .ed{display:flex}.editing .trow .act2 .open{display:none}
+.editing .trow{grid-template-columns:minmax(170px,1.05fr) minmax(230px,1.45fr) minmax(220px,1.25fr) 150px}
+.tools .k{display:none}
+@media (max-width:760px){.trow{grid-template-columns:1fr;gap:8px;padding:14px}.trow.head{display:none}.tools .k{display:block;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}.trow .act2{justify-content:flex-start}.editing .trow{grid-template-columns:1fr}.fld code{white-space:normal;word-break:break-all}.trow .emp{display:none}.trow .act2:empty{display:none}}
+.unl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#FFF8DB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:6px}.unl input{border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:180px}
+.md{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.mdb{width:100%;max-width:520px;background:#fff;border-radius:16px;padding:20px 22px;box-shadow:0 30px 80px rgba(0,0,0,.3)}.mdb h3{margin:0 0 14px}
+.f{margin-bottom:12px}.f label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:5px}.f input,.f textarea,.f select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px}
+.mfoot{display:flex;gap:8px;align-items:center;margin-top:6px}.mfoot .sp{flex:1}.btn.danger{color:var(--r)}.hidden{display:none!important}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1D1D1F;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:opacity .2s}.toast.on{opacity:1}
+@media (max-width:640px){.top{padding:10px 12px;gap:6px}.top .logo{height:20px}.top .btn{padding:6px 8px;font-size:12px}.kpis{grid-template-columns:repeat(2,1fr)}.who{margin-left:0;width:100%}main{padding:18px 12px 50px}}
+</style>
+</head>
+<body>
+<header class="top"><a href="/"><img class="logo" src="wordmark.png" alt="GlobalXtreme"></a><div class="sp"></div><a class="btn" id="switch" href="/dashboard-am"></a><a class="btn" href="/">Home</a></header>
+<main>
+  <div class="hero"><div class="ic" id="heroIc">🎧</div><div><h1 id="title"></h1><p id="sub"></p></div>
+    <label class="who">I am: <select id="me"></select></label></div>
+  <div id="banner"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="bar" id="filter"></div>
+  <div id="list"></div>
+  <section class="tools"><div class="tools-h"><h2>Tools &amp; Access</h2><span class="sp"></span><span id="tState"></span><button class="btn hidden" id="tEdit">✎ Edit tools</button></div>
+    <div id="tUnlock"></div><div id="tools"></div></section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+/* Dashboard tim — terbuka untuk tim (tanpa password). Hanya menampilkan task yang di-assign SPV ke tim ini.
+   Tim bisa mengubah status & menulis catatan; tidak bisa membuat, menghapus atau me-assign task. */
+const TEAM = /dashboard-am/i.test(location.pathname) || new URLSearchParams(location.search).get('t') === 'am' ? 'AM' : 'HD';
+const CFGS = {
+  HD: { title: 'Dashboard Helpdesk', sub: 'Helpdesk Customer Support To-Do List · update status & notes right here', icon: '🎧',
+        roster: [['Kadek Arisita Dhyana Putri', 'Sita'], ['Gede Dimas Pery Narendra', 'Dimas'], ['Bayu Sukma Ramadhan', 'Bayu'], ['A.A Ngurah Kiyana Adhisa Oka Pertama', 'Oka'], ['Nilma Syahrani', 'Rani']],
+        links: [['📘', 'SOP Flow Handling Helpdesk', 'Notion', 'https://melon-lime-e28.notion.site/SOP-Flow-Handling-Helpdesk-1d69b0fbceac80b98317da1a66743b16'],
+                ['💬', 'GX CS Connect', 'Customer Support', 'https://gxcsconnect.globalxtreme-solutions.net/'],
+                ['🗂', 'CSO Workspace', 'Observation details', 'https://cso-workspace.vercel.app'], ['📚', 'Knowledge Base', 'Helpdesk', '/knowledge-base#hd'], ['🎯', 'Quiz', 'Practice & live quiz', '/quiz']] },
+  AM: { title: 'Dashboard Account Manager', sub: 'Account Manager VIP To-Do List · update status & notes right here', icon: '💼',
+        roster: [['Ni Kadek Desi Mirayani', 'Desi'], ['Aulia Sevi Diana', 'Sevia'], ['Devin Bagaskara', 'Bagas']],
+        links: [['📘', 'Flow Account Manager', 'Notion', 'https://app.notion.com/p/Flow-Account-Manager-2fe9b0fbceac808ba433d9149a7d0a4f'],
+                ['📗', 'VIP Group Monitoring', 'Tracking sheet', 'https://docs.google.com/spreadsheets/d/1nfn0cazlhz0Vck7vz5WikBnIV9LFTBWZXLfk8Q34xuk/edit?gid=480098290#gid=480098290'],
+                ['📒', 'VIP Group Masterlist', 'VIP data', 'https://docs.google.com/spreadsheets/d/1LRCBD_d1KjX1HQ4cIyAakXVlkPwQTg8mBv7E5QoMBkU/edit?gid=0#gid=0'],
+                ['🗂', 'CSO Workspace', 'Observation details', 'https://cso-workspace.vercel.app'], ['📚', 'Knowledge Base', 'Account Manager', '/knowledge-base#am'], ['🎯', 'Quiz', 'Practice & live quiz', '/quiz']] },
+};
+const CFG = CFGS[TEAM];
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
+const nick = n => (CFG.roster.find(r => r[0] === n) || [, n])[1];
+const LINKSVG = '<svg viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>';
+function toast(m) { const e = $('#toast'); e.textContent = m; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2400); }
+document.title = CFG.title; document.body.classList.toggle('am', TEAM === 'AM');
+$('#title').textContent = CFG.title; $('#sub').textContent = CFG.sub; $('#heroIc').textContent = CFG.icon;
+$('#switch').textContent = TEAM === 'AM' ? '→ Dashboard Helpdesk' : '→ Dashboard AM'; $('#switch').href = TEAM === 'AM' ? '/dashboard-helpdesk' : '/dashboard-am';
+let ME = ''; try { ME = localStorage.getItem('gx-team-me-' + TEAM) || ''; } catch (e) {}
+$('#me').innerHTML = '<option value="">— select your name —</option>' + CFG.roster.map(([f, k]) => `<option value="${esc(f)}" ${f === ME ? 'selected' : ''}>${esc(k)}</option>`).join('');
+$('#me').onchange = e => { ME = e.target.value; try { localStorage.setItem('gx-team-me-' + TEAM, ME); } catch (er) {} render(); };
+/* ======================= Tools & Access (editable by SPV; passwords stored server-side only) ======================= */
+const newId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const T_ = (name, url, account, note) => ({ id: newId(), name, url, account: account || '', note: note || '' });
+const TOOLS_BASE = () => ({
+  Helpdesk: [T_('Qiscus Helpdesk', 'https://omnichannel.qiscus.com/web/welcome/coani-jj7bz2y9lonj4ky/login', 'helpdesk2@dps.globalxtreme.net'), T_('CSO Bali Email', '', 'cso.bali@globalxtreme.net'), T_('CSO Email', '', 'cso@globalxtreme.net'),
+    T_('GX Connect', 'https://gxcsconnect.globalxtreme-solutions.net/login'), T_('GX Connect — Public Tickets', 'https://gxcsconnect.globalxtreme-solutions.net/public/tickets')],
+  VIP: [T_('VIP Masterlist', 'https://docs.google.com/spreadsheets/d/1LRCBD_d1KjX1HQ4cIyAakXVlkPwQTg8mBv7E5QoMBkU/edit?hl=id&gid=0#gid=0'), T_('VIP Bill Reminder (25th)', 'https://docs.google.com/spreadsheets/d/19mNgXyeEei_hIwdwS9gfphbzlbPVjdn-/edit?gid=138707526#gid=138707526'),
+    T_('DIA Outstanding Bills', 'https://docs.google.com/spreadsheets/d/1p2rNp5duqp8zvWIqDWFznzCkv4TUBXY3E2WJEd_J5U0/edit?usp=sharing'), T_('Survey UID', '', 'globalxtremG39A', 'Use this UID to open survey WOs.'),
+    T_('GX Connect', 'https://gxcsconnect.globalxtreme-solutions.net/login', '', 'VIP case tracking & load monitoring.'), T_('GX Connect — Public Tickets', 'https://gxcsconnect.globalxtreme-solutions.net/public/tickets'),
+    T_('Pak Ferre Project Overview', 'https://docs.google.com/spreadsheets/d/1kZod_oNU-eYa9vE6jXV2g0KvAJTbmPdCQyDM0cvFQdc/edit?gid=290041170#gid=290041170')],
+  'TMRW Labs': [T_('TMRW Labs Flow', 'https://tmrwlabsonboarding.figma.site/'), T_('Gorgias', 'https://tmrwlabs.gorgias.com/app', 'cso@globalxtreme.net', 'Continue with Gmail. Live chat for existing customers & email only.'),
+    T_('TMRW Labs Dashboard', 'https://dashboard.tmrwlabs.io/login', 'support@tmrwlabs.io'), T_('TMRW Labs CRM', 'https://app.notion.com/p/CRM-1c15deef9c358156a03fe4457d1f32dd')],
+});
+const TOOLS_DEFAULT = team => { const b = TOOLS_BASE(), quick = CFGS[team].links.map(([i, n, s, h]) => T_(n, h, '', s));
+  const order = team === 'AM' ? ['VIP', 'Helpdesk', 'TMRW Labs'] : ['Helpdesk', 'VIP'];   // TMRW Labs hanya di Dashboard AM
+  return [...order.map(g => ({ name: g, items: b[g] })), { name: 'Quick Links', items: quick }]; };
+const TEAMLABEL = { HD: 'Dashboard Helpdesk', AM: 'Dashboard Account Manager' };
+const TL = { data: null, rev: null, canEdit: false, online: true, edit: false, secrets: null, teamCfg: true, shown: new Set() };
+async function jget(u, opt) { try { const r = await fetch(u, { cache: 'no-store', credentials: 'same-origin', ...opt }); let j = null; try { j = await r.json(); } catch (e) {} return { status: r.status, j }; } catch (e) { return null; } }
+function LSget(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+const ensure = team => { if (!TL.data[team]) TL.data[team] = TOOLS_DEFAULT(team); return TL.data[team]; };
+async function loadTools() {
+  const r = await jget('/api/todo?doc=team-tools');
+  if (!r || !r.j) { TL.online = false; TL.canEdit = true; TL.data = LSget('gx-preview-tools2', null) || {}; }
+  else { TL.canEdit = !!r.j.canEdit; TL.data = r.status === 200 && r.j.data ? r.j.data : {}; TL.rev = r.status === 200 ? r.j.revision : null; }
+  ensure(TEAM);
+  if (TL.online) { const c = await jget('/api/login?check=1'); TL.teamCfg = !c || !c.j || c.j.teamConfigured !== false; if (c && c.j && c.j.team) await loadSecrets(); }
+  $('#tEdit').classList.toggle('hidden', !TL.canEdit); renderTools();
+}
+async function loadSecrets() { const r = await jget('/api/todo?secrets=' + TEAM); if (r && r.status === 200) TL.secrets = r.j.secrets || {}; }
+const hasPw = it => TL.secrets ? !!TL.secrets[it.id] : !!it.hasPw;
+const isAcct = it => !!(it.account || it.hasPw || (TL.secrets && TL.secrets[it.id]));
+function fld(val, copy, extra) { return `<div class="fld"><code data-copy="${esc(copy)}" title="Click to copy">${val}</code>${extra || ''}<button class="ib" data-copy="${esc(copy)}">Copy</button></div>`; }
+function pwCell(it) {
+  const pw = TL.secrets && TL.secrets[it.id];
+  if (pw) { const sh = TL.shown.has(it.id); return fld(sh ? esc(pw) : '••••••••••', pw, `<button class="ib" data-show="${esc(it.id)}">${sh ? 'Hide' : 'Show'}</button>`); }
+  if (hasPw(it)) return '<div class="fld"><code class="lock">🔒 Locked — unlock above</code></div>';
+  return `<div class="fld none"><code>${it.account ? 'Not set' + (TL.edit ? ' — click Edit' : '') : '—'}</code></div>`;
+}
+function renderTools() {
+  const G = ensure(TEAM);
+  $('#tools').closest('.tools').classList.toggle('editing', TL.edit);
+  $('#tEdit').textContent = TL.edit ? '✓ Done' : '✎ Edit tools';
+  const anyPw = G.some(g => g.items.some(it => it.hasPw));
+  $('#tUnlock').innerHTML = TL.secrets || !TL.online || !anyPw ? '' : TL.teamCfg
+    ? `<form class="unl" id="unlF">🔒 <b>Passwords are locked.</b> Enter the team password to show them.<input type="password" id="unlPw" placeholder="Team password" autocomplete="current-password"><button class="btn pri">Unlock</button></form>`
+    : '<div class="unl">🔒 Passwords are hidden. Team password is not set yet — ask your SPV.</div>';
+  const f = $('#unlF'); if (f) f.onsubmit = unlock;
+  $('#tState').textContent = TL.secrets ? 'Passwords unlocked' : '';
+  $('#tools').innerHTML = G.map((g, gi) => `<div class="tg"><div class="tg-h"><span>${esc(g.name)}</span><span class="cnt">${g.items.length}</span><span class="sp"></span>
+      <span class="gedit"><button class="ib" data-gadd="${gi}">+ Tool</button><button class="ib" data-gren="${gi}">Rename</button><button class="ib" data-gdel="${gi}" style="color:var(--r)">Delete group</button></span></div>
+    ${g.items.length ? `<div class="trow head"><span>Tool</span><span>Email / Username</span><span>Password</span><span></span></div>` : '<div class="trow"><span style="color:var(--muted)">No tools yet.</span></div>'}
+    ${g.items.map((it, ii) => { const u = safeUrl(it.url) || (/^\//.test(it.url || '') ? it.url : '');
+      return `<div class="trow"><div class="nm">${esc(it.name)}${it.note ? `<small>${esc(it.note)}</small>` : ''}</div>
+        <div class="${it.account ? '' : 'emp'}"><span class="k">Email / Username</span>${it.account ? fld(esc(it.account), it.account) : '<div class="fld none"><code>—</code></div>'}</div>
+        <div class="${isAcct(it) ? '' : 'emp'}"><span class="k">Password</span>${isAcct(it) ? pwCell(it) : '<div class="fld none"><code>—</code></div>'}</div>
+        <div class="act2">${u ? `<a class="ib open" href="${esc(u)}"${/^https?:/.test(u) ? ' target="_blank" rel="noopener"' : ''}>Open ↗</a>` : ''}<span class="ed"><button class="ib" data-tedit="${gi}.${ii}">Edit</button><button class="ib" data-tdup="${gi}.${ii}">Duplicate</button></span></div></div>`; }).join('')}</div>`).join('')
+    + (TL.edit ? '<p><button class="btn" data-gnew="1">+ New group</button></p>' : '');
+}
+async function unlock(e) {
+  e.preventDefault(); const pw = $('#unlPw').value; if (!pw) return;
+  const r = await jget('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ team: 1, password: pw }) });
+  if (r && r.status === 200) { await loadSecrets(); renderTools(); toast('Unlocked ✓'); } else toast(r && r.j && r.j.error === 'team-not-configured' ? 'Team password is not set yet' : 'Wrong password');
+}
+let tSaveT = null;
+function saveTools() {
+  if (!TL.online) { try { localStorage.setItem('gx-preview-tools2', JSON.stringify(TL.data)); } catch (e) {} toast('Preview — saved in this browser only'); return; }
+  clearTimeout(tSaveT); $('#tState').textContent = 'Saving…';
+  tSaveT = setTimeout(async () => {
+    const r = await jget('/api/todo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ doc: 'team-tools', data: TL.data, revision: TL.rev }) });
+    if (r && r.status === 200) { TL.rev = r.j.revision; $('#tState').textContent = 'Saved ✓'; }
+    else { $('#tState').textContent = ''; toast(r && r.status === 409 ? 'Changed elsewhere — reload the page' : r && r.status === 401 ? 'Login expired — log in again in Helpdesk Management' : 'Save failed'); }
+  }, 400);
+}
+async function saveSecret(team, id, value) {   // SPV only: password disimpan di dokumen terpisah (tidak publik)
+  const g = await jget('/api/todo?doc=team-secrets'); if (!g || (g.status !== 200 && g.status !== 404)) { toast('Could not save password'); return false; }
+  const all = g.status === 200 ? g.j.data || {} : {}; all[team] = all[team] || {};
+  if (value) all[team][id] = value; else delete all[team][id];
+  const r = await jget('/api/todo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ doc: 'team-secrets', data: all, revision: g.status === 200 ? g.j.revision : null }) });
+  if (r && r.status === 200) { if (team === TEAM) TL.secrets = all[TEAM]; return true; } toast('Could not save password'); return false;
+}
+/* mode: 'add' | 'edit' | 'dup' */
+function toolModal(gi, ii, mode) {
+  const G = ensure(TEAM), src = ii == null ? { name: '', url: '', account: '', note: '' } : G[gi].items[ii];
+  const it = mode === 'edit' ? src : { ...src, id: newId(), name: mode === 'dup' ? src.name + ' (copy)' : src.name, hasPw: false };
+  const curPw = TL.secrets && src.id ? TL.secrets[src.id] || '' : '';
+  const el = document.createElement('div'); el.className = 'md';
+  const grpOpts = team => ensure(team).map((g, k) => `<option value="${k}" ${team === TEAM && k === gi ? 'selected' : ''}>${esc(g.name)}</option>`).join('') + '<option value="new">+ New group…</option>';
+  el.innerHTML = `<div class="mdb"><h3>${{ add: 'Add tool', edit: 'Edit tool', dup: 'Duplicate tool' }[mode]}</h3>
+    ${mode !== 'edit' ? `<div class="f"><label>Dashboard</label><select data-f="team">${['HD', 'AM'].map(t => `<option value="${t}" ${t === TEAM ? 'selected' : ''}>${TEAMLABEL[t]}</option>`).join('')}</select></div>` : ''}
+    <div class="f"><label>Group</label><select data-f="g">${grpOpts(TEAM)}</select></div>
+    <div class="f"><label>Name</label><input data-f="name" value="${esc(it.name)}"></div>
+    <div class="f"><label>Link (https://…)</label><input data-f="url" value="${esc(it.url)}"></div>
+    <div class="f"><label>Email / username</label><input data-f="account" value="${esc(it.account)}"></div>
+    <div class="f"><label>Password ${TL.online ? '— stored server-side, shown to the team only after unlock' : '— available after deploy'}</label><input data-f="pw" type="text" autocomplete="off" ${TL.online ? '' : 'disabled'} placeholder="${src.hasPw && !curPw ? '•••••• (unlock to view / leave empty to keep)' : ''}" value="${esc(curPw)}"></div>
+    <div class="f"><label>Note</label><input data-f="note" value="${esc(it.note)}"></div>
+    <div class="mfoot">${mode === 'edit' ? '<button class="btn danger" data-act="del">Delete</button>' : ''}<span class="sp"></span><button class="btn" data-act="x">Cancel</button><button class="btn pri" data-act="ok">${mode === 'dup' ? 'Duplicate' : 'Save'}</button></div></div>`;
+  document.body.appendChild(el);
+  const tSel = el.querySelector('[data-f="team"]'); if (tSel) tSel.onchange = () => { const gs = el.querySelector('[data-f="g"]'), cur = G[gi] ? G[gi].name : ''; gs.innerHTML = grpOpts(tSel.value); const k = ensure(tSel.value).findIndex(g => g.name === cur); if (k >= 0) gs.value = String(k); };
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-act]'); if (e.target === el) return el.remove(); if (!b) return;
+    if (b.dataset.act === 'x') return el.remove();
+    if (b.dataset.act === 'del') { if (!confirm('Delete this tool?')) return; G[gi].items.splice(ii, 1); if (TL.online && hasPw(src)) await saveSecret(TEAM, src.id, ''); el.remove(); renderTools(); saveTools(); return; }
+    const v = f => (el.querySelector(`[data-f="${f}"]`) || {}).value.trim();
+    if (!v('name')) return alert('Name is required.');
+    if (v('url') && !safeUrl(v('url')) && !/^\//.test(v('url'))) return alert('Link must start with https://');
+    const team = tSel ? tSel.value : TEAM, T = ensure(team);
+    let ng = v('g'); if (ng === 'new') { const n = prompt('New group name:'); if (!n || !n.trim()) return; T.push({ name: n.trim(), items: [] }); ng = T.length - 1; } else ng = +ng;
+    const pwIn = el.querySelector('[data-f="pw"]').value, nx = { id: it.id, name: v('name'), url: v('url'), account: v('account'), note: v('note'), hasPw: mode === 'edit' ? !!src.hasPw : false };
+    if (TL.online) {
+      if (mode === 'edit') { if (pwIn !== curPw && (pwIn || curPw)) { if (!(await saveSecret(team, it.id, pwIn))) return; nx.hasPw = !!pwIn; } }
+      else if (pwIn) { if (!(await saveSecret(team, it.id, pwIn))) return; nx.hasPw = true; }
+    }
+    if (mode === 'edit') { G[gi].items.splice(ii, 1); T[ng].items.splice(ng === gi ? ii : T[ng].items.length, 0, nx); }
+    else T[ng].items.splice(mode === 'dup' && team === TEAM && ng === gi ? ii + 1 : T[ng].items.length, 0, nx);
+    el.remove(); renderTools(); saveTools();
+    if (team !== TEAM) toast('Added to ' + TEAMLABEL[team] + ' ✓');
+  });
+}
+$('#tEdit').onclick = () => { TL.edit = !TL.edit; renderTools(); };
+$('#tools').onclick = async e => {
+  const c = e.target.closest('[data-copy]'); if (c) { try { await navigator.clipboard.writeText(c.dataset.copy); toast('Copied ✓'); } catch (er) { prompt('Copy:', c.dataset.copy); } return; }
+  const sh = e.target.closest('[data-show]'); if (sh) { TL.shown.has(sh.dataset.show) ? TL.shown.delete(sh.dataset.show) : TL.shown.add(sh.dataset.show); return renderTools(); }
+  const G = ensure(TEAM);
+  const te = e.target.closest('[data-tedit]'); if (te) { const [gi, ii] = te.dataset.tedit.split('.').map(Number); return toolModal(gi, ii, 'edit'); }
+  const td = e.target.closest('[data-tdup]'); if (td) { const [gi, ii] = td.dataset.tdup.split('.').map(Number); return toolModal(gi, ii, 'dup'); }
+  const ga = e.target.closest('[data-gadd]'); if (ga) return toolModal(+ga.dataset.gadd, null, 'add');
+  const gr = e.target.closest('[data-gren]'); if (gr) { const g = G[+gr.dataset.gren], n = prompt('Group name:', g.name); if (n && n.trim()) { g.name = n.trim(); renderTools(); saveTools(); } return; }
+  const gd = e.target.closest('[data-gdel]'); if (gd) { const g = G[+gd.dataset.gdel]; if (confirm(`Delete group "${g.name}" and its ${g.items.length} tools?`)) { G.splice(+gd.dataset.gdel, 1); renderTools(); saveTools(); } return; }
+  if (e.target.closest('[data-gnew]')) { const n = prompt('New group name:'); if (n && n.trim()) { G.push({ name: n.trim(), items: [] }); renderTools(); saveTools(); } }
+};
+loadTools();
+
+let TASKS = [], FILTER = 'mine', PREVIEW = false;
+const today = () => new Date().toISOString().slice(0, 10);
+const ymL = ym => { const [y, m] = String(ym || '').split('-'); return y ? new Date(+y, +m - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : ''; };
+async function load() {
+  let r, j = null;
+  try { r = await fetch('/api/todo?team=' + TEAM, { cache: 'no-store' }); j = await r.json(); } catch (e) {}
+  if (!r || !j) { PREVIEW = true; let all = []; try { all = JSON.parse(localStorage.getItem('gx-preview-tasks2') || '[]'); } catch (e) {}
+    TASKS = (Array.isArray(all) ? all : []).filter(t => t.team === TEAM);
+    $('#banner').innerHTML = '<div class="banner w"><b>Preview mode</b> — server not connected. Showing tasks assigned in the SPV preview (saved in this browser only).</div>'; }
+  else if (r.status !== 200) $('#banner').innerHTML = `<div class="banner e">Failed to load tasks: ${esc(j.detail || j.error || r.status)}</div>`;
+  else { $('#banner').innerHTML = ''; TASKS = j.tasks || []; }
+  render();
+}
+const mine = t => !t.assignee || t.assignee === ME;
+function render() {
+  const open = TASKS.filter(t => t.status !== 'DONE'), late = open.filter(t => t.due && t.due < today());
+  $('#kpis').innerHTML = `<div class="kpi"><span>Active tasks</span><b>${open.length}</b></div><div class="kpi o"><span>In progress</span><b>${open.filter(t => t.status === 'IN PROGRESS').length}</b></div>
+    <div class="kpi r"><span>Overdue</span><b>${late.length}</b></div><div class="kpi g"><span>Done (60 days)</span><b>${TASKS.length - open.length}</b></div>`;
+  const F = [['mine', ME ? 'Mine' : 'Mine (select name)'], ['all', 'All team tasks'], ...CFG.roster.map(([f, k]) => ['p:' + f, k])];
+  $('#filter').innerHTML = F.map(([k, l]) => `<button class="chip" data-f="${esc(k)}" aria-pressed="${k === FILTER}">${esc(l)}</button>`).join('');
+  const list = TASKS.filter(t => FILTER === 'all' ? true : FILTER === 'mine' ? (ME ? mine(t) : true) : t.assignee === FILTER.slice(2) || !t.assignee);
+  const o = list.filter(t => t.status !== 'DONE').sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')), d = list.filter(t => t.status === 'DONE');
+  $('#list').innerHTML = (o.length ? `<div class="grp">Open · ${o.length}</div>` + o.map(card).join('') : '<div class="empty">No active tasks 🎉</div>')
+    + (d.length ? `<div class="grp">Done · ${d.length}</div>` + d.map(card).join('') : '');
+}
+function card(t) {
+  const late = t.due && t.due < today() && t.status !== 'DONE';
+  const links = (t.links || []).filter(l => safeUrl(l.url));
+  return `<div class="card ${t.status === 'DONE' ? 'done' : ''}" data-id="${esc(t.id)}"><div class="ch"><div class="ti">${esc(t.title)}</div></div>
+    <div class="meta"><span class="tag">${esc(ymL(t.month))}</span><span class="tag acc">${t.assignee ? esc(nick(t.assignee)) : 'Whole team'}</span><span class="tag ${esc(t.priority)}">${esc(t.priority)}</span>${t.due ? `<span class="tag ${late ? 'late' : ''}">Due ${new Date(t.due + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>` : ''}${t.category ? `<span class="tag">${esc(t.category)}</span>` : ''}</div>
+    ${t.remarks ? `<div class="rm">${esc(t.remarks)}</div>` : ''}
+    ${links.length ? `<div class="lks">${links.map(l => `<a class="lk" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener" title="${esc(l.url)}">${LINKSVG}${esc(l.label || new URL(l.url).hostname)}</a>`).join('')}</div>` : ''}
+    <div class="act">${[['NOT STARTED', 'Not started'], ['IN PROGRESS', 'In progress'], ['DONE', 'Done']].map(([s, l]) => `<button class="sb ${s.replace(/\s/g, '')}" data-s="${s}" aria-pressed="${t.status === s}">${l}</button>`).join('')}
+      <div class="note"><textarea placeholder="Note / update for SPV…" maxlength="2000">${esc(t.team_note)}</textarea><button class="btn pri" data-save="1">Save</button></div></div>
+    ${t.team_by ? `<div class="upd">Last update by ${esc(nick(t.team_by))} · ${new Date(t.updated_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>` : ''}</div>`;
+}
+async function patch(t, upd) {
+  if (!ME) { toast('Select your name first (top right)'); $('#me').focus(); return; }
+  if (PREVIEW) { let all = []; try { all = JSON.parse(localStorage.getItem('gx-preview-tasks2') || '[]'); } catch (e) {}
+    const x = all.find(y => y.id === t.id); if (x) { if (upd.status) x.status = upd.status; if (upd.team_note != null) x.team_note = upd.team_note; x.team_by = ME; x.updated_at = new Date().toISOString(); try { localStorage.setItem('gx-preview-tasks2', JSON.stringify(all)); } catch (e) {} Object.assign(t, x); }
+    render(); toast('Preview — saved in this browser only'); return; }
+  let r, j = null;
+  try { r = await fetch(`/api/todo?team=${TEAM}&id=${encodeURIComponent(t.id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: upd.status || t.status, team_note: upd.team_note != null ? upd.team_note : t.team_note, team_by: ME }) }); j = await r.json(); } catch (e) {}
+  if (r && r.status === 200 && j.task) { Object.assign(t, j.task); render(); toast('Saved ✓ — SPV can see this update'); }
+  else toast('Save failed' + (j && j.error ? ': ' + j.error : ''));
+}
+$('#filter').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { FILTER = b.dataset.f; render(); } };
+$('#list').onclick = e => {
+  const c = e.target.closest('[data-id]'); if (!c) return; const t = TASKS.find(x => String(x.id) === c.dataset.id); if (!t) return;
+  const s = e.target.closest('[data-s]'); if (s) return patch(t, { status: s.dataset.s, team_note: c.querySelector('textarea').value });
+  if (e.target.closest('[data-save]')) return patch(t, { team_note: c.querySelector('textarea').value });
+};
+load(); setInterval(() => { if (!document.hidden && !document.activeElement.matches('textarea')) load(); }, 60000);
+</script>
+</body>
+</html>

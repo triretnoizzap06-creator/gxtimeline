@@ -1,0 +1,1784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helpdesk Performance Report · GX CS</title>
+<link rel="icon" href="mark.png">
+<script>(function(){try{var m=localStorage.getItem("gx-theme");if(m==="dark"||m==="light")document.documentElement.setAttribute("data-theme",m)}catch(e){}})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F2F4;--panel:rgba(255,255,255,.86);--solid:#fff;--ink:#111114;--muted:#6E6E73;--line:rgba(0,0,0,.1);--hover:rgba(0,0,0,.05);
+  --y:#FFD000;--y2:#F5B800;--ytint:#FFF7D1;--blue:#2563EB;--green:#16A34A;
+  --ui:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--disp:Archivo,Inter,"Arial Black",sans-serif;color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0B0D;--panel:rgba(24,24,27,.86);--solid:#18181B;--ink:#F5F5F7;--muted:#9A9AA0;--line:rgba(255,255,255,.12);--hover:rgba(255,255,255,.07);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0B0B0D;--panel:rgba(24,24,27,.86);--solid:#18181B;--ink:#F5F5F7;--muted:#9A9AA0;--line:rgba(255,255,255,.12);--hover:rgba(255,255,255,.07);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* ---------- top bar ---------- */
+.bar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 18px;background:var(--panel);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand img{width:28px;height:28px}
+.brand small{display:block;color:var(--muted);font-size:11px;font-weight:600}
+.brand b{display:block;font-size:15px;font-weight:700;white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--solid);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.y{background:var(--y);color:#111;border-color:var(--y)}
+.btn:disabled{opacity:.5;cursor:default}
+.sel{border:1px solid var(--line);background:var(--solid);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);padding:6px 10px;border-radius:999px;background:var(--hover)}
+.pill i{width:8px;height:8px;border-radius:50%;background:#A1A1AA}
+.pill.ok i{background:#22C55E}.pill.warn i{background:#F59E0B}.pill.err i{background:#EF4444}
+
+/* ---------- deck (scroll view) ---------- */
+.deck{max-width:1240px;margin:0 auto;padding:22px 18px 80px;display:flex;flex-direction:column;gap:22px}
+.note{font-size:13px;color:var(--muted);background:var(--solid);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.note b{color:var(--ink)}
+.empty{background:var(--solid);border:1px dashed var(--line);border-radius:18px;padding:60px 20px;text-align:center}
+.empty h2{margin:0 0 6px;font-family:var(--disp);font-size:24px}
+.empty p{margin:0 0 18px;color:var(--muted)}
+
+/* ---------- slide base (16:9, scales with width) ---------- */
+.slide{position:relative;width:100%;aspect-ratio:16/9;container-type:inline-size;overflow:hidden;border-radius:14px;background:#fff;color:#111;box-shadow:0 1px 2px rgba(0,0,0,.05),0 14px 40px rgba(0,0,0,.1);font-family:var(--ui)}
+.s-in{position:absolute;inset:0;padding:3.4cqw 4.4cqw 3cqw;display:flex;flex-direction:column}
+.slide.dark{background:#0A0A0A;color:#fff}
+.slide .edge{position:absolute;left:0;top:0;bottom:0;width:.35cqw;background:var(--y)}
+.slide .edge.b{background:var(--blue)}.slide .edge.g{background:var(--green)}
+.slide .topline{position:absolute;left:0;right:0;top:0;height:.35cqw;background:var(--y)}
+.logo{height:1.9cqw;display:block}
+.foot{position:absolute;left:4.4cqw;bottom:2cqw;font-size:1.08cqw;font-weight:700;letter-spacing:.12em;color:#A1A1AA;text-transform:uppercase}
+.snum{position:absolute;right:4.4cqw;bottom:2cqw;font-size:1.08cqw;font-weight:700;letter-spacing:.12em;color:#A1A1AA}
+.kick{display:flex;align-items:center;gap:.6cqw;font-size:1.16cqw;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.tagb{display:inline-block;font-size:1.08cqw;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:.3cqw .7cqw;border-radius:.4cqw;background:#111;color:#fff}
+.tagb.y{background:var(--y);color:#111}.tagb.b{background:var(--blue);color:#fff}.tagb.g{background:var(--green);color:#fff}
+.h2{font-family:var(--disp);font-weight:800;font-size:3cqw;letter-spacing:-.02em;line-height:1.02;margin:.6cqw 0 0}
+.sub{font-size:1.2cqw;color:#71717A;margin-top:.4cqw}
+.cap{font-size:1.13cqw;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#71717A}
+.divchip{display:inline-block;font-size:1.01cqw;font-weight:800;letter-spacing:.06em;padding:.12cqw .45cqw;border-radius:.3cqw;border:1px solid #D4D4D8;color:#71717A;margin-left:.5cqw;vertical-align:middle}
+.dark .divchip{border-color:#3F3F46;color:#A1A1AA}
+.num{font-variant-numeric:tabular-nums}
+
+/* slide 1 cover */
+.cover .glow{position:absolute;right:-8cqw;top:-14cqw;width:52cqw;height:52cqw;border-radius:50%;background:radial-gradient(circle,rgba(255,208,0,.22),rgba(255,208,0,0) 65%)}
+.cover .dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:1.6cqw 1.6cqw}
+.cover .wm{position:absolute;right:1.5cqw;bottom:-1.2cqw;font-family:var(--disp);font-weight:900;font-size:24cqw;color:rgba(255,255,255,.035);line-height:1}
+.cover .hd{display:flex;justify-content:space-between;align-items:center}
+.cover .hd span{font-size:1.08cqw;font-weight:700;letter-spacing:.14em;color:#71717A}
+.cover .main{flex:1;display:grid;grid-template-columns:1.35fr 1fr;align-items:center;gap:3cqw}
+.cover .kick{color:var(--y)}
+.cover h1{font-family:var(--disp);font-weight:900;font-size:6.3cqw;letter-spacing:-.03em;line-height:.95;margin:1.6cqw 0 .6cqw}
+.cover .box{display:inline-block;background:var(--y);color:#111;font-family:var(--disp);font-weight:900;font-size:2.9cqw;letter-spacing:-.01em;padding:.5cqw 1.2cqw}
+.cover .rule{width:3.6cqw;height:2px;background:#3F3F46;margin:2.4cqw 0 1.6cqw}
+.cover .lede{font-size:1.26cqw;font-style:italic;color:#A1A1AA;line-height:1.55}
+.cover .chips{display:flex;gap:.6cqw;margin-top:2cqw}
+.cover .chips span{font-size:1.08cqw;font-weight:800;letter-spacing:.06em;padding:.45cqw .9cqw;border-radius:999px;background:#27272A;color:#E4E4E7}
+.cover .chips span:first-child{background:var(--y);color:#111}
+.cover .right{display:flex;flex-direction:column;align-items:center;text-align:center}
+.trophy{width:7.6cqw;height:7.6cqw;border-radius:50%;border:2px solid rgba(255,208,0,.55);display:grid;place-items:center;box-shadow:0 0 0 .9cqw rgba(255,208,0,.08)}
+.trophy svg{width:3cqw;height:3cqw;stroke:var(--y);fill:none;stroke-width:1.8}
+.cover .bh{font-size:1.08cqw;font-weight:800;letter-spacing:.16em;color:#71717A;margin-top:2cqw}
+.cover .bq{font-family:var(--disp);font-weight:900;font-size:2cqw;color:var(--y);margin-top:.3cqw}
+.wtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:.7cqw;margin-top:2.2cqw;width:100%;max-width:24cqw}
+.wtiles div{border:1px solid #27272A;background:#141416;border-radius:.6cqw;padding:.9cqw .5cqw}
+.wtiles small{display:block;font-size:0.98cqw;font-weight:800;letter-spacing:.1em;color:#71717A}
+.wtiles b{display:block;font-family:var(--disp);font-size:1.68cqw;color:var(--y);margin-top:.3cqw}
+
+/* slide 2 pillars */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);margin-top:1.6cqw;flex:1}
+.pillars>div{padding:0 2cqw;border-left:1px solid #E4E4E7}
+.pillars>div:first-child{padding-left:0;border-left:0}
+.pillars .pll{display:flex;justify-content:space-between;align-items:flex-start}
+.pillars .pw{font-family:var(--disp);font-weight:900;font-size:2.4cqw}
+.pillars h3{font-family:var(--disp);font-weight:800;font-size:1.8cqw;margin:.6cqw 0 .2cqw}
+.pillars ul{margin:1.4cqw 0 0;padding:0;list-style:none}
+.pillars li{font-size:1.24cqw;color:#3F3F46;padding:.42cqw 0 .42cqw 1cqw;position:relative}
+.pillars li:before{content:"";position:absolute;left:0;top:1cqw;width:.35cqw;height:.35cqw;border-radius:50%;background:#A1A1AA}
+.formula{font-size:1.26cqw;color:#52525B;margin-top:1cqw}
+.blob{position:absolute;right:-8cqw;bottom:-14cqw;width:34cqw;height:34cqw;border-radius:50%;background:var(--ytint)}
+
+/* charts */
+.two{display:grid;grid-template-columns:1.25fr 1fr;gap:3cqw;margin-top:1.4cqw;flex:1;min-height:0}
+.chart{display:flex;flex-direction:column;min-height:0}
+.plot{position:relative;flex:1;display:flex;margin-top:1cqw;min-height:0}
+.yax{display:flex;flex-direction:column-reverse;justify-content:space-between;font-size:1.04cqw;color:#A1A1AA;padding-right:.8cqw;text-align:right;width:2.6cqw}
+.area{position:relative;flex:1;border-bottom:1px solid #D4D4D8;display:flex}
+.area .gl{position:absolute;left:0;right:0;border-top:1px dashed #EDEDED}
+.grp{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:.35cqw;position:relative;z-index:1}
+.bar1{width:2.1cqw;background:var(--c);border-radius:.15cqw .15cqw 0 0;position:relative}
+.bar1 span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:1.01cqw;font-weight:700;padding-bottom:.2cqw;white-space:nowrap}
+.xax{display:flex;margin-left:2.6cqw;font-size:1.13cqw;color:#71717A}
+.xax span{flex:1;text-align:center;padding-top:.5cqw}
+.lg{display:flex;flex-wrap:wrap;gap:.4cqw 1.2cqw;margin-top:.9cqw;font-size:1.07cqw;color:#52525B}
+.lg i{display:inline-block;width:.65cqw;height:.65cqw;border-radius:.12cqw;background:var(--c);margin-right:.35cqw;vertical-align:-.05cqw;border:1px solid rgba(0,0,0,.08)}
+.rank .row{display:grid;grid-template-columns:2cqw 1fr auto;column-gap:.9cqw;align-items:center;margin-bottom:1.15cqw}
+.rk{width:1.7cqw;height:1.7cqw;border-radius:50%;border:1.5px solid #111;display:grid;place-items:center;font-size:1.15cqw;font-weight:800}
+.rk.first{background:var(--y);border-color:var(--y)}
+.rank .nm{font-size:1.26cqw;font-weight:700}
+.rank .vl{font-family:var(--disp);font-size:1.38cqw;font-weight:800}
+.rank .trk{grid-column:2/4;height:.32cqw;background:#F4F4F5;border-radius:999px;margin-top:.4cqw;overflow:hidden}
+.rank .trk b{display:block;height:100%;background:var(--c,#A1A1AA);border-radius:999px}
+.callout{font-size:1.11cqw;background:var(--ytint);color:#854D0E;border-radius:.4cqw;padding:.6cqw .9cqw;border:1px solid #FDE68A}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4cqw;margin-top:1.2cqw;margin-bottom:1.8cqw}
+.stat{background:#FFFBEB;border:1px solid #FDE68A;border-radius:.6cqw;padding:1cqw 1.2cqw}
+.stat b{display:block;font-family:var(--disp);font-size:1.86cqw;font-weight:800;margin:.35cqw 0 .15cqw}
+.stat small{font-size:1.06cqw;color:#71717A}
+
+/* slide 4 breakdown */
+.infos{display:grid;grid-template-columns:repeat(3,1fr);gap:1cqw;margin-top:1cqw}
+.infos div{background:#F4F4F5;border:1px solid #E4E4E7;border-radius:.5cqw;padding:.7cqw .9cqw}
+.infos b{display:block;font-size:1.01cqw;letter-spacing:.08em;text-transform:uppercase}
+.infos span{display:block;font-size:1.04cqw;color:#71717A;margin-top:.25cqw;line-height:1.4}
+.bd{display:grid;grid-template-columns:1fr 1fr;gap:2.6cqw;margin-top:1.2cqw;flex:1;min-height:0}
+.bd>div{min-height:0;overflow:hidden}
+.bd h4{font-family:var(--disp);font-size:1.38cqw;margin:0 0 .6cqw;padding-bottom:.4cqw;border-bottom:1.5px solid #111}
+.ag{margin-bottom:.9cqw}
+.ag .hd{display:flex;align-items:center;gap:.7cqw}
+.ag .hd .rk{width:1.35cqw;height:1.35cqw;font-size:1.04cqw}
+.ag .hd b{font-size:1.24cqw}
+.ag .hd small{display:block;font-size:0.96cqw;letter-spacing:.1em;color:#A1A1AA;font-weight:700}
+.ag .hd .fsc{margin-left:auto;text-align:right;font-family:var(--disp);font-size:1.74cqw;font-weight:800}
+.ag .hd .fsc small{font-family:var(--ui);font-size:0.92cqw}
+.mt{display:grid;grid-template-columns:1fr auto;font-size:1.07cqw;margin-top:.35cqw}
+.mt b{font-weight:700}.mt i{font-style:normal;color:#A1A1AA;font-size:0.99cqw}
+.mt .v{font-weight:800}
+.mt .trk{grid-column:1/3;height:.28cqw;background:#F4F4F5;border-radius:999px;margin-top:.2cqw;overflow:hidden}
+.mt .trk b{display:block;height:100%;background:var(--c,#A1A1AA)}
+.mt .tot{grid-column:1/3;font-size:0.96cqw;color:#A1A1AA}
+.core{display:flex;justify-content:space-between;font-size:1.04cqw;font-weight:800;letter-spacing:.08em;color:#71717A;border-top:1px solid #E4E4E7;margin-top:.45cqw;padding-top:.35cqw}
+.core b{color:#111}
+.bonus{display:flex;justify-content:space-between;align-items:center;background:#FFFBEB;border-left:.2cqw solid var(--y);padding:.4cqw .7cqw;margin-top:.35cqw;font-size:0.99cqw;font-weight:800;letter-spacing:.06em;color:#A16207}
+.bonus small{display:block;font-weight:500;letter-spacing:0;color:#A1A1AA}
+.bonus b{font-size:1.18cqw;color:#A16207}
+.fnote{font-size:1.01cqw;color:#A1A1AA;margin-top:auto}
+
+/* slide 5 chat */
+.badges{display:flex;flex-wrap:wrap;gap:.5cqw;margin-top:1.2cqw}
+.badges span{font-size:1.07cqw;font-weight:600;color:var(--blue);background:#EFF6FF;border:1px solid #DBEAFE;border-radius:.35cqw;padding:.35cqw .7cqw}
+.ccards{display:grid;gap:1.1cqw;margin-top:1.8cqw}
+.cc{position:relative;border-radius:.7cqw;padding:1.1cqw 1.2cqw;background:#F4F4F5;border:1px solid #E4E4E7}
+.cc.top{background:#0A0A0A;color:#fff;border-color:#0A0A0A}
+.cc .tie{position:absolute;top:-.6cqw;left:50%;transform:translateX(-50%);background:var(--y);color:#111;font-size:0.96cqw;font-weight:900;letter-spacing:.06em;padding:.2cqw .5cqw;border-radius:.2cqw;white-space:nowrap}
+.cc .hd{display:flex;justify-content:space-between;align-items:center;font-size:0.99cqw;font-weight:800;color:#A1A1AA}
+.cc .rk{width:1.25cqw;height:1.25cqw;font-size:0.99cqw;border-color:#D4D4D8;background:#E4E4E7;color:#71717A}
+.cc.top .rk{background:var(--y);border-color:var(--y);color:#111}
+.cc .sc{font-family:var(--disp);font-size:2.1cqw;font-weight:800;margin-top:.6cqw}
+.cc.top .sc{color:var(--y)}
+.cc .nm{font-size:1.11cqw;font-weight:600;margin-bottom:.7cqw}
+.mrow{display:grid;grid-template-columns:2cqw 1fr 1.4cqw;align-items:center;gap:.5cqw;font-size:0.99cqw;color:#A1A1AA;margin-top:.3cqw}
+.mrow .trk{height:.28cqw;border-radius:999px;background:#E4E4E7;overflow:hidden}
+.cc.top .mrow .trk{background:#27272A}
+.mrow .trk b{display:block;height:100%;background:var(--blue)}
+.cc.top .mrow .trk b{background:var(--y)}
+.mrow em{font-style:normal;text-align:right;font-weight:700;color:inherit}
+.cc.top .mrow{color:#A1A1AA}.cc.top .mrow em{color:#fff}
+.crit{display:grid;grid-template-columns:repeat(5,1fr);gap:.6cqw;margin-top:.8cqw}
+.crit div{display:flex;align-items:center;gap:.55cqw;border:1px solid #E4E4E7;background:#FAFAFA;border-radius:.4cqw;padding:.6cqw .7cqw;font-size:1.04cqw;font-weight:600}
+.crit i{flex:none;width:1.05cqw;height:1.05cqw;border-radius:50%;background:var(--blue);color:#fff;font-style:normal;font-size:0.96cqw;font-weight:800;display:grid;place-items:center}
+
+/* slide 6 attendance */
+.acards{display:grid;gap:1.1cqw;margin-top:1.6cqw}
+.ac{border-radius:.7cqw;background:#F4F4F5;border:1px solid #E4E4E7;padding:1.3cqw 1cqw;text-align:center;position:relative}
+.ac.top{background:#0A0A0A;color:#fff;border-color:#0A0A0A}
+.ac .perf{position:absolute;top:-.6cqw;right:1cqw;background:var(--y);color:#111;font-size:0.96cqw;font-weight:900;letter-spacing:.06em;padding:.2cqw .5cqw;border-radius:.2cqw}
+.ring{position:relative;width:5.4cqw;height:5.4cqw;margin:0 auto}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .tr{fill:none;stroke:#E4E4E7;stroke-width:3}
+.ac.top .ring .tr{stroke:#27272A}
+.ring .pr{fill:none;stroke:var(--green);stroke-width:3;stroke-linecap:round}
+.ring div{position:absolute;inset:0;display:grid;place-items:center;align-content:center;font-family:var(--disp);font-weight:800;font-size:1.32cqw;color:var(--green)}
+.ac.top .ring div{color:var(--y)}
+.ring small{display:block;font-size:0.92cqw;color:#A1A1AA;font-family:var(--ui)}
+.ac .sc{font-family:var(--disp);font-size:1.6cqw;font-weight:800;margin-top:.9cqw}
+.ac .nm{font-size:1.06cqw;font-weight:600}
+.ac .dv{font-size:0.96cqw;color:#A1A1AA;margin-top:.2cqw}
+.boxes{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4cqw;margin-top:auto;margin-bottom:1.8cqw}
+.box3{background:#F4F4F5;border:1px solid #E4E4E7;border-radius:.6cqw;padding:1.1cqw 1.2cqw}
+.box3 .cap{font-size:1.01cqw;margin-bottom:.8cqw}
+.fr{display:flex;gap:.7cqw;align-items:center;margin-bottom:.7cqw}
+.fr i{flex:none;width:2cqw;height:1.7cqw;border-radius:.3cqw;display:grid;place-items:center;font-style:normal;font-size:1.01cqw;font-weight:800;color:#fff}
+.fr b{display:block;font-size:1.11cqw}.fr small{display:block;font-size:0.98cqw;color:#71717A}
+.box3 .fin{font-size:0.99cqw;color:#52525B;border-top:1px solid #E4E4E7;padding-top:.6cqw}
+.box3 .an{font-size:0.99cqw;color:#52525B;border-top:1px solid #E4E4E7;padding-top:.5cqw}
+.ar{display:grid;grid-template-columns:1.3cqw 1fr auto;gap:.6cqw;align-items:center;margin-bottom:.55cqw;font-size:1.06cqw}
+.ar .rk{width:1.15cqw;height:1.15cqw;font-size:0.96cqw;border-color:#D4D4D8}
+.ar .rk.first{background:var(--green);border-color:var(--green);color:#fff}
+.ar b{font-weight:800}
+.ar .trk{grid-column:2/4;height:.25cqw;background:#E4E4E7;border-radius:999px;overflow:hidden}
+.ar .trk b{display:block;height:100%;background:var(--green)}
+
+/* slide 7 winner */
+.win .glow{position:absolute;right:6cqw;top:8cqw;width:34cqw;height:34cqw;border-radius:50%;background:radial-gradient(circle,rgba(255,208,0,.25),rgba(255,208,0,0) 62%)}
+.win .hd{display:flex;justify-content:space-between;align-items:center}
+.win .hd span{font-size:1.08cqw;font-weight:700;letter-spacing:.14em;color:#71717A;border:1px solid #27272A;border-radius:.3cqw;padding:.3cqw .6cqw}
+.win .main{flex:1;display:grid;grid-template-columns:1.2fr 1fr;align-items:center;gap:2cqw}
+.win .kick{color:var(--y)}
+.win h1{font-family:var(--disp);font-weight:900;font-size:5.2cqw;letter-spacing:-.03em;line-height:.98;margin:1.4cqw 0 1.2cqw;text-transform:uppercase}
+.win h1 span{display:block;color:var(--y)}
+.win .dv{font-size:1.08cqw;font-weight:700;letter-spacing:.14em;color:#71717A;padding-bottom:.5cqw;border-bottom:2px solid #3F3F46;display:inline-block}
+.win .fl{font-size:1.06cqw;font-weight:800;letter-spacing:.14em;color:#71717A;margin-top:2cqw}
+.win .big{font-family:var(--disp);font-weight:900;font-size:6cqw;color:var(--y);line-height:1;margin-top:.4cqw}
+.win .gr{font-size:1.18cqw;color:#A1A1AA;margin-top:.6cqw}
+.win .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:.9cqw;margin-top:1.8cqw;max-width:34cqw}
+.win .tiles div{border:1px solid #27272A;background:#121214;border-radius:.6cqw;padding:.9cqw 1cqw}
+.win .tiles b{display:block;font-family:var(--disp);font-size:1.56cqw}
+.win .tiles small{display:block;font-size:0.96cqw;font-weight:800;letter-spacing:.1em;color:#A1A1AA;margin-top:.3cqw}
+.win .tiles em{display:block;font-style:normal;font-size:0.92cqw;color:#71717A}
+.photo{position:relative;width:24cqw;height:24cqw;margin:0 auto}
+.photo .r1{position:absolute;inset:-1.2cqw;border-radius:50%;border:1px solid rgba(255,208,0,.35)}
+.photo .r2{position:absolute;inset:0;border-radius:50%;border:.35cqw solid var(--y);overflow:hidden;background:#141416;display:grid;place-items:center}
+.photo img{width:100%;height:100%;object-fit:cover}
+.photo .ini{font-family:var(--disp);font-weight:900;font-size:7cqw;color:var(--y)}
+.photo .rib{position:absolute;left:50%;bottom:-1cqw;transform:translateX(-50%);background:var(--y);color:#111;font-size:1.08cqw;font-weight:900;letter-spacing:.06em;padding:.45cqw 1.1cqw;border-radius:999px;white-space:nowrap}
+.confetti i{position:absolute;width:.5cqw;height:.28cqw;background:var(--y);opacity:.8;border-radius:.05cqw}
+
+/* slide 8 scoreboard */
+.sb .glow{position:absolute;left:30cqw;top:-10cqw;width:40cqw;height:30cqw;border-radius:50%;background:radial-gradient(circle,rgba(255,208,0,.16),rgba(255,208,0,0) 65%)}
+.sb .hd{display:flex;justify-content:space-between;align-items:flex-start}
+.sb .kick{color:#A1A1AA}
+.sb h2{font-family:var(--disp);font-weight:900;font-size:3.2cqw;line-height:1;letter-spacing:-.02em;margin:.9cqw 0 0}
+.sb h2 span{display:block;color:var(--y)}
+.rows{display:flex;flex-direction:column;gap:1cqw;margin-top:2.2cqw}
+.srow{display:grid;grid-template-columns:2.6cqw 1fr repeat(3,5.4cqw) 1px 11cqw;align-items:center;gap:1cqw;background:#141416;border:1px solid #27272A;border-radius:.7cqw;padding:1cqw 1.4cqw}
+.srow.first{background:linear-gradient(90deg,rgba(255,208,0,.16),rgba(255,208,0,.06));border-color:rgba(255,208,0,.45);padding:1.4cqw}
+.srow .rk{border-color:#3F3F46;color:#A1A1AA;background:#27272A}
+.srow.first .rk{background:var(--y);color:#111;border-color:var(--y)}
+.srow .nm{display:grid;grid-template-columns:auto 1fr;column-gap:.9cqw;align-items:center}.srow .nm .av{grid-row:1/3;width:2.6cqw;height:2.6cqw;border-radius:50%;overflow:hidden;background:#27272A;display:grid;place-items:center;font-size:1.07cqw;font-weight:800;color:#A1A1AA}.srow .nm .av img{width:100%;height:100%;object-fit:cover;transform:scale(1.8);transform-origin:50% 22%}.srow.first .nm .av{box-shadow:0 0 0 .15cqw var(--y)}
+.srow .nm b{display:block;font-size:1.26cqw}
+.srow .nm small{font-size:0.96cqw;font-weight:700;letter-spacing:.1em;color:#71717A}
+.srow .k{text-align:center}
+.srow .k small{display:block;font-size:0.92cqw;font-weight:800;letter-spacing:.1em;color:#71717A}
+.srow .k b{font-size:1.24cqw;font-weight:800}
+.srow .sp{width:1px;height:2.4cqw;background:#3F3F46}
+.srow .f{text-align:right}
+.srow .f small{display:block;font-size:0.92cqw;font-weight:800;letter-spacing:.1em;color:#71717A;white-space:nowrap}
+.srow .f b{font-family:var(--disp);font-size:1.6cqw;font-weight:900}
+.srow.first .f b{color:var(--y);font-size:1.9cqw}
+.cP{color:#FFD000}.cC{color:#60A5FA}.cA{color:#34D399}
+
+
+/* layout untuk tim besar (Q3: 8 agent) */
+.sb.many .rows{gap:.55cqw;margin-top:1.4cqw}.sb.many .srow{padding:.55cqw 1.2cqw}.sb.many .srow.first{padding:.8cqw 1.2cqw}.sb.many .srow .nm .av{width:2.1cqw;height:2.1cqw}.sb.many .srow .f b{font-size:1.56cqw}.sb.many .srow.first .f b{font-size:1.8cqw}.sb.many h2{font-size:2.6cqw}
+.bd.dense{grid-template-columns:1fr;gap:.6cqw;overflow:hidden}
+.bd.dense>div{display:grid;grid-template-columns:repeat(3,1fr);column-gap:1.6cqw;align-content:start}
+.bd.dense h4{grid-column:1/-1;font-size:1.26cqw;margin-bottom:.4cqw}
+.bd.dense .ag{margin-bottom:.5cqw}.bd.dense .mt{margin-top:.15cqw;font-size:1.01cqw}.bd.dense .mt .tot{display:none}.bd.dense .ag .hd .fsc{font-size:1.38cqw}.bd.dense .bonus{padding:.25cqw .5cqw;margin-top:.2cqw}.bd.dense .bonus small{display:none}.bd.dense .core{margin-top:.25cqw;padding-top:.2cqw}
+.bd.dense .ag .hd b{font-size:1.13cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14cqw;display:block}
+.slide.many .ccards{margin-top:1.1cqw;gap:.8cqw}.slide.many .cc{padding:.7cqw .9cqw}.slide.many .cc .sc{font-size:1.8cqw;margin-top:.3cqw}.slide.many .cc .nm{margin-bottom:.35cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.slide.many .crit{gap:.4cqw;margin-top:.5cqw}.slide.many .crit div{padding:.4cqw .6cqw}
+.slide.many .acards{margin-top:1cqw;gap:.8cqw}.slide.many .ac{padding:.7cqw}.slide.many .ring{width:3.6cqw;height:3.6cqw}.slide.many .ac .sc{font-size:1.44cqw;margin-top:.4cqw}.slide.many .ac .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.slide.many .boxes{margin-bottom:1.6cqw}.slide.many .box3{padding:.8cqw 1cqw}.slide.many .ar{margin-bottom:.25cqw;font-size:0.99cqw}.slide.many .fr{margin-bottom:.4cqw}
+
+/* readability tuning (font lebih besar → spasi dirapatkan) */
+.infos{gap:.8cqw;margin-top:.7cqw}.infos div{padding:.5cqw .8cqw}.infos b{font-size:.95cqw}.infos span{font-size:.95cqw;line-height:1.3;margin-top:.15cqw}
+.bd{margin-top:.8cqw;gap:2.2cqw}.ag{margin-bottom:.55cqw}.mt{margin-top:.2cqw}.mt .tot{font-size:.9cqw}.core{margin-top:.3cqw;padding-top:.25cqw}.bonus{margin-top:.25cqw;padding:.3cqw .6cqw}.bonus small{font-size:.85cqw}
+.fnote{margin-top:.5cqw;font-size:.92cqw}
+.ag .hd .fsc{line-height:1}
+.bd.dense ~ .fnote{display:none}
+.s-in:has(.bd.dense) .infos{display:none}
+.bd.dense .ag .hd small{display:none}.bd.dense .ag{margin-bottom:.35cqw}.bd.dense .mt .trk{margin-top:.1cqw}
+.fr i{width:2.9cqw;height:1.8cqw}
+.slide.many .ring{width:4.6cqw;height:4.6cqw}.slide.many .ring div{font-size:1.05cqw}.slide.many .ring small{font-size:.7cqw}
+.slide.many .ar{margin-bottom:.15cqw}.slide.many .boxes{margin-bottom:1.9cqw}.slide.many .box3 .cap{margin-bottom:.4cqw}
+.slide.many>.foot{display:none}.slide.many .boxes{margin-bottom:.4cqw}
+
+/* ===== slide 2–5 versi ringkas ===== */
+.rh{display:flex;justify-content:space-between;align-items:flex-start;gap:2cqw}
+.rh-eb{font-size:1.05cqw;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#71717A;display:flex;align-items:center;gap:.6cqw}
+.rh .h2{font-size:3.1cqw;margin-top:.5cqw}
+.take{font-size:1.55cqw;font-weight:600;color:#3F3F46;margin-top:.7cqw;max-width:82cqw;line-height:1.35}
+.rnote{margin-top:auto;margin-bottom:2.2cqw;font-size:1.05cqw;color:#71717A}
+.rav{flex:none;width:3cqw;height:3cqw;border-radius:50%;overflow:hidden;background:#E4E4E7;display:grid;place-items:center;font-size:.95cqw;font-weight:800;color:#71717A}
+.rav img{width:100%;height:100%;object-fit:cover;transform:scale(1.8);transform-origin:50% 22%}
+
+/* ===== v2..v5 profesional ===== */
+.cbox{background:#FAFAFA;border:1px solid #ECECEF;border-radius:1cqw;padding:1.2cqw 1.4cqw;min-width:0}
+.cbox .cap{font-size:.95cqw;margin-bottom:.8cqw}
+/* v2 */
+.v2g{display:grid;grid-template-columns:20cqw 1fr;gap:3cqw;align-items:center;margin-top:1.8cqw}
+.donut{position:relative;width:19cqw;height:19cqw}
+.donut svg{width:100%;height:100%;transform:rotate(-90deg)}
+.dtr0{fill:none;stroke:#F1F1F3;stroke-width:6}
+.dseg{fill:none;stroke-width:6;stroke-dasharray:0 100;stroke-dashoffset:var(--off);transition:stroke-dasharray 1.7s cubic-bezier(.22,1,.36,1)}
+.slide.play .dseg{stroke-dasharray:var(--da) 100}
+.dseg.p{stroke:var(--y)}.dseg.c{stroke:#3B82F6;transition-delay:.3s}.dseg.a{stroke:#22C55E;transition-delay:.6s}
+.dc{position:absolute;inset:0;display:grid;place-items:center;align-content:center;text-align:center}
+.dc b{font-family:var(--disp);font-size:4cqw;font-weight:900;line-height:1}.dc span{font-size:1.1cqw;color:#71717A;font-weight:600}
+.pcs{display:flex;flex-direction:column;gap:1cqw}
+.pcard{display:grid;grid-template-columns:9cqw 1fr;align-items:center;gap:1.4cqw;background:#FAFAFA;border:1px solid #ECECEF;border-radius:1cqw;padding:1cqw 1.4cqw;border-left:.5cqw solid}
+.pcard.p{border-left-color:var(--y)}.pcard.c{border-left-color:#3B82F6}.pcard.a{border-left-color:#22C55E}
+.pw2{display:flex;align-items:center;gap:.7cqw}.pw2 svg{width:2.2cqw;height:2.2cqw;fill:none;stroke:#52525B;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pw2 b{font-family:var(--disp);font-size:2.6cqw;font-weight:900}
+.pt h3{margin:0;font-family:var(--disp);font-size:1.6cqw;font-weight:800}.pt p{margin:.2cqw 0 0;font-size:1.25cqw;color:#27272A}.pt small{display:block;margin-top:.3cqw;font-size:1cqw;color:#71717A}
+.exm{margin-top:auto;margin-bottom:2.4cqw;border:1px dashed #D4D4D8;border-radius:1cqw;padding:1cqw 1.4cqw;display:flex;align-items:center;gap:1.6cqw;flex-wrap:wrap}
+.exh .cap{display:block;font-size:.9cqw}.exh b{font-size:1.25cqw}
+.exq{display:flex;align-items:center;gap:.7cqw;flex-wrap:wrap;font-size:1.1cqw;color:#52525B}
+.exq>i{font-style:normal;font-weight:800;color:#A1A1AA;font-size:1.4cqw}
+.ec,.ef{display:flex;flex-direction:column;padding:.5cqw 1cqw;border-radius:.6cqw;gap:.15cqw}.ec>span{white-space:nowrap;font-size:1.15cqw}
+.ec em,.ef em{font-style:normal;font-size:.85cqw;font-weight:700;color:#71717A;text-transform:uppercase;letter-spacing:.06em}
+.ec b{font-weight:700;color:#111}.ec strong{color:#111}
+.ec.p{background:#FFF7CC}.ec.c{background:#DBEAFE}.ec.a{background:#DCFCE7}
+.ef{background:#111;color:#fff}.ef em{color:#A1A1AA}.ef b{font-family:var(--disp);font-size:1.9cqw;color:var(--y)}
+/* v3 */
+.kts{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2cqw;margin-top:1.4cqw}
+.kt{border:1px solid #ECECEF;border-radius:1cqw;padding:.8cqw 1.2cqw;background:#FAFAFA}
+.kt.y{background:#FFFBEA;border-color:#FDE68A}
+.kt span{display:block;font-size:.95cqw;font-weight:700;color:#71717A;text-transform:uppercase;letter-spacing:.06em}
+.kt b{display:block;font-family:var(--disp);font-size:2.3cqw;font-weight:900;margin-top:.2cqw}
+.kt small{display:block;font-size:1cqw;color:#52525B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ppans{display:grid;grid-template-columns:1fr 1fr;gap:1.6cqw;margin-top:1.2cqw}
+.ppan{background:#FAFAFA;border:1px solid #ECECEF;border-radius:1cqw;padding:1cqw 1.2cqw;min-width:0}
+.pph{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4cqw}
+.pph b{font-family:var(--disp);font-size:1.4cqw}
+.pscale{display:flex;justify-content:space-between;font-size:.85cqw;color:#A1A1AA;margin:.8cqw 7cqw .2cqw 16cqw}
+.lgd{font-size:.95cqw;color:#52525B;display:flex;align-items:center;gap:.35cqw;flex-wrap:wrap}.lgd i{display:inline-block;width:.9cqw;height:.9cqw;border-radius:.2cqw;margin-left:.8cqw}.lgd i.s0{background:#27272A}.lgd i.s1{background:#A1A1AA}.lgd i.s2{background:#D6D3CB}.lgd i.sb{background:var(--y)}
+.pr{display:grid;grid-template-columns:15cqw minmax(0,1fr) 6cqw;gap:1cqw;align-items:center;padding:1cqw 0;border-top:1px solid #EFEFF2}
+.prn{display:flex;align-items:center;gap:.7cqw;min-width:0}.prn>div{min-width:0}
+.prn b{display:block;font-size:1.1cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prn small{display:block;font-size:.88cqw;color:#71717A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stk{display:flex;height:2.5cqw;border-radius:.4cqw;background:#ECECEF;overflow:hidden}
+.stk i{display:flex;align-items:center;justify-content:center;height:100%;width:0;overflow:hidden;transition:width 1.6s cubic-bezier(.22,1,.36,1);transition-delay:calc(.2s + var(--k,0)*.12s)}
+.slide.play .stk i{width:var(--w)}
+.xb{color:#2563EB;font-weight:700}.texting .gt-ed{outline:1.5px dashed #E0A800;outline-offset:2px;border-radius:3px;cursor:text}.texting .gt-ed:focus{outline:2px solid #E0A800;background:#FFFBEA;color:#111}
+.phl{margin-top:auto;background:#FFFBEA;border:1px solid #F5E6A8;border-radius:1cqw;padding:.9cqw 1.2cqw;margin-bottom:2.6cqw}
+.phl-h{display:flex;align-items:center;gap:1cqw;font-size:.85cqw;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#A16207;margin-bottom:.4cqw}.phl-h span{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:700;color:#92400E;background:#FDE68A;border-radius:999px;padding:.15cqw .7cqw}
+.phl ul{margin:0;padding-left:1.2cqw;display:flex;flex-direction:column;gap:.25cqw}.phl li{font-size:.95cqw;line-height:1.4;color:#27272A}
+.v3.many .phl{padding:.6cqw 1cqw;margin-bottom:2.2cqw}.v3.many .phl li{font-size:.86cqw}
+.stk em{font-style:normal;font-size:.9cqw;font-weight:800;white-space:nowrap}
+.stk .s0{background:#27272A;color:#fff}.stk .s1{background:#A1A1AA;color:#111}.stk .s2{background:#D6D3CB;color:#111}.stk .sb{background:var(--y);color:#111}.stk .sx{background:#3B82F6}.ec.x em{color:#2563EB}.stk .sp{background:repeating-linear-gradient(45deg,#FCA5A5 0 .35cqw,#FEE2E2 .35cqw .7cqw)}.lgd i.sp{background:#FCA5A5}.xp{color:#DC2626;font-weight:700}.lgd i.sx{background:#3B82F6}
+.prv{text-align:right;font-family:var(--disp);font-size:1.8cqw;font-weight:800}
+.pr.lead .prv{color:#111}.pr:not(.lead) .prv{color:#3F3F46}
+.rinfo{font-size:.95cqw;color:#71717A;margin:-1.6cqw 0 2.2cqw}
+.how{display:grid;grid-template-columns:auto repeat(3,1fr);gap:1.2cqw;margin-top:auto;margin-bottom:2.4cqw}
+.how span{display:flex;gap:.7cqw;align-items:flex-start;font-size:1.02cqw;color:#3F3F46;line-height:1.35}
+.how b{flex:none;width:1.7cqw;height:1.7cqw;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-size:.9cqw}
+.v3.many .kts{display:none}.v3.many .pr{padding:.35cqw 0}.v3.many .stk{height:1.6cqw}.v3.many .rav{width:2.2cqw;height:2.2cqw}.v3.many .prv{font-size:1.45cqw}
+/* v4 */
+.v4g{display:grid;grid-template-columns:1.35fr 1fr;gap:1.6cqw;margin-top:1.4cqw;min-height:0}
+.cch{position:relative;display:flex;height:22cqw;margin-top:.4cqw;padding-bottom:2.2cqw}
+.cyax{position:relative;width:2.6cqw;flex:none}
+.cyax span{position:absolute;right:.5cqw;transform:translateY(50%);font-size:.85cqw;color:#A1A1AA}
+.cplot{position:relative;flex:1;display:flex;border-bottom:1px solid #D4D4D8}
+.cplot>s{position:absolute;left:0;right:0;border-top:1px dashed #E4E4E7}
+.cg{position:relative;flex:1;display:flex;flex-direction:column;align-items:center}
+.cg.clk{cursor:pointer;border-radius:.4cqw}.cg.clk:hover{background:rgba(37,99,235,.06)}.cg.clk:focus-visible{outline:2px solid #2563EB}
+.rt tr.clk{cursor:pointer}.rt tr.clk:hover td{background:#EFF6FF}.rt tr.clk:focus-visible{outline:2px solid #2563EB;outline-offset:-2px}
+.obhint{margin-top:.6cqw;font-size:.9cqw;font-weight:700;color:#1D4ED8}
+.obnote{margin-left:auto;font-size:.9cqw;color:#52525B}.oblink{color:#1D4ED8;font-weight:700;text-decoration:underline}
+.obt{flex-wrap:wrap}
+.cbars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:.25cqw}
+.cbars i{position:relative;width:1.3cqw;height:0;background:var(--c);border-radius:.2cqw .2cqw 0 0;transition:height 1.5s cubic-bezier(.22,1,.36,1);transition-delay:calc(.2s + var(--k,0)*.1s)}
+.slide.play .cbars i{height:var(--h)}
+.cbars em{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-style:normal;font-size:.8cqw;font-weight:700;padding-bottom:.15cqw}
+.cx{position:absolute;bottom:-1.8cqw;font-size:.95cqw;font-weight:700;white-space:nowrap}
+.clg{display:flex;gap:1.2cqw;flex-wrap:wrap;font-size:.95cqw;color:#52525B;align-items:center}
+.clg i{display:inline-block;width:.9cqw;height:.9cqw;border-radius:.2cqw;margin-right:.35cqw;vertical-align:-.1cqw}.clg .mut{color:#A1A1AA;margin-left:auto}
+.rt,.at{width:100%;border-collapse:collapse;font-size:1.2cqw}
+.rt th,.at th{text-align:left;font-size:.85cqw;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#71717A;padding:0 .4cqw .5cqw;border-bottom:1px solid #E4E4E7}
+.rt td,.at td{padding:.85cqw .4cqw;border-bottom:1px solid #F0F0F2;vertical-align:middle;white-space:nowrap}
+.at td:first-child{display:flex;align-items:center;gap:.6cqw;max-width:20cqw;overflow:hidden}
+.rt{table-layout:fixed}.rt th:nth-child(1),.rt td:nth-child(1){width:3.4cqw}.rt th:nth-child(3),.rt td:nth-child(3){width:7cqw;text-align:right}.rt th:nth-child(4),.rt td:nth-child(4){width:6.5cqw;text-align:right;white-space:nowrap}
+.rt .rtn{display:flex;align-items:center;gap:.6cqw;min-width:0}.rt .rtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rt td span,.at td span{overflow:hidden;text-overflow:ellipsis}
+.rt .rav,.at .rav{width:2.6cqw;height:2.6cqw}
+.rt tr.lead td,.at tr.lead td{background:#FFFBEA}
+.at.atmo{font-size:1.02cqw}.at.atmo td{padding:.6cqw .3cqw}.at.atmo th{padding:0 .3cqw .5cqw}.at.atmo td:first-child{max-width:15.5cqw}.at.atmo .rav{width:2.2cqw;height:2.2cqw}
+.exq2{background:#F4F4F5;border-radius:.6cqw;padding:.6cqw .8cqw;font-variant-numeric:tabular-nums;line-height:1.55}
+.at td.mo .mol{display:block;font-size:.72cqw;font-weight:600;color:#A16207}
+.at th.mo,.at td.mo{text-align:right;font-variant-numeric:tabular-nums}.at td.mo.g{color:#15803D;font-weight:700}.at td.mo.y{color:#B45309;font-weight:700}.at td.mo.r{color:#B91C1C;font-weight:700}
+.at .ld{display:block;font-size:.75cqw;color:#A16207;font-weight:700}
+.rt tr.grp td{text-align:left!important;font-size:.8cqw;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#A16207;padding:.7cqw .4cqw .3cqw;border-bottom:1px solid #F5E6A8;display:table-cell!important}
+.rt td b,.at td b{font-weight:800}
+.tr.up{color:#15803D;font-weight:700}.tr.dn{color:#B91C1C;font-weight:700}.tr{color:#A1A1AA}
+.crit2{display:flex;flex-wrap:wrap;gap:.45cqw .6cqw;align-items:center;margin-top:auto;margin-bottom:2.4cqw}
+.crit2 .cap{font-size:.95cqw;margin-right:.4cqw}
+.crit2 span:not(.cap){display:inline-flex;align-items:center;gap:.4cqw;font-size:.92cqw;background:#F4F4F5;border-radius:999px;padding:.25cqw .7cqw .25cqw .3cqw}
+.crit2.obt .crc{padding:.45cqw 1cqw .45cqw .4cqw;font-size:1cqw;font-weight:700}.crit2.obt i{width:auto;padding:0 .45cqw;border-radius:.4cqw;font-size:.75cqw;height:1.5cqw}.crit2 .obn{font-weight:600;color:#71717A;font-size:.8cqw;margin-left:.3cqw}
+.obl{margin:14px 0 6px;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5}.obl.ed{padding-left:0}.obl.ed label{display:flex;gap:10px;align-items:flex-start}.obl.ed b{width:22px;text-align:right;padding-top:8px}.obl.ed textarea{flex:1}
+.crb{font-size:14px;line-height:1.6;padding:6px 2px 12px}.cre{display:flex;flex-direction:column;gap:8px;align-items:flex-end}.cre textarea{width:100%}
+.crit2 .crc{cursor:pointer;transition:background .15s}.crit2 .crc:hover{background:#E0ECFF}.crit2 em{font-style:normal}
+.crit2 i{font-style:normal;width:1.3cqw;height:1.3cqw;border-radius:50%;background:#3B82F6;color:#fff;font-size:.75cqw;font-weight:800;display:grid;place-items:center}
+.v4.many .cch{height:16cqw}.v4.many .cbars i{width:.9cqw}.v4.many .cbars em{display:none}.v4.many .rt td{padding:.25cqw .4cqw}.v4.many .crit2{margin-bottom:.6cqw;gap:.3cqw .45cqw}.v4.many .crit2 span:not(.cap){font-size:.8cqw;padding:.15cqw .55cqw .15cqw .25cqw}
+/* v5 */
+.v5g{display:grid;grid-template-columns:1.6fr 1fr;gap:1.6cqw;margin-top:1.4cqw;min-height:0}
+.at th:not(:first-child),.at td:not(:first-child){text-align:center}
+.at .w{width:30%}
+.ab{height:1.1cqw;background:#ECECEF;border-radius:999px;overflow:hidden}
+.ab i{display:block;height:100%;width:0;background:#22C55E;border-radius:999px;transition:width 1.6s cubic-bezier(.22,1,.36,1) .3s}
+.slide.play .ab i{width:var(--w)}
+.at tr.lead .ab i{background:#16A34A}
+.at .z{color:#C4C4C8}.pf{color:#CA8A04}
+.tnote{font-size:.9cqw;color:#71717A;margin-top:.6cqw}
+.side .fbar{display:flex;height:2.4cqw;border-radius:.5cqw;overflow:hidden;font-size:.95cqw;font-weight:800}
+.fbar i{flex:0 0 var(--w);display:flex;align-items:center;justify-content:center;font-style:normal;color:#fff}
+.fbar .r{background:#16A34A}.fbar .pu{background:#2563EB}
+.fx{font-size:1cqw;color:#3F3F46;margin:.6cqw 0 0;line-height:1.4}
+.lc{display:flex;flex-direction:column;gap:.5cqw}
+.mut2{color:#71717A}
+.cf-A h1,.cf-A .box,.cf-A .bq,.cf-A .wm,.cf-A .wtiles b{font-family:'Bebas Neue',Archivo,sans-serif;font-weight:400;letter-spacing:.01em}.cf-A h1{font-size:8.6cqw;line-height:.9}.cf-A .box{font-size:3.8cqw;padding:.3cqw 1.2cqw .1cqw}.cf-A .bq{font-size:2.8cqw}.cf-A .wm{font-size:30cqw}.cf-A .wtiles b{font-size:2.4cqw}
+.cf-B h1,.cf-B .box,.cf-B .bq,.cf-B .wm,.cf-B .wtiles b{font-family:Montserrat,Archivo,sans-serif;font-weight:900;letter-spacing:-.02em}.cf-B .box{font-weight:800;font-size:2.6cqw}
+.cf-C h1,.cf-C .bq,.cf-C .wm,.cf-C .wtiles b{font-family:'Playfair Display',Georgia,serif;font-weight:900;letter-spacing:-.01em}.cf-C h1{font-size:6.6cqw}.cf-C .box{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-style:italic;font-size:2.8cqw;letter-spacing:0}.cf-C .lede{font-family:'Playfair Display',Georgia,serif}
+.v5x .s-in{display:flex;flex-direction:column}.v5x .cbox,.v5x .vc{margin-top:1.4cqw}
+.afs{display:flex;align-items:center;flex-wrap:wrap;gap:.6cqw;margin-top:1.1cqw;font-size:1cqw;font-weight:700}.afs i{font-style:normal;color:#A1A1AA;font-weight:800}
+.afp{padding:.35cqw .8cqw;border-radius:99px;color:#fff}.afp.g{background:#16A34A}.afp.b{background:#2563EB}.afp.n{background:#F4F4F5;color:#27272A}.afp.k{background:#18181B;color:#FFD000}.afs em{margin-left:auto;font-style:normal;color:#15803D;font-size:.95cqw}
+.vat{width:100%;border-collapse:collapse;font-size:1.15cqw;font-variant-numeric:tabular-nums}.vat th{font-size:.85cqw;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#71717A;text-align:center;padding:0 .4cqw .6cqw;border-bottom:1px solid #E4E4E7}.vat th:nth-child(2){text-align:left}
+.vat td{padding:.55cqw .4cqw;border-bottom:1px solid #F0F0F2;text-align:center}.vat td:nth-child(2){text-align:left}.vat td:first-child{color:#A1A1AA;width:3cqw}.vat .rtn{display:flex;align-items:center;gap:.7cqw}.vat .rav{width:2.4cqw;height:2.4cqw}
+.vat .vs b{font-family:var(--disp);font-size:1.4cqw}.vat tr.lead td{background:#FFFBEA}.vat tr.clk{cursor:pointer}.vat tr.clk:hover td{background:#F0FDF4}
+.vp{display:inline-block;min-width:5.4cqw;padding:.3cqw .5cqw;border-radius:.5cqw;font-weight:800}.vp.g{background:#DCFCE7;color:#15803D}.vp.y{background:#FEF3C7;color:#B45309}.vp.r{background:#FEE2E2;color:#B91C1C}
+.vb{padding:1cqw 1.4cqw}.vbs{display:flex;justify-content:space-between;margin-left:22cqw;margin-right:6cqw;font-size:.8cqw;color:#A1A1AA;font-weight:700}
+.vbr{display:grid;grid-template-columns:2cqw 20cqw 1fr 6cqw;align-items:center;gap:1cqw;padding:.5cqw .4cqw;border-radius:.5cqw;cursor:pointer}.vbr:hover{background:#F0FDF4}.vbr.lead{background:#FFFBEA}
+.vbn{color:#A1A1AA;font-weight:800;font-size:1cqw}.vbm{display:flex;align-items:center;gap:.7cqw;min-width:0}.vbm b{font-size:1.1cqw;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vbm .rav{width:2.4cqw;height:2.4cqw}
+.vbt{height:1.5cqw;background:#F4F4F5;border-radius:99px;overflow:hidden}.vbt i{display:block;height:100%;width:var(--w);border-radius:99px;transition:width 1.2s cubic-bezier(.22,1,.36,1)}.vbt i.g{background:#16A34A}.vbt i.y{background:#F59E0B}.vbt i.r{background:#EF4444}
+.vbv{font-family:var(--disp);font-size:1.5cqw;text-align:right;font-variant-numeric:tabular-nums}
+.vc{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:1cqw;flex:1;max-height:30cqw}.vcc{background:#FAFAFA;border:1px solid #E4E4E7;border-radius:1cqw;padding:1cqw 1.1cqw;cursor:pointer;display:flex;flex-direction:column;gap:.5cqw}.vcc:hover{border-color:#16A34A}.vcc.lead{background:#FFFBEA;border-color:#FDE68A}
+.vch{display:flex;align-items:center;gap:.7cqw}.vch .rav{width:2.6cqw;height:2.6cqw}.vch b{display:block;font-size:1.15cqw}.vch small{font-size:.8cqw;color:#71717A}.vcr{margin-left:auto;font-weight:800;color:#A1A1AA;font-size:1cqw}
+.vcs{font-family:var(--disp);font-size:2.6cqw;font-weight:900;line-height:1}.vcs.g{color:#15803D}.vcs.y{color:#B45309}.vcs.r{color:#B91C1C}
+.vcm{display:flex;gap:.6cqw;flex:1;min-height:3.6cqw;align-items:stretch}.vcm div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.vcm i{width:100%;height:var(--h);border-radius:.3cqw .3cqw 0 0;background:#E4E4E7}.vcm i.g{background:#86EFAC}.vcm i.y{background:#FCD34D}.vcm i.r{background:#FCA5A5}.vcm span{font-size:.75cqw;color:#71717A;margin-top:.25cqw;white-space:nowrap}.vcm span b{color:#27272A}
+.attsw{position:fixed;right:16px;bottom:16px;z-index:60;background:#18181B;color:#fff;border-radius:14px;padding:8px;display:flex;gap:6px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.25);font:600 13px/1 Inter,system-ui,sans-serif}.attsw{flex-direction:column;align-items:stretch}.attsw .swg{display:flex;gap:6px;align-items:center}.attsw span{padding:0 6px;color:#A1A1AA;min-width:84px}.attsw button{border:0;border-radius:9px;padding:8px 12px;background:#27272A;color:#fff;font:inherit;cursor:pointer}.attsw button[aria-pressed=true]{background:#FFD000;color:#18181B}
+.afp{display:flex;flex-direction:column;gap:.7cqw}.afp .afh{margin-bottom:0}
+.fc{border-radius:.8cqw;padding:.8cqw 1cqw;color:#fff;flex:1;display:flex;flex-direction:column;justify-content:center}.fc.g{background:#16A34A}.fc.b{background:#2563EB}.fc.k{background:#18181B}
+.fch{display:flex;align-items:baseline;gap:.8cqw}.fch b{font-family:var(--disp);font-size:2.3cqw;font-weight:900;line-height:1}.fc.k .fch b{color:#FFD000}
+.fch span{font-size:1.15cqw;font-weight:800}.fch em{font-style:normal;margin-right:.35cqw;opacity:.85}
+.fc p{margin:.45cqw 0 0;font-size:1.02cqw;font-weight:600;line-height:1.35}.fc small{display:block;margin-top:.3cqw;font-size:.82cqw;opacity:.85}
+.ahl{display:grid;grid-template-columns:repeat(4,1fr);gap:.7cqw;margin-top:.8cqw}
+.ahc{border-radius:.7cqw;padding:.6cqw .8cqw;background:#F4F4F5;border:1px solid #E4E4E7;display:flex;flex-direction:column;min-width:0}
+.ahc i{font-style:normal;font-size:1.1cqw}.ahc b{font-family:var(--disp);font-size:1.7cqw;font-weight:900;line-height:1.1}.ahc span{font-size:.82cqw;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#52525B}
+.ahc small{font-size:.78cqw;color:#71717A;margin-top:.15cqw;line-height:1.3}.ahc.t{background:#FEFCE8;border-color:#FDE68A}.ahc.p{background:#F0FDF4;border-color:#BBF7D0}.ahc.z{background:#EFF6FF;border-color:#BFDBFE}.ahc.u{background:#FAF5FF;border-color:#E9D5FF}.axh{margin-top:.7cqw;font-size:.95cqw;color:#52525B}
+.axt{width:100%;border-collapse:collapse;margin-top:.35cqw;font-size:.85cqw;font-variant-numeric:tabular-nums}.axt th{font-size:.72cqw;color:#71717A;font-weight:700;text-align:right;padding:.2cqw .3cqw;border-bottom:1px solid #E4E4E7}.axt td{text-align:right;padding:.25cqw .3cqw;border-bottom:1px solid #F4F4F5}.axt th:first-child,.axt td:first-child{text-align:left;font-weight:700}
+.axf{background:#F4F4F5;border-radius:.5cqw;padding:.45cqw .7cqw;margin-top:.5cqw!important}
+.at tr.clk{cursor:pointer}.at tr.clk:hover td{background:#F0FDF4}.at tr.clk:focus-visible{outline:2px solid #16A34A;outline-offset:-2px}.ahint{color:#15803D;font-weight:700}
+.adt{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;margin-top:10px}.adt th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#71717A;text-align:right;padding:6px 8px;border-bottom:1px solid #E4E4E7}.adt td{text-align:right;padding:7px 8px;border-bottom:1px solid #F4F4F5;vertical-align:top}.adt th:first-child,.adt td:first-child{text-align:left;color:#3F3F46;font-weight:600;min-width:140px}.adt td.q small{white-space:normal}.adw{overflow-x:auto}@media(max-width:640px){.mdk{grid-template-columns:1fr 1fr!important}}
+.adt td small{display:block;color:#A1A1AA;font-size:10.5px;font-weight:500;white-space:nowrap}.adt .q{background:#F0FDF4}.adt tr.sc td{font-weight:800;border-top:2px solid #E4E4E7}.adt tr.sc td:not(:first-child){color:#15803D}
+.adh{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:#71717A;margin-top:16px}
+.adf{margin-top:12px;background:#F4F4F5;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.7;color:#3F3F46}.adf b{color:#18181B}
+.afh{display:flex;justify-content:space-between;align-items:center}.a20{background:#DCFCE7;color:#15803D;border-radius:99px;padding:.15cqw .7cqw;font-size:.85cqw;letter-spacing:0;text-transform:none}
+.afx{list-style:none;margin:.7cqw 0 0;padding:0;font-size:.98cqw;color:#3F3F46;line-height:1.4}.afx li{margin-bottom:.35cqw}.afx em{margin-right:.3cqw}.afx em{font-style:normal;font-weight:800;color:#16A34A}
+.lc1{display:flex;flex-wrap:wrap;align-items:center;gap:.4cqw .9cqw;margin-top:.6cqw;font-size:.98cqw;font-weight:600}.lc1 .cap{width:100%}.lc1 span{display:flex;align-items:center;gap:.35cqw}
+.lc1 .k{font-style:normal;padding:.15cqw .4cqw;border-radius:.35cqw;color:#fff;font-size:.85cqw;font-weight:800}
+.lc span{display:flex;align-items:center;gap:.7cqw;font-size:1.1cqw;font-weight:600}
+.lc .k{font-style:normal;width:3.2cqw;text-align:center;padding:.25cqw 0;border-radius:.4cqw;color:#fff;font-size:.95cqw;font-weight:800}
+.k.s{background:#F59E0B}.k.p{background:#6366F1}.k.x,.k.z0{background:#EF4444}
+.v5.many .at td{padding:.3cqw .4cqw}
+@media (prefers-reduced-motion:reduce){.dseg{stroke-dasharray:var(--da) 100!important}.stk i{width:var(--w)!important}.cbars i{height:var(--h)!important}.ab i{width:var(--w)!important}}
+@media print{.dseg{stroke-dasharray:var(--da) 100!important;transition:none!important}.stk i{width:var(--w)!important}.cbars i{height:var(--h)!important}.ab i{width:var(--w)!important}}
+/* produktivitas: klik untuk detail per bulan */
+.pr.clk{cursor:pointer;border-radius:.6cqw;transition:background .15s}
+.pr.clk:hover,.pr.clk:focus-visible{background:#FFF7CC;outline:none}
+.how .tap{font-weight:700;color:#A16207;background:#FFF7CC;border-radius:999px;padding:.3cqw .9cqw;white-space:nowrap}
+@media print{.how .tap{display:none}}
+.md{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.mdb{background:var(--solid);color:var(--ink);border-radius:18px;width:min(760px,100%);max-height:92vh;overflow:auto;padding:22px 24px;box-shadow:0 30px 80px rgba(0,0,0,.35);font-family:var(--ui)}
+.mdh{display:flex;align-items:center;gap:12px}.mdh .rav{width:52px;height:52px;font-size:16px}
+.mdh h3{margin:0;font-size:19px}.mdh small{color:var(--muted);font-size:13px}
+.mdh .x{margin-left:auto}
+.mdk{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.mdk div{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.mdk span{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mdk b{display:block;font-family:var(--disp);font-size:24px;margin-top:2px}
+.mdc{display:flex;align-items:flex-end;gap:18px;height:170px;padding:22px 8px 0;border-bottom:1px solid var(--line);margin-bottom:6px}
+.mdc .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.mdc .stk2{width:56%;display:flex;flex-direction:column-reverse;border-radius:6px 6px 0 0;overflow:hidden;height:0;transition:height 1.2s cubic-bezier(.22,1,.36,1)}
+.mdc .stk2 i{display:block}.mdc .v{font-weight:800;font-size:14px;margin-bottom:4px}
+.mdc .na{color:var(--muted);font-size:12px;margin-bottom:8px}
+.mdx{display:flex;gap:18px;padding:0 8px;font-size:12.5px;font-weight:700;color:var(--muted)}.mdx span{flex:1;text-align:center}
+.mdt{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}
+.mdt th{text-align:right;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+.mdt th:first-child,.mdt td:first-child{text-align:left}
+.mdt td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.mdt td small{display:block;color:var(--muted);font-size:11px}
+.mdt .rr{color:#2563EB;background:rgba(37,99,235,.06)}.mdt th.rr small{display:block;font-size:10px;letter-spacing:0;text-transform:none;font-weight:600}
+.mdt tr.tot td{font-weight:800;background:var(--hover)}
+.mdn{font-size:12.5px;color:var(--muted);margin-top:12px;line-height:1.5}
+.mdlg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}.mdlg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* transisi halus */
+.slide .s-in>*{transition-duration:.9s,1.1s!important;transition-timing-function:ease,cubic-bezier(.22,1,.36,1)!important}
+.present .holder .slide{animation:slideIn .55s cubic-bezier(.22,1,.36,1)}
+@keyframes slideIn{from{opacity:0;transform:translateX(2.5%) scale(.985)}to{opacity:1;transform:none}}
+.stk i,.cbars i,.ab i,.sbar i,.trk b,.dseg{will-change:width,height,stroke-dasharray}
+@media (prefers-reduced-motion:reduce){.present .holder .slide{animation:none}}
+/* ---------- present mode ---------- */
+.present{position:fixed;inset:0;z-index:100;background:#000;display:flex;align-items:center;justify-content:center}
+.present .holder{width:min(100vw,calc(100vh*16/9));}
+.present .slide{border-radius:0;box-shadow:none}
+.present .nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;opacity:.2;transition:opacity .2s}
+.present .nav:hover{opacity:1}
+.present .nav button{width:34px;height:34px;border-radius:8px;border:1px solid #3F3F46;background:#18181B;color:#fff;cursor:pointer}
+.present .dotsn{display:flex;gap:5px}
+.present .dotsn i{width:6px;height:6px;border-radius:999px;background:#52525B}
+.present .dotsn i.on{width:22px;background:var(--y)}
+.present .x{position:fixed;top:12px;right:12px;opacity:.25}
+.present .x:hover{opacity:1}
+
+/* ---------- editor ---------- */
+.modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.45);display:flex;justify-content:flex-end}
+.drawer{width:min(980px,100%);height:100%;background:var(--bg);display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.25)}
+.dh{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--solid)}
+.dh h3{margin:0 auto 0 0;font-size:16px}
+.db{flex:1;overflow:auto;padding:16px 18px 40px}
+.help{font-size:12.5px;color:var(--muted);margin:0 0 14px;line-height:1.5}
+.etw{padding:12px}.eth{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin-bottom:8px}.eth b{font-size:14px}.eth span{font-size:12px;color:var(--mut,#71717A)}
+.ets-scroll{overflow-x:auto}.etab{border-collapse:collapse;font-size:12px;min-width:100%;font-variant-numeric:tabular-nums}
+.etab th{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:#71717A;padding:4px 3px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+.etab th.etm{border-bottom:2px solid #FFD000;color:inherit}.etab td{padding:3px 2px;border-bottom:1px solid var(--line)}
+.etab .etn{text-align:left;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;font-weight:700;padding-right:8px}.etab .etd{color:#71717A;text-align:center}
+.etab input.et{width:58px;padding:5px 5px;font-size:12px;text-align:right}.etab .etr input.et{width:62px}.etab .etg{border-left:1px solid var(--line)}
+.etab .etr{background:rgba(59,130,246,.07)}.etab .ets{text-align:right;font-weight:700;padding:3px 6px;white-space:nowrap}.etab .etf{background:rgba(255,208,0,.15)}.etab .ett{background:rgba(0,0,0,.035)}.etab th.ets2{color:#15803D}.etab td.ets2 input.et{background:rgba(22,163,74,.06)}.etmins{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:12px;margin:4px 0 6px}.etmins label{display:flex;align-items:center;gap:6px}.etmins input.et{width:76px}.sumq{font-size:12.5px;margin:2px 0 8px;line-height:1.5}.etblk{margin-top:10px}.etblk+.etblk{margin-top:16px}.etab td.etb{background:rgba(59,130,246,.06)}.etab th.etb{color:#2563EB}.etab .etx{color:#2563EB}
+.acard{background:var(--solid);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.acard .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.acard .top input[type=text]{flex:1;min-width:180px}
+.acard .live{margin-left:auto;font-size:12px;color:var(--muted)}
+.acard .live b{color:var(--ink);font-size:14px}
+.fs{border:0;margin:10px 0 0;padding:10px 0 0;border-top:1px dashed var(--line)}
+.fs legend{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.f label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.inp{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px;font-size:13px}
+.inp:focus{outline:2px solid var(--y2);outline-offset:-1px}
+.eph{width:44px;height:44px;border-radius:50%;background:var(--hover);overflow:hidden;display:grid;place-items:center;font-size:11px;color:var(--muted);flex:none}
+.eph img{width:100%;height:100%;object-fit:cover}
+.mini{font-size:12px;padding:5px 10px}
+.danger{color:#DC2626}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--solid)}.lang button{border:0;background:transparent;padding:7px 11px;font-size:12px;font-weight:800;color:var(--muted);cursor:pointer}.lang button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.modal.center{justify-content:center;align-items:center}
+.lbox{background:var(--solid);border-radius:16px;padding:22px;width:min(380px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}.lbox h3{margin:0 0 6px}.lbox p{margin:0 0 12px;font-size:13px;color:var(--muted)}.lact{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.lerr{color:#DC2626;font-size:12.5px;margin-top:8px;min-height:1em}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;background:#111;color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+
+/* ---------- animations (berjalan saat slide terlihat / dipresentasikan) ---------- */
+.slide .s-in>*{opacity:0;transform:translateY(1.2cqw);transition:opacity .7s ease,transform .8s cubic-bezier(.22,1,.36,1);transition-delay:calc(var(--i,0)*90ms)}
+.slide.play .s-in>*{opacity:1;transform:none}
+.slide .trk b{width:0;transition:width 1.6s cubic-bezier(.22,1,.36,1);transition-delay:calc(300ms + var(--k,0)*110ms)}
+.slide.play .trk b{width:var(--w)}
+.ring .pr{stroke-dasharray:0 100;transition:stroke-dasharray 1.8s cubic-bezier(.22,1,.36,1);transition-delay:calc(350ms + var(--k,0)*140ms)}
+.slide.play .ring .pr{stroke-dasharray:var(--da) 100}
+.slide [data-k]{opacity:0;transform:translateY(1.4cqw) scale(.98);transition:opacity .6s ease,transform .8s cubic-bezier(.22,1,.36,1);transition-delay:calc(250ms + var(--k,0)*120ms)}
+.slide.play [data-k]{opacity:1;transform:none}
+.sb .srow[data-k]{transform:translateX(-3cqw)}
+.sb.play .srow[data-k]{transform:none}
+.cover .wm{transform:translateX(6cqw);opacity:0;transition:transform 1.6s cubic-bezier(.22,1,.36,1) .2s,opacity 1.6s ease .2s}
+.cover.play .wm{transform:none;opacity:1}
+.cover .box{clip-path:inset(0 100% 0 0);transition:clip-path .9s cubic-bezier(.7,0,.2,1) .5s}
+.cover.play .box{clip-path:inset(0 0 0 0)}
+.slide.play .trophy{animation:pulse 2.6s ease-in-out 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 .9cqw rgba(255,208,0,.08)}50%{box-shadow:0 0 0 1.6cqw rgba(255,208,0,.14),0 0 4cqw rgba(255,208,0,.25)}}
+.slide.play .glow{animation:glow 5s ease-in-out infinite}
+@keyframes glow{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+.win .photo{transform:scale(.7);opacity:0;transition:transform 1.5s cubic-bezier(.2,1.4,.4,1) .5s,opacity .6s ease .5s}
+.win.play .photo{transform:none;opacity:1}
+.win .photo .r1{border-style:dashed}
+.win.play .photo .r1{animation:spin 24s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.win .rib{transform:translateX(-50%) translateY(1cqw);opacity:0;transition:all .6s ease 1.3s}
+.win.play .rib{transform:translateX(-50%);opacity:1}
+.confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
+.confetti i{position:absolute;top:-4%;width:.55cqw;height:.3cqw;border-radius:.05cqw;opacity:0;animation:fall var(--d) linear var(--dl) infinite;animation-play-state:paused}
+.win.play .confetti i{animation-play-state:running}
+@keyframes fall{0%{transform:translate3d(0,0,0) rotate(0);opacity:0}8%{opacity:1}100%{transform:translate3d(var(--x),62cqw,0) rotate(var(--r));opacity:.9}}
+.srow.first:after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 30%,rgba(255,208,0,.18) 50%,transparent 70%);background-size:250% 100%;background-position:120% 0;pointer-events:none}
+.srow{position:relative}
+.sb.play .srow.first:after{animation:shine 3.5s ease-in-out 1.4s infinite}
+@keyframes shine{0%{background-position:120% 0}60%,100%{background-position:-60% 0}}
+@media (prefers-reduced-motion:reduce){.slide *,.slide{transition:none!important;animation:none!important}.slide .s-in>*,.slide [data-k],.cover .wm,.win .photo,.win .rib{opacity:1!important;transform:none!important}.cover .box{clip-path:none!important}.trk b{width:var(--w)!important}.ring .pr{stroke-dasharray:var(--da) 100!important}.confetti{display:none}}
+@media print{.slide *{transition:none!important;animation:none!important}.slide .s-in>*,.slide [data-k],.cover .wm,.win .photo,.win .rib{opacity:1!important}.win .rib{transform:translateX(-50%)!important}.cover .box{clip-path:none!important}.trk b{width:var(--w)!important}.ring .pr{stroke-dasharray:var(--da) 100!important}.confetti{display:none}}
+@media (max-width:700px){.bar{padding:8px 12px}.brand small{display:none}.deck{padding:14px 10px 60px;gap:14px}.hide-m{display:none}}
+@media print{.bar,.note,.toast{display:none!important}.deck{padding:0;gap:0;max-width:none}.slide{border-radius:0;box-shadow:none;break-after:page}body{background:#fff}}
+</style>
+<script>(function(){try{if(new URLSearchParams(location.search).has('view'))document.documentElement.classList.add('viewonly')}catch(e){}})()</script>
+<style>html.viewonly #dashBtn,html.viewonly #period,html.viewonly #adminBtn,html.viewonly #shareBtn,html.viewonly #editBtn,html.viewonly #textBtn,html.viewonly #printBtn{display:none!important}</style>
+</head>
+<body>
+<header class="bar">
+  <a class="btn" id="dashBtn" href="/">← Dashboard</a>
+  <div class="brand"><img src="mark.png" alt=""><div><small>GlobalXtreme · Best Employee</small><b>Helpdesk Performance Report</b></div></div>
+  <select class="sel" id="period" aria-label="Periode"></select>
+  <div class="lang" id="langSw" role="group" aria-label="Language"><button data-lang="id">ID</button><button data-lang="en">EN</button></div>
+  <span class="pill" id="status"><i></i><span>Memuat…</span></span>
+  <button class="btn hidden" id="adminBtn" title="Masuk sebagai admin untuk mengedit">🔒 Admin</button>
+  <button class="btn hidden" id="shareBtn" title="Salin link khusus lihat (tanpa tombol edit)">🔗 Link viewer</button>
+  <button class="btn hidden" id="editBtn">Edit data</button>
+  <button class="btn hidden" id="textBtn" title="Klik teks di slide untuk mengubahnya">✎ Edit text</button>
+  <button class="btn hide-m" id="printBtn">Print / PDF</button>
+  <button class="btn pri" id="presentBtn">▶ Present</button>
+</header>
+
+<main class="deck" id="deck"></main>
+
+<div class="modal center hidden" id="login" role="dialog" aria-modal="true" aria-labelledby="lgT">
+  <form class="lbox" id="loginForm"><h3 id="lgT">Masuk admin</h3><p>Masukkan password publish (PUBLISH_KEY) untuk mengedit data.</p>
+    <input class="inp" type="password" id="lgKey" autocomplete="current-password" required><div class="lact"><button type="button" class="btn" id="lgCancel">Batal</button><button class="btn y">Masuk</button></div><div class="lerr" id="lgErr"></div></form>
+</div>
+<div class="modal hidden" id="editor" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+  <div class="drawer">
+    <div class="dh">
+      <h3 id="edTitle">Edit data</h3>
+      <button class="btn" id="edCancel">Batal</button>
+      <button class="btn y" id="edSave">Simpan online</button>
+    </div>
+    <div class="db" id="edBody"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =================== konstanta =================== */
+const START_YEAR = 2026, START_Q = 2;
+const CROSS_MAX = 5;
+const RR_TARGET = { HD: 90, AM: 95 }, RR_PEN_PER = 1, RR_PEN_MAX = 5;   // resolution rate di bawah target → −1 poin per 1% (maks −5, seimbang dengan bonus) dari productivity
+const CROSS_FINAL = 0.5;
+const RULES_FROM = '2026-Q3';   // penalti res. rate & bonus back-up berlaku mulai Q3 2026 (Q2 tetap sesuai hasil yang sudah diumumkan)
+/* Q2 2026 = data & rumus final dari file Q2-Best_Employee_Helpdesk.xlsx (dikunci, tidak bisa diedit) */
+const LOCKED = { '2026-Q2': 'Q2-Best_Employee_Helpdesk.xlsx' };
+const legacyRules = () => { try { return ST.period === '2026-Q2'; } catch (e) { return false; } };
+const newRules = () => { try { return (ST.period || '') >= RULES_FROM; } catch (e) { return false; } };   // bonus back-up masuk ke Final Score dengan bobot sama seperti productivity (maks +2.5)   // bonus back-up lintas divisi maks +5 poin (produktivitas tetap maks 100)                      // periode pertama: 2026 Q2
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MSHORT = MONTHS.map(m => m.slice(0, 3));
+const API = '/api/perf', KEY_PUB = 'gxcs-pub-key', CACHE = 'gx-perf-cache-';
+const COLORS = ['#FFD000', '#111111', '#8A8A8A', '#D4D4D8', '#F59E0B', '#2563EB', '#16A34A', '#DC2626'];
+const CRITERIA = ['Opening & Greeting Protocol', 'Customer Identification', 'Issue Understanding', 'Empathy & Tone', 'Accuracy of Solution',
+  'Communication Clarity', 'Response Speed', 'Grammar & Language', 'Product / SOP Knowledge', 'Closing & Follow-Up'];
+
+/* Data Q2 2026 (dari slide Figma Q2 Report Helpdesk + sheet bulanan Q2; Res. % Q2 = VIP done ÷ VIP, bulan tanpa VIP = 100%) — dipakai sampai data online disimpan */
+const SEED = {
+  '2026-Q2': { attNote: 'Dari Q2-Best_Employee_Helpdesk.xlsx · 26 hari kerja/bulan · Desi: sakit 3, PL 1 · Aulia: sakit 5, alpha 1, telat 88 mnt · Kadek: sakit 8, PL 4, telat 35 mnt', agents: [
+    { name: 'Ni Kadek Desi Mirayani', div: 'AM', csMonM: [107, 99, 255], csHandledM: [37, 36, 99], vipTotalM: [332, 536, 496], vipSolvedM: [323, 535, 492], ticketsM: [343, 560, 534], rrM: [97.29, 99.81, 99.19], chat: [95, 95, 95], att: { workDays: 78, sick: 3, personal: 1, alpha: 0, lateMin: 0, workMin: 37440 } },
+    { name: 'Aulia Sevi Diana', div: 'AM', csMonM: [175, 98, 79], csHandledM: [59, 36, 37], vipTotalM: [380, 473, 371], vipSolvedM: [377, 472, 355], ticketsM: [352, 432, 332], rrM: [99.21, 99.79, 95.69], chat: [90, 95, 95], att: { workDays: 78, sick: 5, personal: 0, alpha: 1, lateMin: 88, workMin: 37440 } },
+    { name: 'Devin Bagaskara', div: 'HD', csMonM: [750, 788, 723], csHandledM: [201, 216, 315], vipTotalM: [10, 55, 81], vipSolvedM: [9, 54, 80], ticketsM: [208, 258, 385], rrM: [90.00, 98.18, 98.77], chat: [95, 95, 95], att: { workDays: 78, sick: 0, personal: 0, alpha: 0, lateMin: 0, workMin: 37440 } },
+    { name: 'Kadek Arisita Dhyana Putri', div: 'HD', csMonM: [669, 677, 648], csHandledM: [225, 231, 234], vipTotalM: [0, 26, 16], vipSolvedM: [0, 25, 16], ticketsM: [226, 259, 254], rrM: [100, 96.15, 100], chat: [90, 95, 95], att: { workDays: 78, sick: 8, personal: 4, alpha: 0, lateMin: 35, workMin: 37440 } },
+  ] },
+  /* Q3 2026 — Jul & Agu dari Monitoring_Customer_Support_2026_Responses.xlsx (sheet July / August), Sep dari Tickets-2026-09-01_2026-09-30.xlsx.
+     VIP Jul & Agu dari Monitoring_VIP.xlsx (Handled By). Attendance dari Attendance Recap (screenshot Jul–Sep). Observation Q3 belum ada. */
+  '2026-Q3': { attNote: 'Attendance Recap Juli–September (siklus 26–25)', attMins: [12480, 12000, 12960], attMinsV: 2, agents: [
+    { name: 'Devin Bagaskara', div: 'AM', csMonM: [586, 2, 22], csHandledM: [221, 2, 14], vipTotalM: [52, 41, 272], csSolvedM: [219, 2, 13], vipSolvedM: [52, 41, 272], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 1, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 23, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 2, alpha: 0, late: 0, lateDays: 0 }] },
+    { name: 'Ni Kadek Desi Mirayani', div: 'AM', csMonM: [201, 133, 56], csHandledM: [64, 49, 19], vipTotalM: [666, 484, 307], csSolvedM: [63, 49, 19], vipSolvedM: [665, 484, 307], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 2, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 1, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 1, alpha: 0, late: 0, lateDays: 0 }] },
+    { name: 'Aulia Sevi Diana', div: 'AM', csMonM: [147, 65, 19], csHandledM: [56, 27, 11], vipTotalM: [587, 421, 324], csSolvedM: [56, 27, 11], vipSolvedM: [587, 421, 324], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 2, alpha: 0, late: 11, lateDays: 0 }, { pl: 0, sick: 3, alpha: 0, late: 1, lateDays: 1 }, { pl: 0, sick: 2, alpha: 1, late: 30, lateDays: 3 }] },
+    { name: 'Kadek Arisita Dhyana Putri', div: 'HD', csMonM: [801, 642, 539], csHandledM: [297, 259, 194], vipTotalM: [25, 28, 8], csSolvedM: [291, 258, 187], vipSolvedM: [25, 28, 8], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 2, alpha: 0, late: 12, lateDays: 5 }, { pl: 0, sick: 1, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 3, alpha: 0, late: 13, lateDays: 2 }] },
+    { name: 'Gede Dimas Pery Narendra', div: 'HD', csMonM: [407, 487, 444], csHandledM: [114, 167, 144], vipTotalM: [0, 0, 0], csSolvedM: [114, 167, 140], vipSolvedM: [0, 0, 0], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 0, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 0, alpha: 2, late: 0, lateDays: 0 }, { pl: 0, sick: 0, alpha: 0, late: 34, lateDays: 1 }] },
+    { name: 'Bayu Sukma Ramadhan', div: 'HD', csMonM: [301, 517, 375], csHandledM: [75, 159, 142], vipTotalM: [0, 0, 0], csSolvedM: [75, 158, 138], vipSolvedM: [0, 0, 0], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 0, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 0, alpha: 1, late: 24, lateDays: 3 }, { pl: 0, sick: 1, alpha: 0, late: 5, lateDays: 1 }] },
+    { name: 'A.A Ngurah Kiyana Adhisa Oka Pertama', div: 'HD', csMonM: [15, 447, 453], csHandledM: [3, 147, 142], vipTotalM: [0, 0, 0], csSolvedM: [3, 147, 142], vipSolvedM: [0, 0, 0], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 0, alpha: 0, late: 56, lateDays: 1 }, { pl: 0, sick: 5, alpha: 0, late: 136, lateDays: 7 }, { pl: 0, sick: 1, alpha: 4, late: 175, lateDays: 14 }] },
+    { name: 'Nilma Syahrani', div: 'HD', csMonM: [0, 315, 386], csHandledM: [0, 112, 165], vipTotalM: [0, 0, 0], csSolvedM: [0, 112, 160], vipSolvedM: [0, 0, 0], chat: ['', '', ''], att: {}, attM: [{ pl: 0, sick: 1, alpha: 0, late: 6, lateDays: 0 }, { pl: 0, sick: 4, alpha: 0, late: 0, lateDays: 0 }, { pl: 0, sick: 1, alpha: 0, late: 9, lateDays: 3 }] },
+  ] },
+};
+/* Observation Q3 2026 — 2 kasus per bulan (Juli · Agustus · September), dari rekap observation */
+const OBS_Q3 = { 'aa ngurah kiyana adhisa oka pertama': [[100, 100], [60, 80], [80, 80]], 'aulia sevi diana': [[90, 90], [100, 90], [100, 100]],
+  'bayu sukma ramadhan': [[100, 100], [90, 90], [90, 100]], 'devin bagaskara': [[90, 90], [100, 100], [100, 90]],
+  'gede dimas pery narendra': [[90, 70], [80, 90], [100, 60]], 'kadek arisita dhyana putri': [[100, 100], [100, 100], [100, 90]],
+  'ni kadek desi mirayani': [[80, 90], [100, 90], [90, 100]], 'nilma syahrani': [[100, 100], [40, 80], [80, 90]] };
+const okey = x => String(x || '').toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
+SEED['2026-Q3'].agents.forEach(a => { const o = OBS_Q3[okey(a.name)]; if (o) a.chatC = o.map(r => r.slice()); });
+
+
+/* Foto agent (file photo-*.jpg). Nama lain/singkatan diarahkan lewat ALIAS. */
+const PHOTOS = {
+  'devin bagaskara': 'photo-devin-bagaskara.jpg', 'bayu sukma ramadhan': 'photo-bayu-sukma-ramadhan.jpg',
+  'ni kadek desi mirayani': 'photo-ni-kadek-desi-mirayani.jpg', 'gede dimas pery narendra': 'photo-gede-dimas-pery-narendra.jpg',
+  'a.a ngurah kiyana adhisa oka pertama': 'photo-aa-ngurah-kiyana-adhisa-oka-pertama.jpg', 'nilma syahrani': 'photo-nilma-syahrani.jpg',
+  'aulia sevi diana': 'photo-aulia-sevi-diana.jpg', 'kadek arisita dhyana putri': 'photo-kadek-arisita-dhyana-putri.jpg',
+};
+const ALIAS = { 'kadek arisita d.p.': 'kadek arisita dhyana putri', 'bagas': 'devin bagaskara', 'kiyana': 'a.a ngurah kiyana adhisa oka pertama' };
+const NICK = { 'devin bagaskara': 'Bagas', 'ni kadek desi mirayani': 'Desi', 'aulia sevi diana': 'Aulia', 'kadek arisita dhyana putri': 'Sita', 'a.a ngurah kiyana adhisa oka pertama': 'Oka', 'nilma syahrani': 'Rani', 'bayu sukma ramadhan': 'Bayu', 'gede dimas pery narendra': 'Dimas' };
+const pkey = name => { const k = String(name || '').trim().toLowerCase().replace(/\s+/g, ' '); return ALIAS[k] || k; };
+const photoOf = a => (a && a.photo) || PHOTOS[pkey(a && a.name)] || '';
+
+/* Susunan tim per periode (dipakai saat periode masih kosong — tinggal isi angkanya) */
+const ROSTER = {
+  '2026-Q3': [['Devin Bagaskara', 'AM'], ['Bayu Sukma Ramadhan', 'HD'], ['Ni Kadek Desi Mirayani', 'AM'], ['Gede Dimas Pery Narendra', 'HD'],
+    ['A.A Ngurah Kiyana Adhisa Oka Pertama', 'HD'], ['Nilma Syahrani', 'HD'], ['Aulia Sevi Diana', 'AM'], ['Kadek Arisita Dhyana Putri', 'HD']],
+  // Q4: Kadek Arisita → AM · Bayu pindah ke CSO Lobby (1 Okt) · Gede Dimas resign (1 Nov)
+  '2026-Q4': [['Devin Bagaskara', 'AM'], ['Ni Kadek Desi Mirayani', 'AM'], ['Aulia Sevi Diana', 'AM'], ['Kadek Arisita Dhyana Putri', 'AM'],
+    ['A.A Ngurah Kiyana Adhisa Oka Pertama', 'HD'], ['Nilma Syahrani', 'HD']],
+};
+
+/* =================== util =================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const n = v => { const x = Number(v); return isFinite(x) ? x : 0; };
+const has = v => v !== null && v !== undefined && v !== '' && isFinite(Number(v));
+const r2 = v => Math.round(v * 100) / 100;
+const f2 = v => r2(v).toFixed(2);
+const fInt = v => Math.round(v).toLocaleString('en-US');
+const sum = a => a.reduce((s, x) => s + n(x), 0);
+const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const clone = o => JSON.parse(JSON.stringify(o));
+const qMonths = p => { const q = +p.slice(-1); return [0, 1, 2].map(i => (q - 1) * 3 + i); };
+const pLabel = p => `${p.slice(0, 4)} · ${p.slice(5)}`;
+const DIV = { HD: 'Helpdesk', AM: 'Account Manager' };
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
+function initials(name) { return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
+/* produktivitas per bulan: rumus sama, dibandingkan dengan agent satu divisi di bulan yang sama */
+function monthlyProd(data) {
+  const out = {};
+  for (let k = 0; k < 3; k++) {
+    const agents = (data.agents || []).map(normAgent).filter(a => a.name.trim()).filter(a => a.div === 'HD' ? (a.csMonM[k] != null || a.csHandledM[k] != null) : a.vipTotalM[k] != null)
+      .map(a => ({ name: a.name, div: a.div, csMon: a.csMonM[k] || 0, csHandled: a.csHandledM[k] || 0, vipTotal: a.vipTotalM[k] || 0, vipSolved: a.vipSolvedM[k] || 0, rrM: [rrOf(a, k), null, null], ticketsM: [a.ticketsM[k], null, null], vipTotalM: [a.vipTotalM[k], null, null], vipSolvedM: [a.vipSolvedM[k], null, null], chat: [], att: { manual: 0 } }));
+    if (!agents.length) continue;
+    compute({ agents }).A.forEach(r => { (out[r.name] = out[r.name] || [null, null, null])[k] = r; });
+  }
+  return out;
+}
+
+/* =================== bahasa slide (EN / ID) =================== */
+let LANG = 'en';
+try { const v = localStorage.getItem('gx-dash-lang'); if (v === 'id' || v === 'en') LANG = v; } catch (e) {}
+const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const MSHORT_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const monthName = i => (LANG === 'id' ? MONTHS_ID : MONTHS)[i];
+const monthShort = i => (LANG === 'id' ? MSHORT_ID : MSHORT)[i];
+const CRITERIA_ID = ['Salam Pembuka & Protokol', 'Identifikasi Pelanggan', 'Pemahaman Masalah', 'Empati & Nada Bicara', 'Ketepatan Solusi',
+  'Kejelasan Komunikasi', 'Kecepatan Respons', 'Tata Bahasa', 'Pengetahuan Produk / SOP', 'Penutup & Follow-Up'];
+const DIV_ID = { HD: 'Helpdesk', AM: 'Account Manager' };
+const TX = {
+  en: {
+    rrInfoQ2: 'Q2 2026 uses the final Q2 formula — Helpdesk: CS Monitoring 38 + CS Handled 19 + Tickets Created 38 · AM: VIP Resolution Rate 57 + Tickets Created 38 (months without VIP = 100%) · bonus max +5',
+    rrInfoOld: 'Resolution rate (CS & VIP) is shown as information only and is not part of the score — it also depends on the customer side. Click an agent to see it per month.',
+    rrInfo: 'Monthly resolution rate target: Helpdesk 90% · Account Manager 95%. Each 1% below target deducts 1 point (averaged over the quarter, max −5). Click an agent for the monthly breakdown.', rrMd: 'Monthly resolution rate target: Helpdesk 90% · Account Manager 95% — each 1% below target deducts 1 point (averaged over the quarter, max −5).', penL: 'res. rate', resRate: 'Resolution rate', infoOnly: 'target HD 90% · AM 95%', infoOld: 'info only', csSolvedL: 'solved',
+    clickHint: 'Click an agent for the monthly breakdown', clickDetail: 'Click for the monthly breakdown', monthlyAvg: 'Monthly average', quarterScore: 'Quarter score', bestMonth: 'Best month', noMonthly: 'Monthly data has not been entered for this agent yet. Fill the monthly fields in Edit data to see the breakdown per month.', mdNote: 'Each month uses the same formula and is compared with agents in the same division that month. The quarter score uses quarter totals.', month: 'Month', close: 'Close', totalQ: 'Quarter',
+    example: 'Worked example', points: 'points', monitored: 'monitored', handled: 'handled', vipSolvedR: 'VIP resolved',
+    prodTake2: 'Each metric is scored against the best result in the agent’s own division.', topIn: 'Top', khl: 'Key highlights', teamAvg: 'Team average', agents: 'agents',
+    how1: 'Each metric is compared to the best in the same division', how2: 'Multiplied by its weight (core score max 95)', how3: 'Best core KPI earns up to +5 bonus · capped at 100',
+    chatTake2: min => `Observation scores are consistently high — every agent averages ${min}+ out of 100.`, obsNone: 'Observation scores for this quarter have not been entered yet.', obsOf: nm => `${nm} observation`, monthlyScores: 'Monthly observation scores', ranking: 'Ranking', agent: 'Agent', avgS: 'Average', trend: 'Trend',
+    axisFrom: lo => `Axis starts at ${lo}`, criteriaT: 'Scored on 10 criteria',
+    attTop: (n, v) => `${n} leads attendance with ${v}`, attTie: (n, v) => `${n} share the top attendance score at ${v}`, scoreScale: lo => `Score (${lo}–100)`, score: 'Score', daysNote: 'Leave and lateness are quarter totals.',
+    rateS: 'Attendance rate', punctS: 'Punctuality', rateD2: 'Attendance rate = days present ÷ working days (leave counts partially).', punctD2: 'Punctuality = 1 − late minutes ÷ total work minutes.',
+    leaveEx: 'Example: 1 sick day counts as 0.75 day present.',
+    howT: 'How the score works', howSub: 'Three components, one final score out of 100.', howSubB: ' Plus a back-up bonus of up to +2.5.',
+    prodT: 'Productivity', chatT2: 'Observation', attT2: 'Attendance',
+    prodQ: 'How much work you handle', chatQ2: 'How well you communicate with customers', attQ2: 'How reliably you show up on time',
+    prodHow: 'Helpdesk: CS monitoring & handled cases · AM: VIP cases handled', chatHow: 'Average of monthly chat observations (10 criteria)', attHow: 'Attendance rate 70% + punctuality 30%',
+    gradeL: 'Grade', leads: (n, d, v) => `${n} leads${d ? ' ' + d : ''} with ${v}`, bonus: 'Bonus',
+    prodNote: 'Each bar is the score out of 100. Agents are compared only within their own division.',
+    chatTake: (names, v, min) => `${names} top the chat reviews with ${v} · everyone scored ${min}+`,
+    chatNote: 'Average of 2 reviewed chats per month, scored on 10 criteria (max 100). Scale starts at 85.',
+    attPerfect: n => `${n} had perfect attendance`, noLeave: 'No leave', d: 'd',
+    attNote2: 'Sick days count 75%, personal leave 50%, absence 0%. Late minutes lower the score. Scale starts at 85.',
+    cso: 'CSO DIVISION', erp: '★ Employee Recognition Program', awards: 'PERFORMANCE AWARDS', lede: t => `Recognizing consistency, excellence,<br>and dedication throughout ${t}.`,
+    hdDiv: 'HELPDESK DIVISION', bestHd: 'BEST HELPDESK', chatQ: 'OBSERVATION', prod: 'PRODUCTIVITY', att: 'ATTENDANCE',
+    kpi: 'KPI Framework', pillarsT: 'THREE PILLARS.<br>ONE SCORE.', formula: 'Final Score = (Chat × 0.30) + (Attendance × 0.20) + (Productivity × 0.50) + Back-up bonus (≤ 2.5)',
+    pillar: 'Pillar', p1sub: 'Highest impact KPI — division-scoped', p2sub: 'Consistency of service', p3sub: 'Reliability &amp; punctuality',
+    p1: ['AM: VIP Handled 95%', 'HD: CS Monitoring 38% + CS Handled 57%', 'Each metric normalized within own division', 'Core Score max 95 + Bonus max +5 = 100', 'Assist Bonus: top KPI metric vs peer max', 'Res. rate target per month HD 90% · AM 95%: −1 pt per 1% below (max −5)', 'Back-up bonus ≤ +2.5 on Final Score'],
+    p2: ms => ['2 cases observed per month', 'Scored via Google Form', '10 criteria, max 100 pts', `Average across ${ms.join(', ').replace(/, ([^,]*)$/, ' and $1')}`],
+    p2all: (n, s) => `All ${n} agents scored ${s}+`,
+    p3: ['Attendance Rate × 0.70', 'Punctuality × 0.30', 'Late mins vs total work mins', 'Sick 75% credit · Personal Leave 50% credit · Alpha 0% credit', 'Perfect score = 100.00'],
+    allGraded: (n, g) => `All ${n} employees graded ${g}`, assessed: n => `${n} employees assessed`,
+    bdCap: 'Productivity · Detailed breakdown', bdT: 'Breakdown Productivity', bdSub: 'Core Score &amp; Assist Bonus, by Division Scope',
+    i1: ['Monitoring vs handled', 'CS Monitoring and CS Handled are weighted separately — high monitoring volume never inflates the handled score.'],
+    i2: ['Own peer group only', "Helpdesk compared to Helpdesk, AM compared to AM — never against each other's scale."],
+    i3: ['Rate for AM, volume for HD', "AM score uses VIP resolution rate (%), not case count — a smaller VIP queue isn't a penalty."],
+    finalScore: 'FINAL SCORE', core: 'CORE SCORE', bdNote: "Assist bonus = (agent value ÷ peer max) × 5 pts — rewards the strongest performer in each division's own core KPI. Productivity is capped at 100.",
+    weight: w => `${w}% Weight`, chatT: 'Observation',
+    badges: ms => ['2 cases observed per month', 'Google Form assessment', '10 evaluation criteria', 'Max 100 points per case', `Average: ${ms.join(' + ')}`],
+    tied: 'TIED 1ST', critT: '10 assessment criteria (Google Form)',
+    attT: 'Attendance &amp; Punctuality', perfect: 'PERFECT ★', calc: 'Calculation formula', rate: 'Attendance Rate', rateD: 'Days present (with leave credit) ÷ total working days × 100',
+    punct: 'Punctuality Score', punctD: '1 − (late minutes ÷ total work minutes)', fin: 'Final Attendance = (Rate × 0.70) + (Punctuality × 0.30)',
+    leave: 'Leave credit (counted as present)', sick: 'Sick Leave', pl: 'Personal Leave (PL)', alpha: 'Alpha (No-show)', attRank: q => `${q} attendance ranking`,
+    best: t => `🏅 Best Employee · ${t}`, division: d => `${d} DIVISION`, outOf: g => `out of 100 · ${g}`, wt: w => `${w}% weight`, rib: t => `★ BEST EMPLOYEE ${t}`,
+    finalRank: t => `🏆 Final Rankings · ${t}`, sbT: 'The Final<span>Scoreboard</span>', final: 'FINAL',
+    g: ['A — Excellent', 'B — Good', 'C — Fair', 'D — Needs improvement'],
+    crossL: 'back-up → final', crossNote: 'Back-up bonus (max +2.5 on the Final Score): Helpdesk handling VIP or AM handling CS is valued on the other division’s scale and compared with the biggest back-up in the team.',
+    mdT: 'Monthly Productivity Data', mdSub: ms => `Input per month (${ms}) and the resulting productivity score.`, vipDone: 'VIP Done', divL: 'Div.',
+    mdNote2: 'CS Mon. = CS Monitoring · CS Hand. = CS Handled · VIP Done excludes admin hold · HD = Helpdesk · AM = Account Manager. Res. Rate = HD: CS solved ÷ CS handled · AM: VIP done ÷ VIP total. Shown as information only — not part of the score. Click a row for the monthly detail.',
+    obsTypes: 'Observation types', obs10: '10 points', obsPh: 'Point',
+    critClick: 'Click for details', critTBA: 'Details will be added (TBA).', critEditHint: 'Write the details for this criterion — shown to everyone after saving.',
+    attRate70: 'Attendance Rate (70%)', punct30: 'Punctuality (30%)', attW20: 'Attendance Weight (20%)', rateF: '(Working Days − Sick Leave − PL − Alpha) ÷ Working Days × 100%', punctF: '(Total Working Minutes − Late Minutes) ÷ Total Working Minutes × 100%', minsF: 'Total Working Minutes = Working Days × 480', wF: q => `${q} Attendance Score × 20% — contribution to the Best Employee total score`, wdS: 'Days', lateS: 'Late', q3Score: q => `${q} Attendance Score`, contribL2: 'Final contribution', avgRate: 'Avg. attendance rate', avgPunct: 'Avg. punctuality', monthlyBD: 'Monthly breakdown', recapQ: q => `${q} recap`, wdL: 'Working days', minS: 'min', lateMinL: 'Late minutes', lateX: 'late', monthScore: 'Monthly score', avgL: 'average', clickAtt: 'Click an agent for the attendance detail.', barR2: 'Attendance rate', rateF2: '(Working days − Sick − PL − Alpha) ÷ Working days', punctF2: '(Working minutes − Late minutes) ÷ Working minutes', minsF2: 'Working minutes = days × 480', daysW: 'days', q3F: 'Monthly score = ① × 70% + ② × 30% · Q3 = average of the 3 months', max20: '× 20% = contribution to the Final Score (max 20 points)', hlTop: 'Highest score', hlPerf: 'Perfect 100.00 months', hlZero: 'Zero late minutes', hlUp: 'Improved every month', obsClick: 'Click a bar or an agent to see the monthly scores.', obsNote: 'Observation details can be checked at', obsQ: q => `${q} Observation score`, obsW: 'Contribution (× 30%)', case: i => `Case ${i}`, cvTitle: 'BEST EMPLOYEE', nominees: n => `${n} nominees`, lateDL: 'Late (days)', rateD3: '(Working days − Sick − PL − Alpha) ÷ Working days × 100%', punctD3: '(1 − Late minutes ÷ Total working minutes) × 100%, where total working minutes = working days × 480', monNote: 'Monthly scores from the Attendance Recap (cycle: 26th–25th). Small text = times late · minutes late.', lateL: 'Late (min)', barR: 'Attendance rate', barP: 'Punctuality', att20: '20% of the Final Score', attScoreL: 'Attendance score', contribL: 'Final Score contribution', contribD: 'Attendance score × 20% (max 20 points)', of20: 'of 20 points', exIn: (wd, s, pl, al, l) => `${wd} working days · ${s} sick · ${pl} PL · ${al} alpha · ${l} late minutes`, attPctL: '% Attendance per month', attPctD: '(working days − PL − sick − alpha) ÷ working days − late minutes ÷ working minutes', attQD: 'Attendance rate × 70% + Punctuality × 30%. Quarter score = average of the 3 months.', attEx: 'Example: 26 working days, 2 sick days, 11 late minutes → 92.31% − 0.09% = 92.22%.',
+    tixL: 'Tickets Created', mon: 'CS Monitoring', hand: 'CS Handled', vipR: 'VIP Resolution Rate', vipH: 'VIP Handled', total: 'total',
+    bonusHD: 'Assist bonus — CS Monitoring', bonusAM: 'Assist bonus — VIP handled', vsMax: 'vs peer max', avg: 'avg', of: 'of', vipHandled: 'VIP handled', rateW: 'rate',
+  },
+  id: {
+    rrInfoQ2: 'Q2 2026 memakai rumus final Q2 — Helpdesk: CS Monitoring 38 + CS Handled 19 + Tiket Dibuat 38 · AM: VIP Resolution Rate 57 + Tiket Dibuat 38 (bulan tanpa VIP = 100%) · bonus maks +5',
+    rrInfoOld: 'Resolution rate (CS & VIP) hanya ditampilkan sebagai info dan tidak masuk skor — karena juga dipengaruhi sisi pelanggan. Klik agent untuk melihat rincian per bulan.',
+    rrInfo: 'Target resolution rate bulanan: Helpdesk 90% · Account Manager 95%. Setiap 1% di bawah target mengurangi 1 poin (dirata-rata per kuartal, maks −5). Klik agent untuk melihat rincian per bulan.', rrMd: 'Target resolution rate bulanan: Helpdesk 90% · Account Manager 95% — setiap 1% di bawah target mengurangi 1 poin (dirata-rata per kuartal, maks −5).', penL: 'res. rate', resRate: 'Resolution rate', infoOnly: 'target HD 90% · AM 95%', infoOld: 'info, tidak masuk skor', csSolvedL: 'selesai',
+    clickHint: 'Klik agent untuk melihat rincian per bulan', clickDetail: 'Klik untuk rincian per bulan', monthlyAvg: 'Rata-rata bulanan', quarterScore: 'Skor kuartal', bestMonth: 'Bulan terbaik', noMonthly: 'Data bulanan agent ini belum diisi. Isi kolom per bulan di Edit data untuk melihat rinciannya.', mdNote: 'Setiap bulan memakai rumus yang sama dan dibandingkan dengan agent satu divisi di bulan tersebut. Skor kuartal memakai total kuartal.', month: 'Bulan', close: 'Tutup', totalQ: 'Kuartal',
+    example: 'Contoh perhitungan', points: 'poin', monitored: 'monitoring', handled: 'ditangani', vipSolvedR: 'VIP selesai',
+    prodTake2: 'Setiap metrik dinilai terhadap hasil terbaik di divisi masing-masing.', topIn: 'Teratas di', khl: 'Poin utama', teamAvg: 'Rata-rata tim', agents: 'agent',
+    how1: 'Tiap metrik dibandingkan dengan yang terbaik di divisi yang sama', how2: 'Dikali bobotnya (core score maks 95)', how3: 'KPI utama terbaik dapat bonus s/d +5 · maks 100',
+    chatTake2: min => `Skor observasi konsisten tinggi — rata-rata setiap agent ${min}+ dari 100.`, obsNone: 'Skor observasi kuartal ini belum diinput.', obsOf: nm => `Observasi ${nm}`, monthlyScores: 'Skor observasi per bulan', ranking: 'Peringkat', agent: 'Agent', avgS: 'Rata-rata', trend: 'Tren',
+    axisFrom: lo => `Skala mulai dari ${lo}`, criteriaT: 'Dinilai dari 10 kriteria',
+    attTop: (n, v) => `${n} memimpin kehadiran dengan skor ${v}`, attTie: (n, v) => `${n} sama-sama memimpin kehadiran dengan skor ${v}`, scoreScale: lo => `Skor (${lo}–100)`, score: 'Skor', daysNote: 'Cuti dan keterlambatan adalah total satu kuartal.',
+    rateS: 'Tingkat kehadiran', punctS: 'Ketepatan waktu', rateD2: 'Tingkat hadir = hari hadir ÷ hari kerja (cuti dihitung sebagian).', punctD2: 'Ketepatan = 1 − menit telat ÷ total menit kerja.',
+    leaveEx: 'Contoh: 1 hari sakit dihitung 0,75 hari hadir.',
+    howT: 'Cara skor dihitung', howSub: 'Tiga komponen, satu skor akhir dari 100.', howSubB: ' Ditambah bonus back-up maks +2.5.',
+    prodT: 'Produktivitas', chatT2: 'Observasi', attT2: 'Kehadiran',
+    prodQ: 'Seberapa banyak pekerjaan yang ditangani', chatQ2: 'Kualitas komunikasi dengan pelanggan', attQ2: 'Kedisiplinan hadir dan tepat waktu',
+    prodHow: 'Helpdesk: CS monitoring & kasus ditangani · AM: kasus VIP ditangani', chatHow: 'Rata-rata observasi chat bulanan (10 kriteria)', attHow: 'Tingkat kehadiran 70% + ketepatan waktu 30%',
+    gradeL: 'Nilai', leads: (n, d, v) => `${n} teratas${d ? ' di ' + d : ''} dengan ${v}`, bonus: 'Bonus',
+    prodNote: 'Setiap bar = skor dari 100. Agent hanya dibandingkan dengan divisinya sendiri.',
+    chatTake: (names, v, min) => `${names} teratas di review chat dengan ${v} · semua mendapat ${min}+`,
+    chatNote: 'Rata-rata 2 chat yang direview per bulan, dinilai 10 kriteria (maks 100). Skala mulai dari 85.',
+    attPerfect: n => `${n} hadir sempurna`, noLeave: 'Tanpa cuti', d: 'h',
+    attNote2: 'Sakit dihitung 75%, cuti pribadi 50%, alpha 0%. Menit telat menurunkan skor. Skala mulai dari 85.',
+    cso: 'DIVISI CSO', erp: '★ Program Apresiasi Karyawan', awards: 'PERFORMANCE AWARDS', lede: t => `Apresiasi untuk konsistensi, keunggulan,<br>dan dedikasi sepanjang ${t}.`,
+    hdDiv: 'DIVISI HELPDESK', bestHd: 'HELPDESK TERBAIK', chatQ: 'OBSERVASI', prod: 'PRODUKTIVITAS', att: 'KEHADIRAN',
+    kpi: 'Kerangka KPI', pillarsT: 'TIGA PILAR.<br>SATU SKOR.', formula: 'Skor Akhir = (Chat × 0.30) + (Kehadiran × 0.20) + (Produktivitas × 0.50) + Bonus back-up (≤ 2.5)',
+    pillar: 'Pilar', p1sub: 'KPI paling berpengaruh — per divisi', p2sub: 'Konsistensi pelayanan', p3sub: 'Keandalan &amp; ketepatan waktu',
+    p1: ['AM: VIP Handled 95%', 'HD: CS Monitoring 38% + CS Handled 57%', 'Setiap metrik dinormalisasi dalam divisinya sendiri', 'Core Score maks 95 + Bonus maks +5 = 100', 'Assist Bonus: metrik KPI utama vs nilai tertinggi divisi', 'Target res. rate per bulan HD 90% · AM 95%: −1 poin per 1% di bawah (maks −5)', 'Bonus back-up ≤ +2.5 di Skor Akhir'],
+    p2: ms => ['2 kasus diobservasi per bulan', 'Dinilai lewat Google Form', '10 kriteria, maks 100 poin', `Rata-rata ${ms.join(', ').replace(/, ([^,]*)$/, ' dan $1')}`],
+    p2all: (n, s) => `Semua ${n} agent mendapat skor ${s}+`,
+    p3: ['Tingkat Kehadiran × 0.70', 'Ketepatan Waktu × 0.30', 'Menit telat dibanding total menit kerja', 'Sakit kredit 75% · Cuti Pribadi 50% · Alpha 0%', 'Skor sempurna = 100.00'],
+    allGraded: (n, g) => `Semua ${n} karyawan mendapat nilai ${g}`, assessed: n => `${n} karyawan dinilai`,
+    bdCap: 'Produktivitas · Rincian', bdT: 'Rincian Produktivitas', bdSub: 'Core Score &amp; Assist Bonus, per Divisi',
+    i1: ['Monitoring vs handled', 'CS Monitoring dan CS Handled diberi bobot terpisah — volume monitoring yang tinggi tidak menaikkan skor handled.'],
+    i2: ['Hanya dibandingkan dalam divisi', 'Helpdesk dibandingkan dengan Helpdesk, AM dengan AM — tidak pernah lintas divisi.'],
+    i3: ['Rate untuk AM, volume untuk HD', 'Skor AM memakai VIP resolution rate (%), bukan jumlah kasus — antrean VIP yang lebih kecil tidak jadi penalti.'],
+    finalScore: 'SKOR AKHIR', core: 'CORE SCORE', bdNote: 'Assist bonus = (nilai agent ÷ nilai tertinggi divisi) × 5 poin — untuk performer terkuat di KPI utama divisinya. Produktivitas maksimal 100.',
+    weight: w => `Bobot ${w}%`, chatT: 'Observasi',
+    badges: ms => ['2 kasus diobservasi per bulan', 'Penilaian Google Form', '10 kriteria penilaian', 'Maks 100 poin per kasus', `Rata-rata: ${ms.join(' + ')}`],
+    tied: 'SAMA-SAMA #1', critT: '10 kriteria penilaian (Google Form)',
+    attT: 'Kehadiran &amp; Ketepatan Waktu', perfect: 'SEMPURNA ★', calc: 'Rumus perhitungan', rate: 'Tingkat Kehadiran', rateD: 'Hari hadir (dengan kredit cuti) ÷ total hari kerja × 100',
+    punct: 'Skor Ketepatan Waktu', punctD: '1 − (menit telat ÷ total menit kerja)', fin: 'Kehadiran Akhir = (Rate × 0.70) + (Ketepatan × 0.30)',
+    leave: 'Kredit cuti (dihitung hadir)', sick: 'Sakit', pl: 'Cuti Pribadi (PL)', alpha: 'Alpha (Tanpa Keterangan)', attRank: q => `Ranking kehadiran ${q}`,
+    best: t => `🏅 Karyawan Terbaik · ${t}`, division: d => `DIVISI ${d}`, outOf: g => `dari 100 · ${g}`, wt: w => `bobot ${w}%`, rib: t => `★ KARYAWAN TERBAIK ${t}`,
+    finalRank: t => `🏆 Peringkat Akhir · ${t}`, sbT: 'Papan Skor<span>Akhir</span>', final: 'AKHIR',
+    g: ['A — Sangat Baik', 'B — Baik', 'C — Cukup', 'D — Perlu Ditingkatkan'],
+    crossL: 'back-up → skor akhir', crossNote: 'Bonus back-up (maks +2.5 di Skor Akhir): Helpdesk yang menangani VIP atau AM yang menangani CS dinilai dengan skala divisi lain, lalu dibandingkan dengan back-up terbesar di tim.',
+    mdT: 'Data Produktivitas Bulanan', mdSub: ms => `Input per bulan (${ms}) dan skor produktivitas yang dihasilkan.`, vipDone: 'VIP Selesai', divL: 'Div.',
+    mdNote2: 'CS Mon. = CS Monitoring · CS Hand. = CS Handled · VIP Selesai tanpa hold admin · HD = Helpdesk · AM = Account Manager. Res. Rate = HD: CS selesai ÷ CS handled · AM: VIP selesai ÷ total VIP. Hanya info — tidak masuk skor. Klik baris untuk detail per bulan.',
+    obsTypes: 'Tipe observasi', obs10: '10 poin', obsPh: 'Poin',
+    critClick: 'Klik untuk detail', critTBA: 'Detail akan ditambahkan (TBA).', critEditHint: 'Tulis detail kriteria ini — tampil untuk semua orang setelah disimpan.',
+    attRate70: 'Tingkat Kehadiran (70%)', punct30: 'Ketepatan Waktu (30%)', attW20: 'Bobot Kehadiran (20%)', rateF: '(Hari Kerja − Sakit − PL − Alpha) ÷ Hari Kerja × 100%', punctF: '(Total Menit Kerja − Menit Telat) ÷ Total Menit Kerja × 100%', minsF: 'Total Menit Kerja = Hari Kerja × 480', wF: q => `Skor Kehadiran ${q} × 20% — kontribusi ke total nilai Best Employee`, wdS: 'Hari', lateS: 'Telat', q3Score: q => `Skor Kehadiran ${q}`, contribL2: 'Kontribusi akhir', avgRate: 'Rata-rata tingkat kehadiran', avgPunct: 'Rata-rata ketepatan waktu', monthlyBD: 'Rincian per bulan', recapQ: q => `Rekap ${q}`, wdL: 'Hari kerja', minS: 'mnt', lateMinL: 'Menit telat', lateX: 'telat', monthScore: 'Skor bulanan', avgL: 'rata-rata', clickAtt: 'Klik agent untuk detail kehadiran.', barR2: 'Tingkat kehadiran', rateF2: '(Hari kerja − Sakit − PL − Alpha) ÷ Hari kerja', punctF2: '(Menit kerja − Menit telat) ÷ Menit kerja', minsF2: 'Menit kerja = hari × 480', daysW: 'hari', q3F: 'Skor bulanan = ① × 70% + ② × 30% · Q3 = rata-rata 3 bulan', max20: '× 20% = kontribusi ke Skor Akhir (maks 20 poin)', hlTop: 'Skor tertinggi', hlPerf: 'Bulan sempurna 100.00', hlZero: 'Nol menit telat', hlUp: 'Naik tiap bulan', obsClick: 'Klik grafik atau nama agent untuk melihat nilai per bulan.', obsNote: 'Detail observasi bisa dicek di', obsQ: q => `Skor Observasi ${q}`, obsW: 'Kontribusi (× 30%)', case: i => `Kasus ${i}`, cvTitle: 'KARYAWAN TERBAIK', nominees: n => `${n} nominasi`, lateDL: 'Telat (hari)', rateD3: '(Hari kerja − Sakit − PL − Alpha) ÷ Hari kerja × 100%', punctD3: '(1 − Menit telat ÷ Total menit kerja) × 100%, dengan total menit kerja = hari kerja × 480', monNote: 'Skor bulanan dari Attendance Recap (siklus tgl 26–25). Teks kecil = jumlah telat · menit telat.', lateL: 'Telat (mnt)', barR: 'Kehadiran', barP: 'Ketepatan', att20: '20% dari Skor Akhir', attScoreL: 'Skor kehadiran', contribL: 'Kontribusi ke Skor Akhir', contribD: 'Skor kehadiran × 20% (maks 20 poin)', of20: 'dari 20 poin', exIn: (wd, s, pl, al, l) => `${wd} hari kerja · sakit ${s} · PL ${pl} · alpha ${al} · telat ${l} menit`, attPctL: '% Attendance per bulan', attPctD: '(hari kerja − PL − sakit − alpha) ÷ hari kerja − menit telat ÷ menit kerja', attQD: 'Tingkat kehadiran × 70% + Ketepatan waktu × 30%. Skor kuartal = rata-rata 3 bulan.', attEx: 'Contoh: 26 hari kerja, sakit 2 hari, telat 11 menit → 92,31% − 0,09% = 92,22%.',
+    tixL: 'Tiket Dibuat', mon: 'CS Monitoring', hand: 'CS Handled', vipR: 'VIP Resolution Rate', vipH: 'VIP Handled', total: 'total',
+    bonusHD: 'Assist bonus — CS Monitoring', bonusAM: 'Assist bonus — VIP handled', vsMax: 'vs tertinggi', avg: 'rata²', of: 'dari', vipHandled: 'VIP ditangani', rateW: 'rate',
+  },
+};
+const T = k => TX[LANG][k];
+function grade(v) { const g = T('g'); return v >= 90 ? g[0] : v >= 80 ? g[1] : v >= 70 ? g[2] : g[3]; }
+const nf = (s) => LANG === 'id' ? String(s) : String(s); // angka tetap format desimal titik (konsisten dengan data)
+
+/* =================== periode =================== */
+function periods(extra = []) {
+  const now = new Date(), lastY = Math.max(now.getFullYear() + 1, START_YEAR + 1, ...extra.map(p => +p.slice(0, 4)));
+  const out = [];
+  for (let y = START_YEAR; y <= lastY; y++) for (let q = 1; q <= 4; q++) if (y > START_YEAR || q >= START_Q) out.push(`${y}-Q${q}`);
+  return out;
+}
+
+/* =================== skor =================== */
+const m3 = x => [0, 1, 2].map(i => (x && has(x[i])) ? n(x[i]) : null);
+const anyM = x => x.some(v => v != null);
+function normAgent(a) {
+  return { name: a.name || '', div: a.div === 'AM' ? 'AM' : 'HD', photo: a.photo || '',
+    csMon: n(a.csMon), csHandled: n(a.csHandled), vipTotal: n(a.vipTotal), vipSolved: n(a.vipSolved), vipRate: has(a.vipRate) ? n(a.vipRate) : null,
+    chat: [0, 1, 2].map(i => obsMonth(a, i)), chatC: [0, 1, 2].map(i => [0, 1].map(j => a.chatC && a.chatC[i] && has(a.chatC[i][j]) ? n(a.chatC[i][j]) : null)),
+    csMonM: m3(a.csMonM), csHandledM: m3(a.csHandledM), csSolvedM: m3(a.csSolvedM), csSolved: has(a.csSolved) ? n(a.csSolved) : null, vipTotalM: m3(a.vipTotalM), vipSolvedM: m3(a.vipSolvedM), rrM: m3(a.rrM), ticketsM: m3(a.ticketsM), attM: [0, 1, 2].map(i => { const o = a.attM && a.attM[i]; if (!o) return null; const f = k => has(o[k]) ? n(o[k]) : null; const r = { pl: f('pl'), sick: f('sick'), alpha: f('alpha'), late: f('late'), lateDays: f('lateDays') }; return Object.values(r).some(v => v != null) ? r : null; }),
+    att: Object.assign({ workDays: null, sick: 0, personal: 0, alpha: 0, lateMin: 0, workMin: null, manual: null }, a.att || {}) };
+}
+/* observation: 2 kasus per bulan → skor bulan = rata-rata kasus yang terisi (data lama 1 angka per bulan tetap terbaca) */
+function obsMonth(a, i) { const c = a.chatC && a.chatC[i];
+  if (c && c.some(has)) { const v = c.filter(has).map(n); return sum(v) / v.length; }
+  return (!c || !c.length) && a.chat && has(a.chat[i]) ? n(a.chat[i]) : null; }
+function attScore(t) {
+  if (has(t.manual)) return { score: n(t.manual), rate: null, punct: null, manual: true };
+  const wd = n(t.workDays);
+  if (!wd) return { score: 0, rate: null, punct: null, missing: true };
+  const absent = n(t.sick) + n(t.personal) + n(t.alpha);
+  const rate = Math.max(0, Math.min(100, ((wd - absent) + n(t.sick) * 0.75 + n(t.personal) * 0.5) / wd * 100));
+  const punct = n(t.workMin) > 0 ? Math.max(0, (1 - n(t.lateMin) / n(t.workMin)) * 100) : 100;
+  return { score: rate * 0.7 + punct * 0.3, rate, punct };
+}
+/* attendance bulanan (Q3+, data Attendance Recap): skor = Tingkat hadir 70% + Ketepatan waktu 30% · skor kuartal = rata-rata bulan */
+const ATT_MIN_DAY = 480, ATT_MINS_DEF = 12480;
+function attMonth(o, mins) { if (!o) return null; const M = n(mins) || ATT_MINS_DEF, wd = M / ATT_MIN_DAY; const off = n(o.pl) + n(o.sick) + n(o.alpha);
+  /* skor bulanan = Tingkat hadir × 70% + Ketepatan waktu × 30% (sakit / PL / alpha dihitung tidak hadir, sesuai Attendance Recap) */
+  const rate = Math.max(0, (wd - off) / wd * 100), punct = Math.max(0, (1 - n(o.late) / M) * 100);
+  const pct = rate * 0.7 + punct * 0.3; return { pct, rate, punct, wd, M, off }; }
+/* resolution rate per bulan (info): isian manual bila ada, kalau kosong dihitung — HD: CS solved ÷ CS handled · AM: VIP solved ÷ VIP total */
+function rrAuto(a, k) {
+  if (!legacyRules() && (a.csSolvedM[k] != null || a.vipSolvedM[k] != null)) { const h = (a.csHandledM[k] || 0) + (a.vipTotalM[k] || 0); return h ? ((a.csSolvedM[k] || 0) + (a.vipSolvedM[k] || 0)) / h * 100 : null; }
+  return a.div === 'HD' ? (a.csSolvedM[k] != null && a.csHandledM[k] ? a.csSolvedM[k] / a.csHandledM[k] * 100 : null) : (a.vipTotalM[k] ? (a.vipSolvedM[k] || 0) / a.vipTotalM[k] * 100 : null); }
+function rrOf(a, k) { return a.rrM && a.rrM[k] != null ? a.rrM[k] : rrAuto(a, k); }
+function rrQavg(a) { const v = [0, 1, 2].map(k => rrOf(a, k)).filter(x => x != null); return v.length ? sum(v) / v.length : null; }
+function compute(data) {
+  const A = (data.agents || []).map(normAgent).filter(a => a.name.trim());
+  A.forEach(a => {   // data bulanan diisi → total kuartal & VIP rate dihitung dari bulan
+    if (anyM(a.csMonM)) a.csMon = sum(a.csMonM.map(v => v || 0));
+    if (anyM(a.csHandledM)) a.csHandled = sum(a.csHandledM.map(v => v || 0));
+    if (anyM(a.csSolvedM)) a.csSolved = sum(a.csSolvedM.map(v => v || 0));
+    a.csRate = a.csSolved != null && a.csHandled ? a.csSolved / a.csHandled * 100 : null;   // info saja, tidak masuk skor
+    if (anyM(a.vipTotalM)) {
+      a.vipTotal = sum(a.vipTotalM.map(v => v || 0)); a.vipSolved = sum(a.vipSolvedM.map(v => v || 0));
+      const rates = a.vipTotalM.map((t, k) => t ? (a.vipSolvedM[k] || 0) / t * 100 : null).filter(v => v != null);
+      if (rates.length) a.vipRate = sum(rates) / rates.length;
+    }
+    a.hasMonthly = a.div === 'HD' ? (anyM(a.csMonM) || anyM(a.csHandledM)) : anyM(a.vipTotalM);
+  });
+  const by = d => A.filter(a => a.div === d);
+  const max = (arr, f) => Math.max(0, ...arr.map(f));
+  const hd = by('HD'), am = by('AM');
+  const mx = { mon: max(hd, a => a.csMon), hand: max(hd, a => a.csHandled), vipH: max(am, a => a.vipTotal) };
+  const LEG = legacyRules();
+  if (LEG) {   // rumus sheet Q2: tiket dibuat ikut dihitung, AM pakai VIP solved rate (bulan tanpa VIP = 100%)
+    A.forEach(a => { a.tickets = sum(a.ticketsM.map(v => v || 0)); const has = [0, 1, 2].filter(k => a.vipTotalM[k] != null);
+      a.lrate = has.length ? sum(has.map(k => a.vipTotalM[k] ? (a.vipSolvedM[k] || 0) / a.vipTotalM[k] * 100 : 100)) / has.length : (a.vipTotal ? a.vipSolved / a.vipTotal * 100 : 0); });
+    mx.tixH = max(hd, a => a.tickets); mx.tixA = max(am, a => a.tickets); mx.lrate = max(am, a => a.lrate);
+  }
+  A.forEach(a => {
+    a.vip = a.vipRate != null ? a.vipRate : (a.vipTotal ? a.vipSolved / a.vipTotal * 100 : 0);
+  });
+  mx.vip = max(am, a => a.vip);
+  const part = (v, m, w) => m > 0 ? r2(v / m * w) : 0;
+  A.forEach(a => {
+    if (LEG) {
+      const P = (v, m, w) => m > 0 ? v / m * w : 0;
+      if (a.div === 'HD') {
+        a.parts = [
+          { k: T('mon'), w: 38, v: r2(P(a.csMon, mx.mon, 38)), tot: `${fInt(a.csMon)} ${T('total')}`, val: a.csMon, max: mx.mon },
+          { k: 'CS Handled', w: 19, v: r2(P(a.csHandled, mx.hand, 19)), tot: `${fInt(a.csHandled)} ${T('total')}`, val: a.csHandled, max: mx.hand },
+          { k: T('tixL'), w: 38, v: r2(P(a.tickets, mx.tixH, 38)), tot: `${fInt(a.tickets)} ${T('total')}`, val: a.tickets, max: mx.tixH }];
+        a.coreRaw = P(a.csMon, mx.mon, 38) + P(a.csHandled, mx.hand, 19) + P(a.tickets, mx.tixH, 38);
+        a.bonusRaw = P(a.csMon, mx.mon, 5); a.bonusLabel = T('bonusHD');
+        a.bonusNote = `${fInt(a.csMon)} ${T('vsMax')} ${fInt(mx.mon)}${a.csMon === mx.mon ? ' (100%)' : ''}`;
+      } else {
+        a.parts = [
+          { k: T('vipR'), w: 57, v: r2(a.lrate / 100 * 57), tot: `${f2(a.lrate)}%`, val: a.lrate, max: 100 },
+          { k: T('tixL'), w: 38, v: r2(P(a.tickets, mx.tixA, 38)), tot: `${fInt(a.tickets)} ${T('total')}`, val: a.tickets, max: mx.tixA }];
+        a.coreRaw = a.lrate / 100 * 57 + P(a.tickets, mx.tixA, 38);
+        a.bonusRaw = P(a.lrate, mx.lrate, 5); a.bonusLabel = T('vipR') + ' bonus';
+        a.bonusNote = `${f2(a.lrate)}% ${T('vsMax')} ${f2(mx.lrate)}%`;
+      }
+      a.bonus = r2(a.bonusRaw); a.core = r2(a.coreRaw);
+      const cs = a.chat.filter(v => v != null);
+      a.chatAvg = cs.length ? sum(cs) / cs.length : 0;
+      a.attX = attScore(a.att);
+      a.attS = a.attX.score;
+      return;
+    }
+    if (a.div === 'HD') {
+      a.parts = [
+        { k: T('mon'), w: 38, v: part(a.csMon, mx.mon, 38), tot: `${fInt(a.csMon)} ${T('total')}`, val: a.csMon, max: mx.mon },
+        { k: T('hand'), w: 57, v: part(a.csHandled, mx.hand, 57), tot: `${fInt(a.csHandled)} ${T('total')}`, val: a.csHandled, max: mx.hand }];
+      a.bonus = part(a.csMon, mx.mon, 5);
+      a.bonusLabel = T('bonusHD');
+      a.bonusNote = `${fInt(a.csMon)} ${T('vsMax')} ${fInt(mx.mon)}${a.csMon === mx.mon ? ' (100%)' : ''}`;
+    } else {
+      // resolution rate VIP = info saja (dipengaruhi sisi customer) → skor AM dari volume VIP yang ditangani
+      a.parts = [
+        { k: T('vipH'), w: 95, v: part(a.vipTotal, mx.vipH, 95), tot: `${fInt(a.vipTotal)} ${T('total')}`, val: a.vipTotal, max: mx.vipH }];
+      a.bonus = part(a.vipTotal, mx.vipH, 5);
+      a.bonusLabel = T('bonusAM');
+      a.bonusNote = `${fInt(a.vipTotal)} ${T('vsMax')} ${fInt(mx.vipH)}${a.vipTotal === mx.vipH ? ' (100%)' : ''}`;
+    }
+    a.core = r2(sum(a.parts.map(p => p.v)));
+    const cs = a.chat.filter(v => v != null);
+    a.chatAvg = cs.length ? r2(sum(cs) / cs.length) : 0;
+    const am = a.attM.map((o, k) => attMonth(o, (data.attMins || [])[k]));
+    a.attAuto = am.some(Boolean) ? r2(sum(am.filter(Boolean).map(x => x.pct)) / am.filter(Boolean).length) : null;
+    if (am.some(Boolean) && !has(a.att.manual)) {
+      const v = am.filter(Boolean); a.attMo = am;
+      a.att = { ...a.att, sick: sum(a.attM.map(o => o ? n(o.sick) : 0)), personal: sum(a.attM.map(o => o ? n(o.pl) : 0)), alpha: sum(a.attM.map(o => o ? n(o.alpha) : 0)), lateMin: sum(a.attM.map(o => o ? n(o.late) : 0)), lateDays: sum(a.attM.map(o => o ? n(o.lateDays) : 0)) };
+      a.attX = { score: sum(v.map(x => x.pct)) / v.length, monthly: true };
+    } else a.attX = attScore(a.att);
+    a.attS = r2(a.attX.score);
+  });
+  /* bonus back-up lintas divisi (extra mile): HD yang pegang VIP / AM yang pegang CS.
+     Nilai kerjanya dihitung pakai skala divisi lain, lalu dibandingkan dengan back-up terbesar di tim → maks +5. */
+  A.forEach(a => {
+    a.crossPts = a.div === 'HD' ? (mx.vipH > 0 ? a.vipTotal / mx.vipH * 95 : 0) : (mx.mon > 0 ? a.csMon / mx.mon * 38 : 0) + (mx.hand > 0 ? a.csHandled / mx.hand * 57 : 0);
+    a.crossVol = a.div === 'HD' ? `${fInt(a.vipTotal)} VIP` : `${fInt(a.csMon)} CS mon · ${fInt(a.csHandled)} CS handled`;
+  });
+  const mxC = Math.max(0, ...A.map(a => a.crossPts));
+  A.forEach(a => {
+    a.cross = mxC > 0 ? r2(a.crossPts / mxC * CROSS_MAX) : 0;
+    a.rrQ = rrQavg(a);
+    const tg = RR_TARGET[a.div];
+    /* target resolution rate berlaku PER BULAN: kekurangan tiap bulan dirata-rata dalam kuartal → −1 poin per 1% (maks −5) */
+    const rrm = [0, 1, 2].map(k => rrOf(a, k)).map((v, k) => ({ k, v })).filter(x => x.v != null);
+    a.penMonths = rrm.filter(x => x.v < tg);
+    a.pen = newRules() && rrm.length ? r2(Math.min(RR_PEN_MAX, rrm.reduce((t, x) => t + Math.max(0, tg - x.v), 0) / rrm.length * RR_PEN_PER)) : 0;
+    a.prod = LEG ? r2(Math.min(100, a.coreRaw + a.bonusRaw)) : r2(Math.max(0, Math.min(100, a.core + a.bonus) - a.pen));
+    if (!newRules()) a.cross = 0;
+    a.crossF = r2(a.cross * CROSS_FINAL);
+    a.final = LEG ? r2(Math.min(100, a.coreRaw + a.bonusRaw) * 0.5 + a.chatAvg * 0.3 + a.attS * 0.2) : r2(Math.min(100, a.prod * 0.5 + a.chatAvg * 0.3 + a.attS * 0.2 + a.crossF));
+    a.chatAvg = r2(a.chatAvg); a.attS = r2(a.attS);
+  });
+  const rankBy = f => A.slice().sort((x, y) => f(y) - f(x));
+  return { A, hd: rankBy(a => a.prod).filter(a => a.div === 'HD'), am: rankBy(a => a.prod).filter(a => a.div === 'AM'),
+    byProd: rankBy(a => a.prod), byChat: rankBy(a => a.chatAvg), byAtt: rankBy(a => a.attS + (a.attX && a.attX.score || 0) * 1e-9), byFinal: rankBy(a => a.final) };
+}
+
+/* =================== slides =================== */
+const LOGO_D = '<img class="logo" src="wordmark.png" alt="GlobalXtreme">';
+const LOGO_W = '<img class="logo" src="wordmark-white.png" alt="GlobalXtreme">';
+/* urutan acak tapi tetap (seed = periode) supaya Score Board tidak membocorkan peringkat */
+function shuffleBy(arr, seedStr) { let h = 2166136261; for (const c of String(seedStr)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const rnd = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; };
+  const a = arr.slice().sort((x, y) => x.name.localeCompare(y.name)); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+/* key highlights slide Productivity — penjelasan aturan + hasil (teks bisa diedit lewat Edit text) */
+function prodHL(C, m) {
+  const ID = LANG === 'id', mo = k => monthShort(m[k]), L = [], hd = C.hd[0], am = C.am[0];
+  if (legacyRules()) {
+    L.push(ID ? 'Rumus Q2: Helpdesk = CS Monitoring 38 + CS Handled 19 + Tiket Dibuat 38 · AM = VIP Resolution Rate 57 + Tiket Dibuat 38 · bonus maks +5.' : 'Q2 formula: Helpdesk = CS Monitoring 38 + CS Handled 19 + Tickets Created 38 · AM = VIP Resolution Rate 57 + Tickets Created 38 · bonus up to +5.');
+  } else {
+    L.push(ID ? 'Cara hitung: Helpdesk = CS Monitoring (38) + CS Handled (57); AM = VIP Handled (95). Setiap metrik dibandingkan dengan hasil tertinggi di divisinya, ditambah assist bonus maks +5 (total maks 100).' : 'How it works: Helpdesk = CS Monitoring (38) + CS Handled (57); AM = VIP Handled (95). Each metric is compared with the top result in the division, plus an assist bonus of up to +5 (max 100).');
+  }
+  if (hd) L.push(ID ? `Helpdesk teratas: ${hd.name} ${f2(hd.prod)} (${fInt(hd.csMon)} monitoring · ${fInt(hd.csHandled)} ditangani).` : `Top Helpdesk: ${hd.name} ${f2(hd.prod)} (${fInt(hd.csMon)} monitored · ${fInt(hd.csHandled)} handled).`);
+  if (am) L.push(ID ? `AM teratas: ${am.name} ${f2(am.prod)} (${fInt(am.vipTotal)} VIP ditangani).` : `Top AM: ${am.name} ${f2(am.prod)} (${fInt(am.vipTotal)} VIP handled).`);
+  if (newRules()) {
+    const low = C.A.filter(a => a.penMonths && a.penMonths.length);
+    L.push(low.length ? (ID ? 'Di bawah target resolution rate bulanan (HD 90% · AM 95%): ' : 'Below the monthly resolution rate target (HD 90% · AM 95%): ') + low.map(a => `${a.name} ${a.penMonths.map(x => `${mo(x.k)} ${f2(x.v)}%`).join(', ')} (−${f2(a.pen)})`).join(' · ') + '.'
+      : (ID ? 'Semua agent memenuhi target resolution rate bulanan (Helpdesk 90% · AM 95%), jadi tidak ada pengurangan poin.' : 'Every agent met the monthly resolution rate target (Helpdesk 90% · AM 95%), so there are no deductions.'));
+    const bk = C.A.filter(a => a.crossF > 0).sort((x, y) => y.crossF - x.crossF);
+    if (bk.length) L.push((ID ? 'Bonus back-up untuk yang membantu divisi lain (ditambahkan ke Skor Akhir, maks +2.5): ' : 'Back-up bonus for covering the other division (added to the Final Score, max +2.5): ') + bk.slice(0, 4).map(a => `${a.name} +${f2(a.crossF)}`).join(' · ') + '.');
+  }
+  return `<div class="phl"><div class="phl-h">${T('khl')}<span>${T('clickHint')}</span></div><ul>${L.slice(0, 5).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`;
+}
+/* 4 kartu key highlights attendance (positif, dihitung dari data) */
+function attHL(list, m, nick) {
+  const top = list[0]; if (!top) return '';
+  const tops = list.filter(a => a.attS === top.attS), nm = arr => arr.map(nick).join(', ');
+  const perf = list.flatMap(a => (a.attMo || []).map((x, k) => x && r2(x.pct) >= 100 ? { a, k } : null).filter(Boolean));
+  const zero = list.filter(a => a.attMo && !n(a.att.lateMin));
+  const up = list.filter(a => a.attMo && a.attMo.every(Boolean) && a.attMo[0].pct < a.attMo[1].pct && a.attMo[1].pct < a.attMo[2].pct);
+  const byA = new Map(); perf.forEach(e => { byA.set(e.a, [...(byA.get(e.a) || []), monthShort(m[e.k])]); });
+  const card = (cls, ico, val, lab, sub) => `<div class="ahc ${cls}"><b class="num">${val}</b><span>${lab}</span><small>${sub || '—'}</small></div>`;
+  return `<div class="ahl">${card('t', '🏆', f2(top.attS), T('hlTop'), nm(tops))}
+    ${card('p', '✨', perf.length, T('hlPerf'), [...byA].map(([a, ms]) => `${nick(a)} (${ms.join(', ')})`).join(', '))}
+    ${card('z', '⏱', zero.length, T('hlZero'), nm(zero))}
+    ${card('u', '📈', up.length, T('hlUp'), up.map(a => `${nick(a)} ${a.attMo.map(x => f2(x.pct)).join('→')}`).join(', '))}</div>`;
+}
+/* ===== opsi font cover (layout tetap) ===== */
+const COVER_F_DEFAULT = 'B';
+function coverFont() { if (ATT_PREVIEW) { try { const v = localStorage.getItem('gx-cf'); if (/^[0ABC]$/.test(v || '')) return v; } catch (e) {} return 'A'; } return COVER_F_DEFAULT; }
+/* ===== opsi tampilan slide Attendance (ringkas — perhitungan lengkap ada di popup klik agent) ===== */
+const ATT_V_DEFAULT = 'A';
+let ATT_PREVIEW = false;
+function attVariant() { if (ATT_PREVIEW) { try { const v = localStorage.getItem('gx-attv'); if (/^[0ABC]$/.test(v || '')) return v; } catch (e) {} return 'A'; } return ATT_V_DEFAULT; }
+function attSlideV(V, list, m, o) {
+  const { head, av, nick, foot, N, HL } = o, sc = v => v >= 95 ? 'g' : v >= 85 ? 'y' : 'r';
+  const strip = `<div class="afs"><span class="afp g">70% ${T('barR2')}</span><i>+</i><span class="afp b">30% ${T('punctS')}</span><i>=</i><span class="afp n">${T('monthScore')}</span><i>→</i><span class="afp k">${T('q3Score')(o.tag.split(' ')[0])} × 20%</span><em>${T('clickAtt')}</em></div>`;
+  const row = (a, i) => `data-at="${esc(a.name)}" role="button" tabindex="0" title="${T('clickAtt')}"`;
+  let body = '';
+  if (V === 'A') {
+    body = `<div class="cbox va"><table class="vat"><thead><tr><th>No.</th><th>${T('agent')}</th>${m.map(mi => `<th>${monthName(mi)}</th>`).join('')}<th>${T('q3Score')(o.tag.split(' ')[0])}</th></tr></thead><tbody>
+      ${list.map((a, i) => `<tr class="clk ${i ? '' : 'lead'}" ${row(a, i)}><td>${i + 1}</td><td><div class="rtn">${av(a)}<span>${esc(a.name)}</span></div></td>${[0, 1, 2].map(k => { const x = a.attMo && a.attMo[k]; return `<td><span class="vp ${x ? sc(x.pct) : ''}">${x ? f2(x.pct) : '–'}</span></td>`; }).join('')}<td class="vs"><b>${f2(a.attS)}</b></td></tr>`).join('')}</tbody></table></div>`;
+  } else if (V === 'B') {
+    const lo = Math.max(0, Math.floor((Math.min(...list.map(a => a.attS)) - 5) / 5) * 5), X = v => Math.max(2, (v - lo) / (100 - lo) * 100);
+    body = `<div class="cbox vb"><div class="vbs"><span>${lo}</span><span>100</span></div>${list.map((a, i) => `<div class="vbr clk ${i ? '' : 'lead'}" ${row(a, i)}><span class="vbn">${i + 1}</span><div class="vbm">${av(a)}<b>${esc(a.name)}</b></div><div class="vbt"><i class="${sc(a.attS)}" style="--w:${X(a.attS)}%"></i></div><b class="vbv">${f2(a.attS)}</b></div>`).join('')}</div>`;
+  } else {
+    body = `<div class="vc">${list.map((a, i) => `<div class="vcc clk ${i ? '' : 'lead'}" ${row(a, i)}><div class="vch">${av(a)}<div><b>${esc(nick(a))}</b><small>${DIV[a.div]}</small></div><span class="vcr">#${i + 1}</span></div>
+      <div class="vcs ${sc(a.attS)}">${f2(a.attS)}</div><div class="vcm">${[0, 1, 2].map(k => { const x = a.attMo && a.attMo[k]; return `<div><i class="${x ? sc(x.pct) : ''}" style="--h:${x ? Math.max(6, (x.pct - 60) / 40 * 100) : 0}%"></i><span>${monthShort(m[k])} <b>${x ? f2(x.pct) : '–'}</b></span></div>`; }).join('')}</div></div>`).join('')}</div>`;
+  }
+  return `<section class="slide v5 v5x ${N > 5 ? 'many' : ''}"><div class="s-in">
+      ${head(`${T('pillar')} 03`, T('attT2'), HL, 'g', T('weight')(20))}
+      ${body}${strip}
+    </div>${foot}</section>`;
+}
+function rk(i, cls = '') { return `<span class="rk ${cls}">${i + 1}</span>`; }
+
+function slides(p, data) {
+  const C = compute(data), m = qMonths(p), y = p.slice(0, 4), Q = p.slice(5), tag = `${Q} ${y}`;
+  const foot = `<div class="foot">GlobalXtreme CSO · ${tag}</div>`;
+  const N = C.A.length, out = [], cols = N <= 4 ? N : Math.ceil(N / 2), dense = Math.max(C.hd.length, C.am.length) > 2;
+
+  // 1 cover
+  out.push(`<section class="slide dark cover cf-${coverFont()}"><div class="dots"></div><div class="glow"></div><div class="wm">${Q}</div><div class="topline"></div><div class="s-in">
+    <div class="hd">${LOGO_W}<span>${T('cso')} &nbsp;|&nbsp; ${tag}</span></div>
+    <div class="main"><div>
+      <div class="kick">${T('erp')}</div>
+      <h1>HELPDESK</h1><span class="box">${T('awards')}</span>
+      <div class="rule"></div>
+      <div class="lede">${T('lede')(tag)}</div>
+      <div class="chips"><span>${m.map(i => monthName(i).toUpperCase()).join(' · ')} ${y}</span><span>${T('hdDiv')}</span></div>
+    </div><div class="right">
+      <div class="trophy"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></div>
+      <div class="bh">${T('bestHd')}</div><div class="bq">${tag}</div>
+      <div class="wtiles"><div><small>${T('chatQ')}</small><b>30%</b></div><div><small>${T('prod')}</small><b>50%</b></div><div><small>${T('att')}</small><b>20%</b></div></div>
+    </div></div></div>${foot}</section>`);
+
+  // ===== 2–5: versi profesional (grafik + penjelasan singkat) =====
+  const nick = a => NICK[pkey(a.name)] || a.name.split(/\s+/)[0];
+  const head = (eyebrow, title, takeaway, tagCls, tagTxt) => `<div class="rh">
+      <div><div class="rh-eb">${eyebrow}${tagTxt ? ` <span class="tagb ${tagCls}">${tagTxt}</span>` : ''}</div><div class="h2">${title}</div>${takeaway ? `<div class="take">${takeaway}</div>` : ''}</div>${LOGO_D}</div>`;
+  const av = a => `<span class="rav">${photoOf(a) ? `<img src="${esc(photoOf(a))}" alt="">` : esc(initials(a.name))}</span>`;
+  const ICO = {
+    p: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+    c: '<svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>',
+    a: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M9 15l2 2 4-4"/></svg>' };
+
+  // ---------- 2: cara skor dihitung ----------
+  {
+    const W = C.byFinal[0];
+    const seg = (cls, off, len) => `<circle class="dseg ${cls}" cx="21" cy="21" r="15.9155" style="--da:${len - .8};--off:${25 - off}"/>`;
+    const ex = W ? `<div class="exm"><div class="exh"><span class="cap">${T('example')}</span><b>${esc(W.name)}</b></div>
+        <div class="exq"><span class="ec p"><em>${T('prodT')}</em><span><b class="num">${f2(W.prod)}</b> × 50% = <strong class="num">${f2(W.prod * .5)}</strong></span></span><i>+</i>
+        <span class="ec c"><em>${T('chatT2')}</em><span><b class="num">${f2(W.chatAvg)}</b> × 30% = <strong class="num">${f2(W.chatAvg * .3)}</strong></span></span><i>+</i>
+        <span class="ec a"><em>${T('attT2')}</em><span><b class="num">${f2(W.attS)}</b> × 20% = <strong class="num">${f2(W.attS * .2)}</strong></span></span>${W.crossF ? `<i>+</i><span class="ec x"><em>Back-up</em><span><strong class="num">${f2(W.crossF)}</strong></span></span>` : ''}<i>=</i>
+        <span class="ef"><em>${T('finalScore')}</em><b class="num">${f2(W.final)}</b></span></div></div>` : '';
+    out.push(`<section class="slide v2"><div class="s-in">
+      ${head(`${T('kpi')} · ${tag}`, T('howT'), T('howSub') + (newRules() ? T('howSubB') : ''))}
+      <div class="v2g">
+        <div class="donut"><svg viewBox="0 0 42 42"><circle class="dtr0" cx="21" cy="21" r="15.9155"/>${seg('p', 0, 50)}${seg('c', 50, 30)}${seg('a', 80, 20)}</svg>
+          <div class="dc"><b>100</b><span>${T('points')}</span></div></div>
+        <div class="pcs">
+          ${[['p', 50, T('prodT'), T('prodQ'), T('prodHow')], ['c', 30, T('chatT2'), T('chatQ2'), T('chatHow')], ['a', 20, T('attT2'), T('attQ2'), T('attHow')]].map(([k, w, t, q, h]) =>
+            `<div class="pcard ${k}"><div class="pw2">${ICO[k]}<b>${w}%</b></div><div class="pt"><h3>${t}</h3><p>${q}</p><small>${h}</small></div></div>`).join('')}
+        </div>
+      </div>
+      ${ex}
+    </div>${foot}</section>`);
+  }
+
+  // ---------- 3: produktivitas ----------
+  {
+    const avgP = N ? sum(C.A.map(a => a.prod)) / N : 0, lh = C.hd[0], la = C.am[0];
+    const tile = (lab, val, sub, cls = '') => `<div class="kt ${cls}"><span>${lab}</span><b class="num">${val}</b><small>${sub}</small></div>`;
+    const raw = a => (legacyRules() ? (a.div === 'HD' ? `${fInt(a.csMon)} ${T('monitored')} · ${fInt(a.tickets)} tickets` : `VIP ${f2(a.lrate)}% · ${fInt(a.tickets)} tickets`) : a.div === 'HD' ? `${fInt(a.csMon)} ${T('monitored')} · ${fInt(a.csHandled)} ${T('handled')}${a.csSolved != null ? ` · ${fInt(a.csSolved)} ${T('csSolvedL')}` : ''}` : `${fInt(a.vipTotal)} VIP ${T('handled')}${a.vipSolved ? ` · ${fInt(a.vipSolved)} ${T('csSolvedL')}` : ''}`) + (a.crossF > 0 ? ` · <span class="xb">+${f2(a.crossF)} ${T('crossL').toLowerCase()}</span>` : '') + (a.pen > 0 ? ` · <span class="xp">−${f2(a.pen)} ${T('penL')} ${f2(a.rrQ)}%</span>` : '');
+    const row = (a, i) => `<div class="pr ${i ? '' : 'lead'} clk" data-ag="${esc(a.name)}" role="button" tabindex="0" title="${T('clickDetail')}"><div class="prn">${av(a)}<div><b>${esc(a.name)}</b><small>${raw(a)}</small></div></div>
+        <div class="stk">${(() => { let left = a.prod; const seg = v => { const w = Math.max(0, Math.min(v, left)); left -= w; return w; };
+          return a.parts.map((p, k) => { const w = seg(p.v); return `<i class="s${k}" style="--w:${w}%">${w >= 7 ? `<em>${f2(w).replace(/\.00$/, '')}</em>` : ''}</i>`; }).join('') + `<i class="sb" style="--w:${seg(a.bonus)}%"></i>` + (a.pen ? `<i class="sp" style="--w:${a.pen}%"></i>` : ''); })()}</div>
+        <div class="prv num">${f2(a.prod)}</div></div>`;
+    const panel = (list, name) => list.length ? `<div class="ppan"><div class="pph"><b>${name}</b><span class="lgd">${list[0].parts.map((p, k) => `<i class="s${k}"></i>${p.k} ${p.w}`).join('')}<i class="sb"></i>${T('bonus')} ≤5${list.some(x => x.pen) ? `<i class="sp"></i>−${T('penL')}` : ''}</span></div>
+        <div class="pscale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>${list.map(row).join('')}</div>` : '';
+    out.push(`<section class="slide v3 ${N > 5 ? 'many' : ''}"><div class="s-in">
+      ${head(`${T('pillar')} 01`, T('prodT'), T('prodTake2'), 'y', T('weight')(50))}
+      <div class="kts">${lh ? tile(`${T('topIn')} Helpdesk`, f2(lh.prod), esc(lh.name), 'y') : ''}${la ? tile(`${T('topIn')} Account Manager`, f2(la.prod), esc(la.name), 'y') : ''}${tile(T('teamAvg'), f2(avgP), `${N} ${T('agents')}`)}</div>
+      <div class="ppans">${panel(C.hd, 'Helpdesk')}${panel(C.am, 'Account Manager')}</div>
+      ${prodHL(C, m)}
+    </div>${foot}</section>`);
+  }
+
+  // ---------- 4: chat ----------
+  {
+    const list = legacyRules() ? C.byChat : [...C.byChat.filter(x => x.div === 'HD'), ...C.byChat.filter(x => x.div === 'AM')], lo = Math.max(0, Math.min(80, Math.floor((Math.min(100, ...C.A.flatMap(a => a.chat.filter(v => v != null))) - 5) / 5) * 5)), Y = v => Math.max(0, (v - lo) / (100 - lo) * 100);
+    const ticks = []; for (let v = lo; v <= 100; v += 5) ticks.push(v);
+    const MC = ['#BFDBFE', '#60A5FA', '#1D4ED8'];
+    const chart = `<div class="cch"><div class="cyax">${ticks.map(t => `<span style="bottom:${Y(t)}%">${t}</span>`).join('')}</div>
+      <div class="cplot">${ticks.map(t => `<s style="bottom:${Y(t)}%"></s>`).join('')}
+        ${list.map((a, i) => `<div class="cg clk" data-ob="${esc(a.name)}" role="button" tabindex="0" title="${T('obsClick')}"><div class="cbars">${a.chat.map((v, k) => `<i style="--h:${v == null ? 0 : Y(v)}%;--c:${MC[k]};--k:${i * .4 + k * .15}"><em>${v == null ? '' : fInt(v)}</em></i>`).join('')}</div><span class="cx">${esc(nick(a))}</span></div>`).join('')}</div></div>
+      <div class="clg">${m.map((mi, k) => `<span><i style="background:${MC[k]}"></i>${monthName(mi)}</span>`).join('')}<span class="mut">${T('axisFrom')(lo)}</span></div>
+      <div class="obhint">${T('obsClick')}</div>`;
+    const NEW = !legacyRules(), groups = NEW ? [['HD', 'Helpdesk'], ['AM', 'Account Manager']].map(([d, nm]) => [nm, list.filter(x => x.div === d)]).filter(g => g[1].length) : [['', list]];
+    let no = 0;
+    const tb = `<table class="rt"><thead><tr><th>${NEW ? 'No.' : '#'}</th><th>${T('agent')}</th><th>${T('avgS')}</th></tr></thead><tbody>
+      ${groups.map(([gn, gl]) => (gn ? `<tr class="grp"><td colspan="3">${gn}</td></tr>` : '') + gl.map((a, i) => { no++;
+        return `<tr class="${NEW || i ? '' : 'lead'} clk" data-ob="${esc(a.name)}" role="button" tabindex="0" title="${T('obsClick')}"><td>${NEW ? no : C.byChat.findIndex(x => x.chatAvg === a.chatAvg) + 1}</td><td><div class="rtn">${av(a)}<span>${esc(a.name)}</span></div></td><td class="num"><b>${f2(a.chatAvg)}</b></td></tr>`; }).join('')).join('')}</tbody></table>`;
+    out.push(`<section class="slide v4 ${N > 5 ? 'many' : ''}"><div class="s-in">
+      ${head(`${T('pillar')} 02`, T('chatT2'), (C.A.some(a => a.chat.some(v => v != null)) ? T('chatTake2')(Math.floor(Math.min(...C.A.filter(a => a.chat.some(v => v != null)).map(a => a.chatAvg)) / 5) * 5) : T('obsNone')), 'b', T('weight')(30))}
+      <div class="v4g"><div class="cbox"><div class="cap">${T('monthlyScores')}</div>${chart}</div><div class="cbox"><div class="cap">${T('ranking')}</div>${tb}</div></div>
+      <div class="crit2 obt"><span class="cap">${T('obsTypes')}</span>${[['HD', 'Helpdesk'], ['AM', 'Account Manager']].map(([d, nm]) => `<span class="crc obc" data-obs="${d}" role="button" tabindex="0" title="${T('critClick')}"><i>${d}</i><em>${T('obsOf')(nm)}</em><b class="obn">${T('obs10')}</b></span>`).join('')}<span class="obnote">${T('obsNote')} <a class="oblink" href="https://cso-workspace.vercel.app" target="_blank" rel="noopener">cso-workspace.vercel.app</a></span></div>
+    </div>${foot}</section>`);
+  }
+
+  // ---------- 5: kehadiran ----------
+  {
+    const list = C.byAtt, lo = Math.min(90, Math.floor(Math.min(100, ...list.map(a => a.attS)) / 5) * 5), X = v => Math.max(0, (v - lo) / (100 - lo) * 100);
+    const cell = v => n(v) ? `<b>${n(v)}</b>` : '<span class="z">–</span>';
+    const MON = list.some(a => a.attX && a.attX.monthly);
+    const tb = `<table class="at ${MON ? 'atmo' : ''}"><thead><tr><th>${T('agent')}</th><th>${T('sick')}</th><th>${T('pl')}</th><th>Alpha</th>${MON ? `<th>${T('lateL')}</th><th>${T('lateDL')}</th>${m.map(mi => `<th class="mo">${monthShort(mi)}</th>`).join('')}` : `<th class="w">${T('scoreScale')(lo)}</th>`}<th>${T('score')}</th></tr></thead><tbody>
+      ${list.map((a, i) => `<tr class="${i ? '' : 'lead'}${MON ? ' clk' : ''}"${MON ? ` data-at="${esc(a.name)}" role="button" tabindex="0" title="${T('clickAtt')}"` : ''}><td>${av(a)}<span>${esc(a.name)}</span></td><td>${cell(a.att.sick)}</td><td>${cell(a.att.personal)}</td><td>${cell(a.att.alpha)}</td>${MON ? `<td>${cell(a.att.lateMin)}</td><td>${cell(a.att.lateDays)}</td>` : ''}
+        ${MON ? m.map((mi, k) => { const x = a.attMo && a.attMo[k]; const o = a.attM && a.attM[k]; return `<td class="mo ${x ? (x.pct >= 95 ? 'g' : x.pct >= 85 ? 'y' : 'r') : ''}">${x ? f2(x.pct) : '–'}${o && (n(o.lateDays) || n(o.late)) ? `<small class="mol">${n(o.lateDays)}× · ${n(o.late)}m</small>` : ''}</td>`; }).join('') : `<td class="w"><div class="ab"><i style="--w:${X(a.attS)}%"></i></div></td>`}<td class="num"><b>${f2(a.attS)}</b>${a.attS >= 100 ? ' <span class="pf">★</span>' : ''}</td></tr>`).join('')}</tbody></table>`;
+    const top = list[0], HL = top ? (top.attS >= 100 ? T('attPerfect')(esc(top.name)) : (() => { const tie = list.filter(a => a.attS === top.attS); return tie.length > 1 ? T('attTie')(tie.map(a => esc(nick(a))).join(LANG === 'id' ? ' dan ' : ' and '), f2(top.attS)) : T('attTop')(esc(top.name), f2(top.attS)); })()) : '';
+    const AV = MON ? attVariant() : '0';
+    if (AV !== '0') out.push(attSlideV(AV, list, m, { head, av, nick, foot, N, HL, tag })); else
+    out.push(`<section class="slide v5 ${N > 5 ? 'many' : ''}"><div class="s-in">
+      ${head(`${T('pillar')} 03`, T('attT2'), HL, 'g', T('weight')(20))}
+      <div class="v5g"><div class="cbox">${tb}<div class="tnote">${MON ? `<b class="ahint">${T('clickAtt')}</b> ` + T('monNote') + ' ' : ''}${T('daysNote')}${data.attNote && !(MON && /^Attendance Recap/i.test(data.attNote)) ? ' · ' + esc(data.attNote) : ''}</div>${MON ? attHL(list, m, nick) : ''}</div>
+        ${MON ? (() => { const wd = [0, 1, 2].map(k => n((data.attMins || [])[k]) || ATT_MINS_DEF).map(M => M / ATT_MIN_DAY);
+            return `<div class="cbox side afp"><div class="cap afh">${T('calc')}<span class="a20">${T('att20')}</span></div>
+          <div class="fc g"><div class="fch"><b>70%</b><span><em>①</em>${T('barR2')}</span></div><p>${T('rateF2')}</p></div>
+          <div class="fc b"><div class="fch"><b>30%</b><span><em>②</em>${T('punctS')}</span></div><p>${T('punctF2')}</p><small>${T('minsF2')} · ${m.map((mi, k) => `${monthShort(mi)} ${fInt(wd[k])}`).join(' · ')} ${T('daysW')}</small></div>
+          <div class="fc k"><div class="fch"><b>× 20%</b><span><em>③</em>${T('q3Score')(Q)}</span></div><p>${T('q3F')}</p><small>${T('max20')}</small></div></div>`; })() : `<div class="cbox side"><div class="cap">${T('calc')}</div>
+          <div class="fbar"><i class="r" style="--w:70%">70% ${T('rateS')}</i><i class="pu" style="--w:30%">30% ${T('punctS')}</i></div>
+          <p class="fx">${T('rateD2')}</p><p class="fx">${T('punctD2')}</p>
+          <div class="cap" style="margin-top:1.4cqw">${T('leave')}</div>
+          <div class="lc"><span><i class="k s">75%</i>${T('sick')}</span><span><i class="k p">50%</i>${T('pl')}</span><span><i class="k z0">0%</i>${T('alpha')}</span></div>
+          <p class="fx">${T('leaveEx')}</p></div>`}</div>
+    </div>${foot}</section>`);
+  }
+
+  // 7 winner
+  const W = C.byFinal[0];
+  if (W) {
+    const parts = W.name.trim().split(/\s+/), first = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0], last = parts.length > 1 ? parts[parts.length - 1] : '';
+    const CC = ['#FFD000', '#FFD000', '#FFFFFF', '#F5B800', '#FDE68A', '#60A5FA'];
+    let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const conf = Array.from({ length: 46 }, (_, i) => `<i style="left:${(rnd() * 100).toFixed(1)}%;background:${CC[i % CC.length]};--d:${(4 + rnd() * 4).toFixed(2)}s;--dl:${(-rnd() * 8).toFixed(2)}s;--x:${((rnd() - .5) * 14).toFixed(1)}cqw;--r:${Math.round(360 + rnd() * 720)}deg;${i % 3 ? '' : 'width:.3cqw;height:.3cqw;border-radius:50%'}"></i>`).join('');
+    out.push(`<section class="slide dark win"><div class="glow"></div><div class="confetti">${conf}</div><div class="topline"></div><div class="s-in">
+      <div class="hd">${LOGO_W}<span>${String(out.length + 1).padStart(2, '0')} / ${String(out.length + 2).padStart(2, '0')}</span></div>
+      <div class="main"><div>
+        <div class="kick">${T('best')(tag)}</div>
+        <h1>${esc(first)}${last ? `<span>${esc(last)}</span>` : ''}</h1>
+        <div class="dv">${T('division')(DIV[W.div].toUpperCase())}</div>
+        <div class="fl">${T('finalScore')}</div><div class="big num">${f2(W.final)}</div><div class="gr">${T('outOf')(grade(W.final))}</div>
+        <div class="tiles"><div><b class="cP num">${f2(W.prod)}</b><small>${T('prod')}</small><em>${T('wt')(50)}</em></div><div><b class="cC num">${f2(W.chatAvg)}</b><small>${T('chatQ')}</small><em>${T('wt')(30)}</em></div><div><b class="cA num">${f2(W.attS)}</b><small>${T('att')}</small><em>${T('wt')(20)}</em></div></div>
+      </div><div><div class="photo"><div class="r1"></div><div class="r2">${photoOf(W) ? `<img src="${esc(photoOf(W))}" alt="">` : `<span class="ini">${esc(initials(W.name))}</span>`}</div><div class="rib">${T('rib')(tag)}</div></div></div></div>
+    </div>${foot}</section>`);
+  }
+
+  // 8 scoreboard
+  out.push(`<section class="slide dark sb ${N > 5 ? 'many' : ''}"><div class="glow"></div><div class="s-in">
+    <div class="hd"><div><div class="kick">${T('finalRank')(tag)}</div><h2>${T('sbT')}</h2></div>${LOGO_W}</div>
+    <div class="rows">${(legacyRules() ? C.byFinal : shuffleBy(C.byFinal, p)).map((a, i) => `<div class="srow ${i || !legacyRules() ? '' : 'first'}">${rk(i)}<div class="nm"><span class="av">${photoOf(a) ? `<img src="${esc(photoOf(a))}" alt="">` : esc(initials(a.name))}</span><b>${esc(a.name)}</b><small>${DIV[a.div].toUpperCase()}</small></div>
+      <div class="k"><small>PRD</small><b class="cP num">${f2(a.prod)}</b></div><div class="k"><small>OBS</small><b class="cC num">${f2(a.chatAvg)}</b></div><div class="k"><small>ATD</small><b class="cA num">${f2(a.attS)}</b></div>
+      <div class="sp"></div><div class="f"><small>${T('final')}${a.crossF ? ` · +${f2(a.crossF)} B-UP` : ''}</small><b class="num">${f2(a.final)}</b></div></div>`).join('')}</div>
+  </div>${foot}</section>`);
+  return out;
+}
+function niceStep(max) { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f <= 1 ? 1 : f <= 1.5 ? 1.5 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+
+/* =================== state & sync =================== */
+const ST = { period: null, data: null, revision: null, source: 'none', online: null, open: true, list: [], editing: false, slides: [] };
+
+async function api(path, opt = {}) {
+  const key = ls.get(KEY_PUB) || '';
+  const r = await fetch(API + path, { cache: 'no-store', ...opt, headers: { ...(opt.body ? { 'content-type': 'application/json' } : {}), ...(key ? { 'x-publish-key': key } : {}), ...(opt.headers || {}) } });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { status: r.status, j: j || {}, json: !!j };
+}
+function setStatus(cls, text) { const s = $('#status'); s.className = 'pill ' + cls; s.querySelector('span').textContent = text; }
+
+async function loadList() {
+  try { const r = await api('?list=1'); if (r.status === 200) { ST.list = r.j.items || []; ST.open = r.j.open !== false; ST.online = true; } else ST.online = r.json ? 'err' : false; }
+  catch (e) { ST.online = false; }
+}
+function fillPeriods() {
+  const saved = new Set(ST.list.map(x => x.period));
+  const all = periods(ST.list.map(x => x.period));
+  $('#period').innerHTML = all.map(p => `<option value="${p}">${pLabel(p)}${ST.online === true && !saved.has(p) && !SEED[p] ? ' (kosong)' : ''}</option>`).join('');
+  $('#period').value = ST.period;
+}
+function defaultPeriod() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (/^\d{4}-Q[1-4]$/.test(h)) return h;
+  if (ST.list.length) return ST.list[ST.list.length - 1].period;
+  return `${START_YEAR}-Q${START_Q}`;
+}
+async function loadPeriod(p, quiet) {
+  ST.period = p; history.replaceState(null, '', '#' + p);
+  if (LOCKED[p] && SEED[p]) { ST.data = clone(SEED[p]); ST.revision = null; ST.source = 'locked'; render(); syncStatus(); applyMode(); return; }
+  let got = false;
+  if (ST.online !== false) {
+    try {
+      const r = await api('?period=' + encodeURIComponent(p));
+      if (r.status === 200) { ST.data = r.j.data; ST.revision = r.j.revision; ST.source = 'online'; ST.updated = r.j.updated_at; got = true; ls.set(CACHE + p, JSON.stringify({ data: ST.data, revision: ST.revision, updated: ST.updated })); }
+      else if (r.status === 404) { ST.data = SEED[p] ? clone(SEED[p]) : null; ST.revision = null; ST.source = SEED[p] ? 'seed' : 'none'; got = true; }
+      else ST.online = r.json ? 'err' : false, ST.err = r.j;
+    } catch (e) { ST.online = false; }
+  }
+  ST.merged = got && ST.source === 'online' && SEED[p] && !LOCKED[p] ? mergeSeed(ST.data, SEED[p]) : 0;
+  if (!got) {
+    const c = ls.get(CACHE + p);
+    if (c) { const o = JSON.parse(c); ST.data = o.data; ST.revision = o.revision; ST.source = 'cache'; }
+    else { ST.data = SEED[p] ? clone(SEED[p]) : null; ST.revision = null; ST.source = SEED[p] ? 'seed' : 'none'; }
+  }
+  const fx = LOCKED[p] ? 0 : fixWorkDays(p, ST.data); if (fx && ST.source === 'online') ST.merged = (ST.merged || 0) + fx;
+  render(); syncStatus();
+  if (ST.merged && ST.source === 'online') setTimeout(async () => { if (canEdit() && ST.merged) { ST.merged = 0; await persistData('Data dari file otomatis disimpan online ✓'); render(); } }, 1500);
+}
+/* hari kerja resmi per bulan (menimpa data lama yang masih 26 hari semua): Q3 = Jul 26 (30−4) · Agu 25 (31−4−2, libur 17 & 25 Agu) · Sep 27 (31−4) */
+const WORKDAYS_FIX = { '2026-Q3': [12480, 12000, 12960] };
+function fixWorkDays(p, d) { if (!d || !WORKDAYS_FIX[p] || d.attMinsV >= 2) return 0; d.attMins = WORKDAYS_FIX[p].slice(); d.attMinsV = 2; return 1; }
+/* data dari file (SEED) diisikan ke data online yang kolomnya masih kosong — angka yang sudah diisi manual tidak ditimpa */
+function mergeSeed(data, seed) {
+  if (!data || !seed) return 0; let n = 0;
+  const empty = v => v == null || v === '';
+  if (seed.attMins && !(data.attMins || []).some(v => !empty(v))) { data.attMins = seed.attMins.slice(); n++; }
+  if (!data.attNote && seed.attNote) data.attNote = seed.attNote;
+  const key = x => String(x || '').toLowerCase().replace(/[^a-z]/g, '');
+  (seed.agents || []).forEach(sa => {
+    const a = (data.agents || []).find(x => key(x.name) === key(sa.name)); if (!a) return;
+    const hadSolved = ['csSolvedM', 'vipSolvedM'].some(f => (a[f] || []).some(v => !empty(v)));
+    if (!hadSolved && (sa.csSolvedM || sa.vipSolvedM) && a.rrM) { delete a.rrM; n++; }   // Res. % lama (dari versi file sebelumnya) → sekarang otomatis dari solved
+    ['csMonM', 'csHandledM', 'csSolvedM', 'vipTotalM', 'vipSolvedM'].forEach(f => { if (!sa[f]) return; a[f] = a[f] || [null, null, null];
+      sa[f].forEach((v, k) => { if (empty(a[f][k]) && !empty(v)) { a[f][k] = v; n++; } }); });
+    if (sa.chatC && !(a.chatC || []).some(r => (r || []).some(v => !empty(v)))) { a.chatC = sa.chatC.map(r => r.slice()); if (!(a.chat || []).some(v => !empty(v))) a.chat = sa.chatC.map(r => r.reduce((t, v) => t + v, 0) / r.length); n++; }
+    if (sa.attM) { a.attM = a.attM || [null, null, null]; sa.attM.forEach((o, k) => { const cur = a.attM[k]; if (o && (!cur || !Object.values(cur).some(v => !empty(v)))) { a.attM[k] = { ...o }; n++; } }); }
+  });
+  return n;
+}
+function syncStatus() {
+  if (ST.source === 'locked') { setStatus('ok', 'Final · dikunci'); return; }
+  if (ST.online === true) setStatus('ok', ST.source === 'online' ? 'Data online' : ST.source === 'seed' ? 'Belum disimpan online' : 'Online · kosong');
+  else if (ST.online === 'err') setStatus('err', (ST.err && ST.err.error === 'schema-missing') ? 'Tabel belum dibuat' : (ST.err && ST.err.error === 'storage-not-configured') ? 'Supabase belum diisi' : 'Server error');
+  else setStatus('warn', ST.source === 'cache' ? 'Offline · cache' : 'Offline');
+}
+
+/* =================== render =================== */
+function render() {
+  const deck = $('#deck'), p = ST.period;
+  let note = '';
+  if (ST.merged && ST.source === 'online') note = `<div class="note">Data dari file (VIP Juli–Agustus, CS/VIP solved, attendance) sudah diisikan ke kolom yang masih kosong. Buka <b>Edit data</b> → <b>Simpan online</b> supaya tersimpan untuk semua orang & muncul di Employee Directory.</div>`;
+  else if (ST.source === 'locked') note = `<div class="note">Data <b>${pLabel(p)}</b> dikunci sesuai file <b>${LOCKED[p]}</b> (hasil final yang sudah diumumkan) — tidak bisa diedit.</div>`;
+  else if (ST.source === 'seed' && p === '2026-Q3') note = `<div class="note">Data <b>${pLabel(p)}</b>: CS Juli & Agustus dari <b>Monitoring Customer Support</b>, VIP Juli & Agustus dari <b>Monitoring VIP</b>, September dari <b>export Tickets</b>, attendance dari <b>Attendance Recap</b>. Belum ada: <b>Observation</b> Q3 — isi di <b>Edit data</b> lalu <b>Simpan online</b>.</div>`;
+  else if (ST.source === 'seed') note = `<div class="note">Data <b>${pLabel(p)}</b> ini diambil dari slide Q2 Report Helpdesk (Figma). Buka <b>Edit data</b> → <b>Simpan online</b> supaya tersimpan untuk semua orang.</div>`;
+  else if (ST.online === 'err' && ST.err && ST.err.error === 'schema-missing') note = `<div class="note">Tabel <b>perf_reports</b> belum ada di Supabase. Jalankan file <b>perf-schema.sql</b> di Supabase → SQL Editor → Run, lalu muat ulang halaman ini.</div>`;
+  else if (ST.online === 'err' && ST.err && ST.err.error === 'storage-not-configured') note = `<div class="note">Env <b>SUPABASE_URL</b> / <b>SUPABASE_SERVICE_ROLE_KEY</b> belum diisi di Vercel, jadi data belum bisa disimpan online.</div>`;
+  else if (ST.online === false) note = `<div class="note">Server <b>/api/perf</b> tidak terjangkau${ST.source === 'cache' ? ' — menampilkan data terakhir yang tersimpan di browser ini' : ''}.</div>`;
+  if (!ST.data || !(ST.data.agents || []).some(a => (a.name || '').trim())) {
+    ST.slides = [];
+    deck.innerHTML = note + `<div class="empty"><h2>Belum ada data ${pLabel(p)}</h2><p>Isi data agent untuk periode ini — skor, ranking, dan Best Employee dihitung otomatis.</p>${ROSTER[p] ? `<p style="font-size:13px">Tim ${pLabel(p)} sudah disiapkan (${ROSTER[p].length} agent): ${ROSTER[p].map(([nm, dv]) => `${esc(nm)} <b>${dv}</b>`).join(' · ')}</p>` : ''}<button class="btn y" id="emptyEdit">Isi data ${pLabel(p)}</button></div>`;
+    $('#emptyEdit').onclick = openEditor;
+  } else {
+    ST.slides = slides(p, ST.data);
+    deck.innerHTML = note + ST.slides.join('');
+    gtDeck();
+    if (IO) IO.disconnect();
+    animateDeck();
+  }
+  $('#presentBtn').disabled = !ST.slides.length;
+  $('#printBtn').disabled = !ST.slides.length;
+  applyMode();
+}
+
+
+
+/* ===== teks slide bisa diedit (semua teks; angka data tidak) — override disimpan per "slide|teks asli" ===== */
+const GT_SKIP = 'input,textarea,select,option,button,script,style,svg,[data-edit],.num,.ed-only,.dmy,.seg,.mseg,.tools,.idsel,.stw';
+function gtLeaves(root) {
+  return [...root.querySelectorAll('*')].filter(el => {
+    if ([...el.children].some(c => c.tagName !== 'BR')) return false;
+    if (el.closest(GT_SKIP)) return false;
+    const t = (el.dataset.gto != null ? el.dataset.gto : el.textContent).trim();
+    return t.length >= 2 && !/^[\d.,%\s−+\-:/×#()|·~≥≤▲▼]+[a-z%]{0,3}$/i.test(t);
+  });
+}
+function gtApply(root, key, store, editing, onSave) {
+  gtLeaves(root).forEach(el => {
+    if (el.dataset.gto == null) { el.dataset.gto = el.textContent.trim(); el.dataset.gth = el.innerHTML; }
+    const k = key + '|' + el.dataset.gto, v = store && store[k];
+    if (v != null && el.textContent !== v) el.textContent = v;
+    if (editing) { el.contentEditable = 'true'; el.spellcheck = false; el.classList.add('gt-ed');
+      el.onblur = () => { const t = el.textContent.replace(/ /g, ' ').trim(); if (!t || t === el.dataset.gto) { if (store) delete store[k]; el.innerHTML = el.dataset.gth; } else if (store) store[k] = t; onSave && onSave(); };
+      el.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.blur(); } }; }
+    else if (el.classList.contains('gt-ed')) { el.removeAttribute('contenteditable'); el.classList.remove('gt-ed'); el.onblur = null; el.onkeydown = null; }
+  });
+}
+
+const slideKey = sl => [...sl.classList].filter(c => !/^(slide|dark|many|play|light)$/.test(c)).join('.') || 'x';
+let TEXTING = false;
+const gtStoreP = () => { if (!ST.data) return null; ST.data.texts = ST.data.texts || {}; return ST.data.texts; };
+function gtDeck() { $$('#deck .slide').forEach(sl => gtApply(sl, slideKey(sl), gtStoreP(), TEXTING, () => { ST.textDirty = true; })); }
+async function persistData(okMsg) {
+  const clean = stampCalc(ST.data);
+  try {
+    const r = await api('?period=' + encodeURIComponent(ST.period), { method: 'POST', body: JSON.stringify({ data: clean, revision: ST.revision }) });
+    if (r.status === 200 && r.j.ok) { ST.revision = r.j.revision; ST.source = 'online'; ST.online = true; ls.set(CACHE + ST.period, JSON.stringify({ data: clean, revision: ST.revision })); syncStatus(); toast(okMsg); return true; }
+    if (r.status === 409) { toast('Ada perubahan lebih baru dari perangkat lain — muat ulang lalu ulangi.'); return false; }
+    if (r.status === 401) { toast('Password publish salah / belum diisi.'); return false; }
+    if (!r.json) { ls.set(CACHE + ST.period, JSON.stringify({ data: clean, revision: ST.revision })); toast('Server tidak terjangkau — tersimpan di browser ini saja.'); return true; }
+    toast('Gagal menyimpan: ' + (r.j.detail || r.j.error || ('HTTP ' + r.status))); return false;
+  } catch (e) { ls.set(CACHE + ST.period, JSON.stringify({ data: clean, revision: ST.revision })); toast('Server tidak terjangkau — tersimpan di browser ini saja.'); return true; }
+}
+
+/* =================== animasi =================== */
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function prep(sl) {
+  [...sl.querySelectorAll('.s-in>*')].forEach((c, i) => c.style.setProperty('--i', i));
+  sl.querySelectorAll('.ag,.cc,.ac,.srow,.box3,.pillars>div,.crit>div,.infos>div,.wtiles>div,.win .tiles>div,.badges>span,.pcard,.kt,.ppan,.cbox').forEach(el => {
+    const sib = [...el.parentElement.children].filter(x => x.matches('.ag,.cc,.ac,.srow,.box3,.pillars>div,.crit>div,.infos>div,.wtiles>div,.win .tiles>div,.badges>span,.pcard,.kt,.ppan,.cbox'));
+    el.dataset.k = ''; el.style.setProperty('--k', sib.indexOf(el));
+  });
+  // bar & ring: urutan per baris supaya mengisi bergantian
+  sl.querySelectorAll('.trk b').forEach(b => { const card = b.closest('[data-k]'); const rows = card ? [...card.querySelectorAll('.trk b')] : [b];
+    b.style.setProperty('--k', (card ? +card.style.getPropertyValue('--k') : 0) + rows.indexOf(b) * .5); });
+  sl.querySelectorAll('.ring .pr').forEach(r => { const card = r.closest('[data-k]'); r.style.setProperty('--k', card ? card.style.getPropertyValue('--k') : 0); });
+  sl.querySelectorAll('.num').forEach(el => { if (el.dataset.t == null) el.dataset.t = el.textContent; });
+}
+function countUp(sl) {
+  const WIN = sl.classList.contains('win');   // angka bergerak hanya di slide Best Employee
+  sl.querySelectorAll('.num').forEach(el => {
+    const t = el.dataset.t, m = /^([^\d]*)([\d,]+(?:\.(\d+))?)(.*)$/.exec(t || '');
+    if (!m || RM || !WIN) { if (t != null) el.textContent = t; return; }
+    const to = parseFloat(m[2].replace(/,/g, '')), dec = m[3] ? m[3].length : 0, comma = m[2].includes(',');
+    const card = el.closest('[data-k]'), delay = 450 + (card ? +card.style.getPropertyValue('--k') || 0 : 0) * 150, dur = 2400;
+    const fmt = v => { const x = v.toFixed(dec); return comma || to >= 1000 ? Number(x).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : x; };
+    const t0 = performance.now() + delay; el.textContent = m[1] + fmt(0) + m[4];
+    const step = now => { const p = Math.min(1, Math.max(0, (now - t0) / dur)), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;   // ease-in-out halus
+      el.textContent = m[1] + fmt(to * e) + m[4]; if (p < 1 && el.isConnected) requestAnimationFrame(step); else el.textContent = t; };
+    requestAnimationFrame(step);
+  });
+}
+function play(sl) { if (sl.classList.contains('play')) return; sl.classList.add('play'); countUp(sl); }
+function reset(sl) { sl.classList.remove('play'); sl.querySelectorAll('.num').forEach(el => { if (el.dataset.t != null) el.textContent = el.dataset.t; }); }
+const IO = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+  if (e.intersectionRatio >= .35) play(e.target); else if (!e.isIntersecting) reset(e.target);
+}), { threshold: [0, .35] }) : null;
+function animateDeck() { document.querySelectorAll('#deck .slide').forEach(sl => { prep(sl); if (IO) IO.observe(sl); else play(sl); }); }
+window.addEventListener('beforeprint', () => document.querySelectorAll('.slide').forEach(sl => { sl.classList.add('play'); sl.querySelectorAll('.num').forEach(el => { if (el.dataset.t != null) el.textContent = el.dataset.t; }); }));
+
+/* =================== present =================== */
+let PV = null;
+function present(start = 0) {
+  if (!ST.slides.length) return;
+  let i = start;
+  PV = document.createElement('div'); PV.className = 'present';
+  PV.innerHTML = `<div class="holder"></div><div class="nav"><button aria-label="Sebelumnya">‹</button><div class="dotsn"></div><button aria-label="Berikutnya">›</button></div><button class="btn x">✕ Esc</button>`;
+  document.body.appendChild(PV);
+  const show = () => { const h = PV.querySelector('.holder'); h.innerHTML = ST.slides[i]; const sl = h.querySelector('.slide'); gtApply(sl, slideKey(sl), gtStoreP(), false); prep(sl); requestAnimationFrame(() => requestAnimationFrame(() => play(sl))); PV.querySelector('.dotsn').innerHTML = ST.slides.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join(''); };
+  const go = d => { i = Math.max(0, Math.min(ST.slides.length - 1, i + d)); show(); };
+  const close = () => { document.removeEventListener('keydown', key); PV.remove(); PV = null; if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+  const key = e => { if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(1); } else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(-1); } else if (e.key === 'Escape') close(); else if (e.key === 'Home') { i = 0; show(); } else if (e.key === 'End') { i = ST.slides.length - 1; show(); } };
+  const [prev, next] = PV.querySelectorAll('.nav button');
+  prev.onclick = () => go(-1); next.onclick = () => go(1); PV.querySelector('.x').onclick = close;
+  PV.querySelector('.holder').onclick = e => go(e.clientX < innerWidth / 3 ? -1 : 1);
+  document.addEventListener('keydown', key);
+  if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  show();
+}
+
+/* =================== editor =================== */
+let ED = null;
+function blankAgent(prev) { return { name: prev ? prev.name : '', div: prev ? prev.div : 'HD', photo: prev ? prev.photo || '' : '', chat: ['', '', ''], att: {} }; }
+function openEditor() {
+  const p = ST.period;
+  if (ST.data && (ST.data.agents || []).length) ED = clone(ST.data);
+  else if (ROSTER[p]) ED = { attNote: '', agents: ROSTER[p].map(([name, div]) => blankAgent({ name, div })) };
+  else {
+    // ambil nama agent dari periode sebelumnya (bila ada di cache/seed) supaya tidak mengetik ulang
+    const all = periods(), idx = all.indexOf(p);
+    let base = null;
+    for (let k = idx - 1; k >= 0 && !base; k--) { const c = ls.get(CACHE + all[k]); if (c) base = JSON.parse(c).data; else if (SEED[all[k]]) base = SEED[all[k]]; }
+    ED = { attNote: '', agents: base ? base.agents.map(a => blankAgent(a)) : [blankAgent(), blankAgent()] };
+  }
+  ED.agents.forEach(a => { if (!a.chatC) a.chatC = [0, 1, 2].map(k => [a.chat && has(a.chat[k]) ? a.chat[k] : '', '']); });
+  ST.editing = true; drawEditor(); $('#editor').classList.remove('hidden');
+}
+function closeEditor() { ST.editing = false; $('#editor').classList.add('hidden'); ED = null; }
+function fld(label, path, val, type = 'number', extra = '') { return `<div class="f"><label>${label}</label><input class="inp" type="${type}" data-p="${path}" value="${esc(val ?? '')}" ${type === 'number' ? 'step="any" min="0"' : ''} ${extra}></div>`; }
+function drawEditor() {
+  const p = ST.period, m = qMonths(p);
+  const C = compute(ED), live = new Map(C.A.map(a => [a.name, a]));
+  $('#edTitle').textContent = `Edit data · ${pLabel(p)}`;
+  $('#edBody').innerHTML = `<p class="help">Isi angka per agent. Productivity, Chat, Attendance, ranking dan Best Employee dihitung otomatis dengan rumus di slide. Kolom yang tidak relevan untuk divisinya boleh dikosongkan.
+    Attendance: isi tabel <b>Attendance — data bulanan</b>; <b>Skor attendance</b> di tiap agent terisi otomatis. Ubah angkanya hanya bila perlu override — tombol <b>Pakai otomatis</b> mengembalikannya.</p>
+    ${!ST.open ? `<div class="acard"><div class="f"><label>Password publish (PUBLISH_KEY)</label><input class="inp" type="password" id="pubKey" value="${esc(ls.get(KEY_PUB) || '')}" autocomplete="current-password"></div></div>` : ''}
+    ${edTable(m, live)}
+    ${legacyRules() ? '' : edAttTable(m, live)}
+    ${ED.agents.map((a, i) => { const L = live.get((a.name || '').trim()); const isAM = a.div === 'AM';
+      return `<div class="acard" data-i="${i}">
+      <div class="top"><div class="eph">${photoOf(a) ? `<img src="${esc(photoOf(a))}" alt="">` : 'Foto'}</div>
+        <input class="inp" type="text" data-p="name" placeholder="Nama agent" value="${esc(a.name)}">
+        <select class="inp" data-p="div" style="width:auto"><option value="HD" ${!isAM ? 'selected' : ''}>Helpdesk (HD)</option><option value="AM" ${isAM ? 'selected' : ''}>Account Manager (AM)</option></select>
+        <label class="btn mini">Foto<input type="file" accept="image/*" data-photo hidden></label>${a.photo ? '<button class="btn mini" data-rmphoto>Hapus foto</button>' : ''}
+        <button class="btn mini danger" data-del>Hapus agent</button>
+        <span class="live">${L ? `Final <b>${f2(L.final)}</b> · PRD ${f2(L.prod)} · OBS ${f2(L.chatAvg)} · ATD ${f2(L.attS)}` : ''}</span></div>
+      <fieldset class="fs"><legend>Productivity</legend><div class="sumq" data-sum="prod">${prodSum(L)}</div>${L && L.hasMonthly ? '' : `<div class="grid">
+        <div class="help" style="grid-column:1/-1;margin:0">Belum ada data per bulan di tabel di atas — boleh isi total kuartal di sini:</div>
+        ${isAM ? fld('VIP handled (total)', 'vipTotal', a.vipTotal) + fld('VIP solved (total, info)', 'vipSolved', a.vipSolved) + fld('VIP rate % (info)', 'vipRate', a.vipRate, 'number', 'placeholder="otomatis: solved ÷ handled"')
+               : fld('CS Monitoring (total)', 'csMon', a.csMon) + fld('CS Handled (total)', 'csHandled', a.csHandled)}
+      </div>`}</fieldset>
+      <fieldset class="fs"><legend>Observation (0–100) · 2 kasus per bulan</legend><div class="sumq" data-sum="obs">${obsSum(L, m)}</div><div class="grid">${m.map((mi, k) => [0, 1].map(j => fld(`${MSHORT[mi]} · kasus ${j + 1}`, `chatC.${k}.${j}`, a.chatC && a.chatC[k] && a.chatC[k][j])).join('')).join('')}</div></fieldset>
+      ${!legacyRules() ? `<fieldset class="fs"><legend>Attendance</legend><div class="sumq" data-sum="att">${attSum(L)}</div><div class="grid">${attManFld(a, L)}</div></fieldset>` : `<fieldset class="fs"><legend>Attendance (total 1 kuartal)</legend><div class="grid">
+        ${fld('Hari kerja', 'att.workDays', a.att && a.att.workDays)}${fld('Sick (hari)', 'att.sick', a.att && a.att.sick)}${fld('Personal leave (hari)', 'att.personal', a.att && a.att.personal)}${fld('Alpha (hari)', 'att.alpha', a.att && a.att.alpha)}
+        ${fld('Menit telat', 'att.lateMin', a.att && a.att.lateMin)}${fld('Total menit kerja', 'att.workMin', a.att && a.att.workMin)}${fld('Skor attendance (manual)', 'att.manual', a.att && a.att.manual, 'number', 'placeholder="opsional"')}
+      </div></fieldset>`}</div>`; }).join('')}
+    <button class="btn" id="addAgent">+ Tambah agent</button>
+    <div class="acard" style="margin-top:14px"><div class="f"><label>Catatan attendance (tampil di slide Attendance)</label><input class="inp" type="text" data-p="attNote" data-root value="${esc(ED.attNote || '')}" placeholder="mis. April note — Desi: Sick 1d + PL 1d"></div></div>`;
+}
+/* tabel input bulanan ala sheet Q2: CS Mon · CS Handled · VIP · VIP Done · Resolution rate per bulan, lalu skor (otomatis) */
+function edTable(m, live) {
+  const y = ST.period.slice(0, 4), q = ST.period.slice(5);
+  const inp = (path, v, cls = '') => `<td class="${cls}"><input class="inp et" type="number" step="any" min="0" data-p="${path}" value="${esc(v ?? '')}"></td>`;
+  /* Helpdesk: CS Monitoring, CS Handled (skor) + VIP Handled (bonus back-up) · AM: VIP Handled (skor) + CS Monitoring, CS Handled (bonus back-up) · Res. % per bulan (info) */
+  const COLS = {
+    HD: [['csMonM', 'CS Mon.'], ['csHandledM', 'CS Hand.'], ['csSolvedM', 'CS Solved', 'ets2'], ['vipTotalM', 'VIP Hand.', 'etb'], ['vipSolvedM', 'VIP Solved', 'etb ets2']],
+    AM: [['vipTotalM', 'VIP Hand.'], ['vipSolvedM', 'VIP Solved', 'ets2'], ['csMonM', 'CS Mon.', 'etb'], ['csHandledM', 'CS Hand.', 'etb'], ['csSolvedM', 'CS Solved', 'etb ets2']] };
+  const table = div => {
+    const list = ED.agents.map((a, i) => [a, i]).filter(([a]) => (a.div === 'AM' ? 'AM' : 'HD') === div);
+    const cols = COLS[div], w = cols.length + 1;
+    const rows = list.map(([a, i]) => { const L = live.get((a.name || '').trim());
+      return `<tr data-i="${i}"><td class="etn">${esc(a.name || '(tanpa nama)')}</td>
+        ${m.map((mi, k) => cols.map(([f, , c], j) => inp(`${f}.${k}`, a[f] && a[f][k], `${c || ''} ${j ? '' : 'etg'}`)).join('')
+          + `<td class="etr"><input class="inp et" type="number" step="any" min="0" max="100" data-p="rrM.${k}" value="${esc(a.rrM && a.rrM[k] != null ? a.rrM[k] : '')}" placeholder="${L && rrAuto(L, k) != null ? f2(rrAuto(L, k)) : '%'}"></td>`).join('')}
+        <td class="ets etg ett" data-o="tcsMon">${L ? fInt(L.csMon) : '–'}</td><td class="ets ett" data-o="tcsHand">${L ? fInt(L.csHandled) : '–'}</td><td class="ets ett" data-o="tcsSol">${L && L.csSolved != null ? fInt(L.csSolved) : '–'}</td><td class="ets ett" data-o="tvip">${L ? fInt(L.vipTotal) : '–'}</td><td class="ets ett" data-o="tvipSol">${L && L.vipSolved != null ? fInt(L.vipSolved) : '–'}</td>
+        <td class="ets etg" data-o="core">${L ? f2(L.core) : '–'}</td><td class="ets" data-o="bonus">${L ? f2(L.bonus) : '–'}</td><td class="ets etx" data-o="cross" title="${L ? esc(L.crossVol) : ''}">${L ? '+' + f2(L.crossF) : '–'}</td><td class="ets xp" data-o="pen">${L && L.pen ? '−' + f2(L.pen) : '0'}</td><td class="ets etf" data-o="prod">${L ? f2(L.prod) : '–'}</td><td class="ets" data-o="rrq">${L && rrQavg(L) != null ? f2(rrQavg(L)) + '%' : '–'}</td></tr>`; }).join('');
+    const name = div === 'HD' ? 'Helpdesk' : 'Account Manager';
+    const how = div === 'HD' ? 'Skor: CS Monitoring 38% + CS Handled 57% + assist bonus 5 · <span class="etx">VIP Hand. = bonus back-up</span>' : 'Skor: VIP Handled 95% + assist bonus 5 · <span class="etx">CS Mon. & CS Hand. = bonus back-up</span>';
+    return `<div class="etblk"><div class="eth"><b>${name}</b><span>${how}</span></div>${list.length ? `<div class="ets-scroll"><table class="etab"><thead>
+      <tr><th rowspan="2" class="etn">Nama</th>${m.map(mi => `<th colspan="${w}" class="etm etg">${MONTHS[mi].toUpperCase()} ${y}</th>`).join('')}<th colspan="5" class="etm etg">TOTAL ${q}</th><th rowspan="2" class="ets etg">Core</th><th rowspan="2" class="ets">Bonus</th><th rowspan="2" class="ets etx">Back-up<br>→ Final</th><th rowspan="2" class="ets xp">Penalti<br>Res.</th><th rowspan="2" class="ets etf">Final<br>Prod.</th><th rowspan="2" class="ets">Res. %<br>${q} avg</th></tr>
+      <tr>${m.map(() => cols.map(([, t, c], j) => `<th class="${c || ''} ${j ? '' : 'etg'}">${t}</th>`).join('') + '<th class="etr">Res. %</th>').join('')}<th class="etg">CS Mon.</th><th>CS Hand.</th><th>CS Solved</th><th>VIP</th><th>VIP Solved</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="help">Belum ada agent ${name}. Atur divisi di kartu agent di bawah.</div>`}</div>`; };
+  return `<div class="acard etw"><div class="eth"><b>Productivity — data bulanan · ${q} ${y}</b><span>Res. % = (CS Solved + VIP Solved) ÷ (CS Hand. + VIP Hand.) per bulan, otomatis — boleh diisi manual · target per bulan Helpdesk ${RR_TARGET.HD}% · AM ${RR_TARGET.AM}% · bulan di bawah target −${RR_PEN_PER} poin per 1% (dirata-rata, maks −${RR_PEN_MAX})</span></div>
+    ${table('HD')}${table('AM')}
+    <div class="help" style="margin:8px 0 0"><b class="etx">Back-up</b> (maks +2,5, ditambahkan ke <b>Final Score</b>, bukan productivity) = kerja di divisi lain (kolom biru) dinilai pakai skala divisi itu, dibandingkan dengan back-up terbesar di tim. Productivity = Core + Bonus (maks 100) − Penalti Res.</div></div>`;
+}
+function prodSum(L) { if (!L) return '<span class="mut">Isi nama agent dulu.</span>';
+  return `Total kuartal (otomatis): <b>${fInt(L.csMon)}</b> CS Mon. · <b>${fInt(L.csHandled)}</b> CS Hand.${L.csSolved != null ? ` (<b>${fInt(L.csSolved)}</b> solved)` : ''} · <b>${fInt(L.vipTotal)}</b> VIP${L.vipSolved ? ` (<b>${fInt(L.vipSolved)}</b> solved)` : ''}${rrQavg(L) != null ? ` · Res. <b>${f2(rrQavg(L))}%</b>` : ''} → Productivity <b>${f2(L.prod)}</b>${L.pen ? ` <span class="xp">(−${f2(L.pen)} res.)</span>` : ''}${L.crossF ? ` · back-up <b class="etx">+${f2(L.crossF)}</b>` : ''} · Final <b>${f2(L.final)}</b>`; }
+function attSum(L) { if (!L) return ''; if (!L.attX || !L.attX.monthly) return '<span class="mut">Isi di tabel <b>Attendance — data bulanan</b> di atas.</span>';
+  return `Total kuartal (otomatis): sakit <b>${fInt(L.att.sick)}</b> · PL <b>${fInt(L.att.personal)}</b> · alpha <b>${fInt(L.att.alpha)}</b> · telat <b>${fInt(L.att.lateMin)}</b> menit · terlambat <b>${fInt(L.att.lateDays)}</b> hari → Skor Attendance <b>${f2(L.attS)}</b> · Total Score Attendance <b>${f2(L.attS * .2)}</b> / 20`; }
+/* tabel attendance bulanan (format Attendance Recap): PL, sakit, alpha, telat (menit), terlambat (hari) → % attendance per bulan */
+function edAttTable(m, live) {
+  const y = ST.period.slice(0, 4), q = ST.period.slice(5), mins = [0, 1, 2].map(k => (ED.attMins && has(ED.attMins[k])) ? ED.attMins[k] : '');
+  const F = [['pl', 'PL'], ['sick', 'Sakit'], ['alpha', 'Alpha'], ['late', 'Telat (mnt)'], ['lateDays', 'Terlambat (hari)']];
+  const table = div => {
+    const list = ED.agents.map((a, i) => [a, i]).filter(([a]) => (a.div === 'AM' ? 'AM' : 'HD') === div);
+    const rows = list.map(([a, i]) => { const L = live.get((a.name || '').trim());
+      return `<tr data-i="${i}"><td class="etn">${esc(a.name || '(tanpa nama)')}</td>${m.map((mi, k) => F.map(([f], j) => `<td class="${j ? '' : 'etg'}"><input class="inp et" type="number" step="any" min="0" data-p="attM.${k}.${f}" value="${esc(a.attM && a.attM[k] && has(a.attM[k][f]) ? a.attM[k][f] : '')}"></td>`).join('')
+        + attCells(L, k)).join('')}<td class="ets etg etf" data-o="attq">${attQ(L)}</td><td class="ets etf" data-o="attc">${attC(L)}</td></tr>`; }).join('');
+    const name = div === 'HD' ? 'Helpdesk' : 'Account Manager';
+    return `<div class="etblk"><div class="eth"><b>${name}</b></div>${list.length ? `<div class="ets-scroll"><table class="etab"><thead>
+      <tr><th rowspan="2" class="etn">Nama</th>${m.map(mi => `<th colspan="8" class="etm etg">${MONTHS[mi].toUpperCase()} ${y}</th>`).join('')}<th rowspan="2" class="ets etg etf">Skor ${q}<br><small>rata-rata 3 bln</small></th><th rowspan="2" class="ets etf">Total Score<br>Attendance<br><small>× 20% (maks 20)</small></th></tr>
+      <tr>${m.map(() => F.map(([, t], j) => `<th class="${j ? '' : 'etg'}">${t}</th>`).join('') + '<th class="ets">Rate<br>70%</th><th class="ets">Punct.<br>30%</th><th class="ets etr">Skor<br>bulan</th>').join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="help">Belum ada agent ${name}.</div>`}</div>`; };
+  return `<div class="acard etw"><div class="eth"><b>Attendance — data bulanan · ${q} ${y}</b><span>Otomatis: Rate 70% = (hari kerja − sakit − PL − alpha) ÷ hari kerja · Punctuality 30% = (menit kerja − menit telat) ÷ menit kerja · Skor bulan = Rate × 70% + Punct. × 30% · Skor ${q} = rata-rata 3 bulan · Total Score Attendance = Skor ${q} × 20% (maks 20 poin) · siklus absensi tgl 26 – 25</span></div>
+    <div class="etmins">${m.map((mi, k) => `<label>Hari kerja ${MONTHS[mi]} <input class="inp et" type="number" min="0" step="any" data-wd="${k}" value="${esc(mins[k] === '' ? '' : n(mins[k]) / ATT_MIN_DAY)}" placeholder="${ATT_MINS_DEF / ATT_MIN_DAY}"> <small class="mut" data-o2="mins${k}">= ${fInt((n(mins[k]) || ATT_MINS_DEF))} menit</small></label>`).join('')}<span class="mut">menit kerja = hari kerja × 480</span></div>
+    ${table('HD')}${table('AM')}</div>`;
+}
+function attCells(L, k) { const x = L && L.attMo && L.attMo[k];
+  return `<td class="ets" data-o="atr${k}">${x ? f2(x.rate) + '%' : '–'}</td><td class="ets" data-o="atp${k}">${x ? f2(x.punct) + '%' : '–'}</td><td class="ets etr" data-o="att${k}">${x ? f2(x.pct) : '–'}</td>`; }
+const attQ = L => L && L.attX && L.attX.monthly ? f2(L.attS) : '–';
+const attC = L => L && L.attX && (L.attX.monthly || L.attX.manual) ? f2(L.attS * .2) : '–';
+/* skor hasil hitungan ikut disimpan ke backend (snapshot) supaya konsisten dibaca di mana pun — sumber kebenaran tetap data absensi */
+function stampCalc(d) { if (!d || !d.agents) return d; const C = compute(d), by = new Map(C.A.map(a => [a.name, a]));
+  d.agents.forEach(a => { const L = by.get((a.name || '').trim()); if (!L) { delete a.calc; return; }
+    if (a.chatC) a.chat = L.chat.map(v => v == null ? '' : r2(v));
+    a.calc = { prod: L.prod, obs: L.chatAvg, att: L.attS, attTotal20: r2(L.attS * .2), final: L.final,
+      attMonthly: L.attMo ? L.attMo.map(x => x ? { workDays: r2(x.wd), rate: r2(x.rate), punct: r2(x.punct), score: r2(x.pct) } : null) : null }; });
+  d.calcAt = new Date().toISOString(); return d; }
+function obsSum(L, m) { if (!L) return ''; return 'Skor per bulan (rata-rata 2 kasus, otomatis): ' + m.map((mi, k) => `${MSHORT[mi]} <b>${L.chat[k] == null ? '–' : f2(L.chat[k])}</b>`).join(' · ') + ` → Observation ${ST.period.slice(5)} <b>${f2(L.chatAvg)}</b>`; }
+/* skor attendance per agent: terisi otomatis dari tabel bulanan · angka berbeda = override manual */
+function attManFld(a, L) { const man = a.att && has(a.att.manual), auto = L ? L.attAuto : null;
+  return `<div class="f" style="grid-column:1/-1"><label>Skor attendance ${man ? '<b class="xp">(manual override)</b>' : '(otomatis)'}</label><input class="inp" type="number" step="any" min="0" max="100" data-attman value="${esc(man ? a.att.manual : auto == null ? '' : f2(auto))}" placeholder="isi tabel bulanan" style="max-width:160px"><small class="mut" data-o3="attman">${attManNote(a, L)}</small></div>`; }
+function attManNote(a, L) { const auto = L ? L.attAuto : null, man = a.att && has(a.att.manual);
+  return (auto == null ? 'Belum ada data bulanan.' : `Otomatis: ${f2(auto)} → Total Score Attendance ${f2((man ? n(a.att.manual) : auto) * .2)} / 20`) + (man ? ' · <button type="button" class="btn mini" data-attauto>Pakai otomatis</button>' : ''); }
+function edLive() {
+  const C = compute(ED), live = new Map(C.A.map(a => [a.name, a]));
+  $$('#edBody .acard[data-i]').forEach(card => { const L = live.get((ED.agents[+card.dataset.i].name || '').trim()); const ps = card.querySelector('[data-sum="prod"]'), as = card.querySelector('[data-sum="att"]'), os = card.querySelector('[data-sum="obs"]'); if (ps) ps.innerHTML = prodSum(L); if (as) as.innerHTML = attSum(L); if (os) os.innerHTML = obsSum(L, qMonths(ST.period));
+    const ai = card.querySelector('[data-attman]'), a0 = ED.agents[+card.dataset.i]; if (ai) { if (document.activeElement !== ai && !(a0.att && has(a0.att.manual))) ai.value = L && L.attAuto != null ? f2(L.attAuto) : ''; const nt = card.querySelector('[data-o3="attman"]'); if (nt) nt.innerHTML = attManNote(a0, L); const lb = ai.parentElement.querySelector('label'); if (lb) lb.innerHTML = `Skor attendance ${a0.att && has(a0.att.manual) ? '<b class="xp">(manual override)</b>' : '(otomatis)'}`; } const s = card.querySelector('.live'); if (s) s.innerHTML = L ? `Final <b>${f2(L.final)}</b> · PRD ${f2(L.prod)} · OBS ${f2(L.chatAvg)} · ATD ${f2(L.attS)}` : ''; });
+  $$('#edBody tr[data-i]').forEach(tr => { const a = ED.agents[+tr.dataset.i], L = live.get((a.name || '').trim()), set = (o, v) => { const c = tr.querySelector(`[data-o="${o}"]`); if (c) c.textContent = v; };
+    set('tcsMon', L ? fInt(L.csMon) : '–'); set('tcsHand', L ? fInt(L.csHandled) : '–'); set('tvip', L ? fInt(L.vipTotal) : '–'); set('tcsSol', L && L.csSolved != null ? fInt(L.csSolved) : '–'); set('tvipSol', L && L.vipSolved != null ? fInt(L.vipSolved) : '–');
+    [0, 1, 2].forEach(k => { const x = L && L.attMo && L.attMo[k]; set('atr' + k, x ? f2(x.rate) + '%' : '–'); set('atp' + k, x ? f2(x.punct) + '%' : '–'); set('att' + k, x ? f2(x.pct) : '–'); }); set('attq', attQ(L)); set('attc', attC(L));
+        set('core', L ? f2(L.core) : '–'); set('bonus', L ? f2(L.bonus) : '–'); set('cross', L ? '+' + f2(L.crossF) : '–'); set('pen', L && L.pen ? '−' + f2(L.pen) : '0'); set('prod', L ? f2(L.prod) : '–'); const q = L ? rrQavg(L) : null; set('rrq', q != null ? f2(q) + '%' : '–');
+    if (L) tr.querySelectorAll('[data-p^="rrM."]').forEach(inp => { const k = +inp.dataset.p.slice(4), au = rrAuto(L, k); inp.placeholder = au != null ? f2(au) : '%'; }); });
+}
+function setPath(o, path, v) { const k = path.split('.'); let t = o; for (let i = 0; i < k.length - 1; i++) { t[k[i]] = t[k[i]] || (/^\d+$/.test(k[i + 1]) ? [] : {}); t = t[k[i]]; } t[k[k.length - 1]] = v; }
+function resizePhoto(file) {
+  return new Promise((res, rej) => { const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const s = 360, c = document.createElement('canvas'); c.width = c.height = s; const g = c.getContext('2d'), m = Math.min(img.width, img.height);
+      g.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, s, s); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .82)); };
+    img.onerror = rej; img.src = url; });
+}
+$('#edBody').addEventListener('input', e => {
+  const el = e.target; if (!el.dataset.p && !el.hasAttribute('data-wd') && !el.hasAttribute('data-attman')) return;
+  const card = el.closest('[data-i]'); const v = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+  if (el.hasAttribute('data-root')) { ED.attNote = v; return; }
+  if (el.hasAttribute('data-root2')) { setPath(ED, el.dataset.p, v); edLive(); return; }
+  if (el.hasAttribute('data-attman') && card) { const a = ED.agents[+card.dataset.i]; a.att = a.att || {}; const L = compute(ED).A.find(x => x.name === (a.name || '').trim()), auto = L ? L.attAuto : null;
+    if (v === '' || (auto != null && Math.abs(v - auto) < 0.005)) delete a.att.manual; else a.att.manual = v; edLive(); return; }
+  if (el.hasAttribute('data-wd')) { const k = +el.dataset.wd; ED.attMins = ED.attMins || [null, null, null]; ED.attMins[k] = v === '' ? null : v * ATT_MIN_DAY; const t = $(`#edBody [data-o2="mins${k}"]`); if (t) t.textContent = `= ${fInt(n(ED.attMins[k]) || ATT_MINS_DEF)} menit`; edLive(); return; }
+  if (!card) return;
+  setPath(ED.agents[+card.dataset.i], el.dataset.p, v);
+  if (el.dataset.p === 'div') { drawEditor(); return; }
+  if (el.dataset.p === 'name') { const r = $(`#edBody tr[data-i="${card.dataset.i}"] .etn`); if (r) r.textContent = v || '(tanpa nama)'; }
+  edLive();
+});
+$('#edBody').addEventListener('change', async e => {
+  const el = e.target;
+  if (el.dataset.p === 'div') { setPath(ED.agents[+el.closest('[data-i]').dataset.i], 'div', el.value); drawEditor(); }
+  if (el.hasAttribute('data-photo') && el.files[0]) {
+    try { ED.agents[+el.closest('[data-i]').dataset.i].photo = await resizePhoto(el.files[0]); drawEditor(); } catch (err) { toast('Foto tidak bisa dibaca'); }
+  }
+});
+$('#edBody').addEventListener('click', e => {
+  const card = e.target.closest('[data-i]');
+  if (e.target.id === 'addAgent') { ED.agents.push(blankAgent()); drawEditor(); return; }
+  if (!card) return;
+  const i = +card.dataset.i;
+  if (e.target.hasAttribute('data-del')) { ED.agents.splice(i, 1); drawEditor(); }
+  if (e.target.hasAttribute('data-attauto')) { if (ED.agents[i].att) delete ED.agents[i].att.manual; edLive(); return; }
+  if (e.target.hasAttribute('data-rmphoto')) { ED.agents[i].photo = ''; drawEditor(); }
+});
+$('#edCancel').onclick = closeEditor;
+$('#editor').addEventListener('click', e => { if (e.target.id === 'editor') closeEditor(); });
+/* server /api/perf tidak ada (mis. preview / offline): simpan di browser ini saja supaya tetap bisa dicek, TIDAK online */
+function localSave(clean) {
+  ST.data = clean; ST.source = 'cache'; ST.online = false;
+  ls.set(CACHE + ST.period, JSON.stringify({ data: clean, revision: ST.revision }));
+  closeEditor(); render(); syncStatus(); toast('Server tidak terjangkau — data hanya tersimpan di browser ini (belum online).');
+}
+$('#edSave').onclick = async () => {
+  const k = $('#pubKey'); if (k) ls.set(KEY_PUB, k.value);
+  const clean = stampCalc({ attNote: ED.attNote || '', attMins: ED.attMins || null, attMinsV: ED.attMinsV, agents: ED.agents.filter(a => (a.name || '').trim()), obsPoints: (ST.data && ST.data.obsPoints) || ED.obsPoints });
+  const btn = $('#edSave'); btn.disabled = true; btn.textContent = 'Menyimpan…';
+  try {
+    const r = await api('?period=' + encodeURIComponent(ST.period), { method: 'POST', body: JSON.stringify({ data: clean, revision: ST.revision }) });
+    if (r.status === 200 && r.j.ok) {
+      ST.data = clean; ST.revision = r.j.revision; ST.source = 'online'; ST.online = true; ST.merged = 0;
+      ls.set(CACHE + ST.period, JSON.stringify({ data: clean, revision: ST.revision }));
+      closeEditor(); await loadList(); fillPeriods(); render(); syncStatus(); toast('Tersimpan online ✓ — semua orang melihat data ini');
+    } else if (r.status === 409) { toast('Ada perubahan lebih baru dari perangkat lain — data dimuat ulang, cek lalu simpan lagi.'); const keep = ED; await loadPeriod(ST.period); ED = keep; ED && drawEditor(); }
+    else if (r.status === 401) toast('Password publish salah / belum diisi.');
+    else if (!r.json) localSave(clean);
+    else toast('Gagal menyimpan: ' + (r.j.detail || r.j.error || ('HTTP ' + r.status)));
+  } catch (err) { localSave(clean); }
+  btn.disabled = false; btn.textContent = 'Simpan online';
+};
+
+/* =================== detail produktivitas per bulan =================== */
+function openProdDetail(name) {
+  if (!ST.data) return;
+  const C = compute(ST.data), a = C.A.find(x => x.name === name); if (!a) return;
+  const M = monthlyProd(ST.data)[name] || [null, null, null], mm = qMonths(ST.period);
+  const have = M.filter(Boolean), avg = have.length ? sum(have.map(r => r.prod)) / have.length : null;
+  const best = have.length ? have.reduce((b, r) => r.prod > b.prod ? r : b) : null, bestK = best ? M.indexOf(best) : -1;
+  const colors = ['#27272A', '#A1A1AA', 'var(--y)'];
+  const lbl = a.parts.map(p => p.k);
+  const rrM = k => rrOf(a, k);
+  const rrQ = rrQavg(a) ?? (a.div === 'HD' ? a.csRate : (a.vipTotal ? a.vip : null));
+  const rrCell = v => `<td class="rr">${v == null ? '—' : f2(v) + '%'}</td>`;
+  const rawM0 = (r, k) => a.div === 'HD' ? `${fInt(a.csMonM[k] || 0)} / ${fInt(a.csHandledM[k] || 0)}${a.csSolvedM[k] != null ? ` · ${fInt(a.csSolvedM[k])} ${T('csSolvedL')}` : ''}` : `${fInt(a.vipTotalM[k] || 0)} VIP · ${fInt(a.vipSolvedM[k] || 0)} ${T('csSolvedL')}`;
+  const sv2 = (x, y) => x != null ? ` (${fInt(x)} ${T('csSolvedL')})` : '';
+  const rawM = (r, k) => legacyRules() ? rawM0(r, k) : (a.div === 'HD' ? `CS ${fInt(a.csMonM[k] || 0)} / ${fInt(a.csHandledM[k] || 0)}${sv2(a.csSolvedM[k])}${a.vipTotalM[k] ? ` · VIP ${fInt(a.vipTotalM[k])}${sv2(a.vipSolvedM[k])}` : ''}` : `VIP ${fInt(a.vipTotalM[k] || 0)}${sv2(a.vipSolvedM[k])}${a.csHandledM[k] ? ` · CS ${fInt(a.csHandledM[k])}${sv2(a.csSolvedM[k])}` : ''}`);
+  const rawQ0 = a.div === 'HD' ? `${fInt(a.csMon)} / ${fInt(a.csHandled)}${a.csSolved != null ? ` · ${fInt(a.csSolved)} ${T('csSolvedL')}` : ''}` : `${fInt(a.vipTotal)} VIP · ${fInt(a.vipSolved)} ${T('csSolvedL')}`;
+  const rawQ = legacyRules() ? rawQ0 : (a.div === 'HD' ? `CS ${fInt(a.csMon)} / ${fInt(a.csHandled)}${a.csSolved != null ? ` (${fInt(a.csSolved)} ${T('csSolvedL')})` : ''}${a.vipTotal ? ` · VIP ${fInt(a.vipTotal)}${a.vipSolved ? ` (${fInt(a.vipSolved)} ${T('csSolvedL')})` : ''}` : ''}` : `VIP ${fInt(a.vipTotal)}${a.vipSolved ? ` (${fInt(a.vipSolved)} ${T('csSolvedL')})` : ''}${a.csHandled ? ` · CS ${fInt(a.csHandled)}${a.csSolved != null ? ` (${fInt(a.csSolved)} ${T('csSolvedL')})` : ''}` : ''}`);
+  const col = (r, k) => r ? `<div class="col"><div class="v">${f2(r.prod)}</div><div class="stk2" data-h="${r.prod}">${r.parts.map((p, j) => `<i style="height:${p.v / r.prod * 100}%;background:${colors[j]}"></i>`).join('')}<i style="height:${r.bonus / r.prod * 100}%;background:${colors[2]}"></i></div></div>`
+    : `<div class="col"><div class="na">—</div></div>`;
+  const el = document.createElement('div'); el.className = 'md';
+  el.innerHTML = `<div class="mdb" role="dialog" aria-modal="true" aria-label="${esc(name)}">
+    <div class="mdh"><span class="rav">${photoOf(a) ? `<img src="${esc(photoOf(a))}" alt="">` : esc(initials(a.name))}</span><div><h3>${esc(a.name)}</h3><small>${DIV[a.div]} · ${T('prodT')} · ${pLabel(ST.period)}</small></div><button class="btn x" type="button">${T('close')}</button></div>
+    <div class="mdk"><div><span>${T('quarterScore')}</span><b>${f2(a.prod)}</b></div><div><span>${T('monthlyAvg')}</span><b>${avg == null ? '—' : f2(avg)}</b></div><div><span>${T('bestMonth')}</span><b>${best ? monthName(mm[bestK]) : '—'}</b></div></div>
+    ${have.length ? `<div class="mdc">${M.map(col).join('')}</div><div class="mdx">${mm.map(i => `<span>${monthName(i)}</span>`).join('')}</div>
+      <div class="mdlg">${lbl.map((l, j) => `<span><i style="background:${colors[j]}"></i>${l}</span>`).join('')}<span><i style="background:${colors[2]}"></i>${T('bonus')}</span></div>
+      <table class="mdt"><thead><tr><th>${T('month')}</th>${lbl.map(l => `<th>${l}</th>`).join('')}<th>${T('bonus')}</th><th>${T('prodT')}</th><th class="rr">${T('resRate')}<small>${newRules() ? T('infoOnly') : legacyRules() ? 'Q2' : T('infoOld')}</small></th></tr></thead><tbody>
+        ${M.map((r, k) => r ? `<tr><td>${monthName(mm[k])}<small>${rawM(r, k)}</small></td>${r.parts.map(p => `<td>${f2(p.v)}</td>`).join('')}<td>+${f2(r.bonus)}</td><td><b>${f2(r.prod)}</b>${r.pen ? `<small class="xp">−${f2(r.pen)} res.</small>` : ''}</td>${rrCell(rrM(k))}</tr>` : `<tr><td>${monthName(mm[k])}</td><td colspan="${lbl.length + 3}" style="color:var(--muted)">—</td></tr>`).join('')}
+        <tr class="tot"><td>${T('totalQ')}<small>${rawQ}</small></td>${a.parts.map(p => `<td>${f2(p.v)}</td>`).join('')}<td>+${f2(a.bonus)}</td><td>${f2(a.prod)}${a.pen ? `<small class="xp">−${f2(a.pen)} res.</small>` : ''}</td>${rrCell(rrQ)}</tr></tbody></table>
+      <div class="mdn">${T('mdNote')} ${newRules() ? T('rrMd') : T(legacyRules() ? 'rrInfoQ2' : 'rrInfoOld').split(' — ')[0].replace(/\.$/, '') + '.'}</div>`
+    : `<div class="mdn" style="font-size:14px">${T('noMonthly')}</div>
+      <table class="mdt"><thead><tr><th></th>${lbl.map(l => `<th>${l}</th>`).join('')}<th>${T('bonus')}</th><th>${T('prodT')}</th><th class="rr">${T('resRate')}<small>${newRules() ? T('infoOnly') : legacyRules() ? 'Q2' : T('infoOld')}</small></th></tr></thead><tbody>
+        <tr class="tot"><td>${T('totalQ')}<small>${rawQ}</small></td>${a.parts.map(p => `<td>${f2(p.v)}</td>`).join('')}<td>+${f2(a.bonus)}</td><td>${f2(a.prod)}${a.pen ? `<small class="xp">−${f2(a.pen)} res.</small>` : ''}</td>${rrCell(rrQ)}</tr></tbody></table>`}
+  </div>`;
+  const close = () => { el.remove(); document.removeEventListener('keydown', esc1, true); };
+  const esc1 = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  el.addEventListener('click', e => { if (e.target === el || e.target.closest('.x')) close(); });
+  document.addEventListener('keydown', esc1, true);
+  document.body.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.querySelectorAll('.stk2').forEach(b => { b.style.height = (n(b.dataset.h) / 100 * 120) + 'px'; })));
+  el.querySelector('.x').focus();
+}
+document.addEventListener('click', e => { if (typeof TEXTING !== 'undefined' && TEXTING) return; const r = e.target.closest('.pr.clk[data-ag],tr.clk[data-ag]'); if (r) { e.stopPropagation(); openProdDetail(r.dataset.ag); } }, true);
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.pr.clk[data-ag],tr.clk[data-ag]')) { e.preventDefault(); e.stopPropagation(); openProdDetail(e.target.dataset.ag); } }, true);
+
+/* =================== detail attendance per agent (klik baris di slide Attendance) =================== */
+function openAttDetail(name) {
+  if (!ST.data) return;
+  const C = compute(ST.data), a = C.A.find(x => x.name === name); if (!a || !a.attMo) return;
+  const mm = qMonths(ST.period), q = ST.period.slice(5), mo = a.attMo, oo = k => (a.attM && a.attM[k]) || {};
+  const have = [0, 1, 2].filter(k => mo[k]), avg = f => have.length ? sum(have.map(k => mo[k][f])) / have.length : null;
+  const cell = (k, v, sm) => mo[k] ? `<td>${v}${sm ? `<small>${sm}</small>` : ''}</td>` : '<td>—</td>';
+  const tot = f => sum(have.map(k => n(oo(k)[f])));
+  const wdT = sum(have.map(k => mo[k].wd)), mT = sum(have.map(k => mo[k].M));
+  const row = (lab, fn, qv, cls = '') => `<tr class="${cls}"><td>${lab}</td>${[0, 1, 2].map(k => fn(k)).join('')}<td class="q">${qv}</td></tr>`;
+  const ar = avg('rate'), ap = avg('punct');
+  const el = document.createElement('div'); el.className = 'md';
+  el.innerHTML = `<div class="mdb" role="dialog" aria-modal="true" aria-label="${esc(name)}" style="max-width:900px">
+    <div class="mdh"><span class="rav">${photoOf(a) ? `<img src="${esc(photoOf(a))}" alt="">` : esc(initials(a.name))}</span><div><h3>${esc(a.name)}</h3><small>${DIV[a.div]} · ${T('attT2')} · ${pLabel(ST.period)}</small></div><button class="btn x" type="button">${T('close')}</button></div>
+    <div class="mdk" style="grid-template-columns:repeat(4,1fr)"><div><span>${T('q3Score')(q)}</span><b>${f2(a.attS)}</b></div><div><span>${T('contribL2')}</span><b>${f2(a.attS * .2)} <small style="font-size:12px;color:#71717A">/ 20</small></b></div><div><span>${T('avgRate')}</span><b>${ar == null ? '—' : f2(ar) + '%'}</b></div><div><span>${T('avgPunct')}</span><b>${ap == null ? '—' : f2(ap) + '%'}</b></div></div>
+    <div class="adh">${T('monthlyBD')}</div>
+    <div class="adw"><table class="adt"><thead><tr><th></th>${mm.map(i => `<th>${monthName(i)}</th>`).join('')}<th class="q">${T('recapQ')(q)}</th></tr></thead><tbody>
+      ${row(T('wdL'), k => cell(k, fInt(mo[k] && mo[k].wd), mo[k] && `${fInt(mo[k].M)} ${T('minS')}`), `${fInt(wdT)}<small>${have.map(k => fInt(mo[k].wd)).join(' + ')} · ${fInt(mT)} ${T('minS')}</small>`)}
+      ${row(T('sick'), k => cell(k, fInt(n(oo(k).sick))), fInt(tot('sick')))}
+      ${row(T('pl'), k => cell(k, fInt(n(oo(k).pl))), fInt(tot('pl')))}
+      ${row('Alpha', k => cell(k, fInt(n(oo(k).alpha))), fInt(tot('alpha')))}
+      ${row(T('lateMinL'), k => cell(k, fInt(n(oo(k).late)), n(oo(k).lateDays) ? `${fInt(n(oo(k).lateDays))}× ${T('lateX')}` : ''), `${fInt(tot('late'))}${tot('lateDays') ? `<small>${fInt(tot('lateDays'))}× ${T('lateX')}</small>` : ''}`)}
+      ${row(T('attRate70'), k => cell(k, f2(mo[k] && mo[k].rate) + '%', mo[k] && `(${fInt(mo[k].wd)} − ${fInt(mo[k].off)}) ÷ ${fInt(mo[k].wd)}`), ar == null ? '—' : `${f2(ar)}%<small>${T('avgL')}</small>`)}
+      ${row(T('punct30'), k => cell(k, f2(mo[k] && mo[k].punct) + '%', mo[k] && `(${fInt(mo[k].M)} − ${fInt(n(oo(k).late))}) ÷ ${fInt(mo[k].M)}`), ap == null ? '—' : `${f2(ap)}%<small>${T('avgL')}</small>`)}
+      ${row(T('monthScore'), k => cell(k, f2(mo[k] && mo[k].pct), mo[k] && `${f2(mo[k].rate)}×70% + ${f2(mo[k].punct)}×30%`), `${f2(a.attS)}<small>${T('avgL')}</small>`, 'sc')}
+    </tbody></table></div>
+    <div class="adf"><b>${T('q3Score')(q)}</b> = (${have.map(k => f2(mo[k].pct)).join(' + ')}) ÷ ${have.length} = <b>${f2(a.attS)}</b><br><b>${T('contribL2')}</b> = ${f2(a.attS)} × 20% = <b>${f2(a.attS * .2)}</b> ${T('of20')}</div>
+  </div>`;
+  const close = () => { el.remove(); document.removeEventListener('keydown', esc1, true); };
+  const esc1 = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  el.addEventListener('click', e => { if (e.target === el || e.target.closest('.x')) close(); });
+  document.addEventListener('keydown', esc1, true);
+  document.body.appendChild(el); el.querySelector('.x').focus();
+}
+document.addEventListener('click', e => { if (typeof TEXTING !== 'undefined' && TEXTING) return; const r = e.target.closest('.clk[data-at]'); if (r) { e.stopPropagation(); openAttDetail(r.dataset.at); } }, true);
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.clk[data-at]')) { e.preventDefault(); e.stopPropagation(); openAttDetail(e.target.dataset.at); } }, true);
+
+/* =================== detail observation per agent (klik grafik / ranking) =================== */
+function openObsDetail(name) {
+  if (!ST.data) return;
+  const C = compute(ST.data), a = C.A.find(x => x.name === name); if (!a) return;
+  const mm = qMonths(ST.period), q = ST.period.slice(5), cc = k => (a.chatC && a.chatC[k]) || [null, null];
+  const cell = v => v == null ? '<td>—</td>' : `<td>${f2(v)}</td>`;
+  const have = a.chat.filter(v => v != null);
+  const el = document.createElement('div'); el.className = 'md';
+  el.innerHTML = `<div class="mdb" role="dialog" aria-modal="true" aria-label="${esc(name)}" style="max-width:640px">
+    <div class="mdh"><span class="rav">${photoOf(a) ? `<img src="${esc(photoOf(a))}" alt="">` : esc(initials(a.name))}</span><div><h3>${esc(a.name)}</h3><small>${DIV[a.div]} · ${T('chatT2')} · ${pLabel(ST.period)}</small></div><button class="btn x" type="button">${T('close')}</button></div>
+    <div class="mdk"><div><span>${T('obsQ')(q)}</span><b>${f2(a.chatAvg)}</b></div><div><span>${T('bestMonth')}</span><b>${have.length ? monthName(mm[a.chat.indexOf(Math.max(...have))]) : '—'}</b></div><div><span>${T('obsW')}</span><b>${f2(a.chatAvg * .3)} <small style="font-size:12px;color:#71717A">/ 30</small></b></div></div>
+    <div class="adw"><table class="adt"><thead><tr><th>${T('month')}</th><th>${T('case')(1)}</th><th>${T('case')(2)}</th><th>${T('monthScore')}</th></tr></thead><tbody>
+      ${mm.map((mi, k) => `<tr><td>${monthName(mi)}</td>${cell(cc(k)[0])}${cell(cc(k)[1])}<td><b>${a.chat[k] == null ? '—' : f2(a.chat[k])}</b>${cc(k).filter(v => v != null).length > 1 ? `<small>(${cc(k).filter(v => v != null).map(v => fInt(v)).join(' + ')}) ÷ 2</small>` : ''}</td></tr>`).join('')}
+      <tr class="sc"><td>${T('obsQ')(q)}</td><td></td><td></td><td>${f2(a.chatAvg)}<small>${have.length ? `(${have.map(v => f2(v)).join(' + ')}) ÷ ${have.length}` : ''}</small></td></tr>
+    </tbody></table></div>
+    <div class="adf">${T('obsNote')} <a class="oblink" href="https://cso-workspace.vercel.app" target="_blank" rel="noopener">cso-workspace.vercel.app</a></div>
+  </div>`;
+  const close = () => { el.remove(); document.removeEventListener('keydown', esc1, true); };
+  const esc1 = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  el.addEventListener('click', e => { if (e.target === el || e.target.closest('.x')) close(); });
+  document.addEventListener('keydown', esc1, true);
+  document.body.appendChild(el); el.querySelector('.x').focus();
+}
+document.addEventListener('click', e => { if (typeof TEXTING !== 'undefined' && TEXTING) return; if (e.target.closest('a.oblink')) { e.stopPropagation(); return; } const r = e.target.closest('[data-ob]'); if (r) { e.stopPropagation(); openObsDetail(r.dataset.ob); } }, true);
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-ob]')) { e.preventDefault(); e.stopPropagation(); openObsDetail(e.target.dataset.ob); } }, true);
+
+/* switcher opsi tampilan Attendance — hanya aktif di preview (ATT_PREVIEW = true) */
+function attSwitcher() { if (!ATT_PREVIEW || document.querySelector('.attsw')) return; const el = document.createElement('div'); el.className = 'attsw';
+  const G = [['gx-cf', 'Font cover', coverFont, '.slide:first-child', [['A', 'A · Bebas Neue'], ['B', 'B · Montserrat'], ['C', 'C · Playfair'], ['0', 'Sekarang (Archivo)']]],
+             ['gx-attv', 'Attendance', attVariant, '.slide.v5', [['A', 'A'], ['B', 'B'], ['C', 'C'], ['0', 'Lama']]]];
+  const paint = () => { el.innerHTML = G.map(([key, lab, fn, , op], gi) => `<div class="swg"><span>${lab}:</span>${op.map(([k, t]) => `<button type="button" data-g="${gi}" data-v="${k}" aria-pressed="${k === fn()}">${t}</button>`).join('')}</div>`).join(''); };
+  el.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; const g = G[+b.dataset.g]; try { localStorage.setItem(g[0], b.dataset.v); } catch (er) {} paint(); render(); setTimeout(() => { const x = document.querySelector('#deck ' + g[3]); if (x) x.scrollIntoView({ block: 'center' }); }, 60); };
+  paint(); document.body.appendChild(el); }
+setTimeout(attSwitcher, 0);
+/* =================== mode viewer / admin =================== */
+const VIEW = new URLSearchParams(location.search).has('view');
+const canEdit = () => !VIEW && (ST.open || ST.authed);
+function applyMode() {
+  $('#editBtn').classList.toggle('hidden', !canEdit() || !!LOCKED[ST.period]);
+  $('#textBtn').classList.toggle('hidden', !canEdit() || !!LOCKED[ST.period] || !ST.slides || !ST.slides.length);
+  $('#shareBtn').classList.toggle('hidden', !canEdit());
+  $('#adminBtn').classList.toggle('hidden', VIEW || ST.open || !!ST.authed || ST.online !== true);
+  const e = $('#emptyEdit'); if (e) e.classList.toggle('hidden', !canEdit());
+}
+async function verifyKey(key) {
+  try { const r = await fetch(API + '?check=1', { method: 'POST', headers: { 'x-publish-key': key } }); return r.status === 200; } catch (e) { return false; }
+}
+$('#adminBtn').onclick = () => { $('#lgErr').textContent = ''; $('#login').classList.remove('hidden'); $('#lgKey').focus(); };
+$('#lgCancel').onclick = () => $('#login').classList.add('hidden');
+$('#loginForm').onsubmit = async e => { e.preventDefault(); const k = $('#lgKey').value;
+  if (await verifyKey(k)) { ls.set(KEY_PUB, k); ST.authed = true; $('#login').classList.add('hidden'); applyMode(); toast('Mode admin aktif'); }
+  else $('#lgErr').textContent = 'Password salah.'; };
+$('#shareBtn').onclick = async () => { const u = location.origin + location.pathname + '?view=1#' + ST.period;
+  try { await navigator.clipboard.writeText(u); toast('Link viewer disalin — orang lain hanya bisa melihat'); } catch (e) { prompt('Salin link viewer:', u); } };
+function applyLangUI() { document.documentElement.lang = LANG; document.querySelectorAll('#langSw [data-lang]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === LANG)); }
+$('#langSw').onclick = e => { const b = e.target.closest('[data-lang]'); if (!b) return; LANG = b.dataset.lang; ls.set('gx-dash-lang', LANG); applyLangUI(); if (ST.period) render(); };
+applyLangUI();
+
+/* =================== init =================== */
+$('#period').onchange = e => loadPeriod(e.target.value);
+$('#editBtn').onclick = () => { if (canEdit() && !LOCKED[ST.period]) openEditor(); };
+/* poin observation bisa diklik → detail (TBA, bisa diisi admin) */
+function openObs(div) {
+  const nm = div === 'AM' ? 'Account Manager' : 'Helpdesk', pts = ((ST.data && ST.data.obsPoints) || {})[div] || [];
+  const can = canEdit() && !LOCKED[ST.period];
+  const el = document.createElement('div'); el.className = 'md'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  const items = [...Array(10).keys()];
+  el.innerHTML = `<div class="mdb" style="max-width:640px"><div class="mdh"><div><small>${T('obsTypes')}</small><h3>${T('obsOf')(nm)}</h3></div><button class="btn x">${T('close')}</button></div>
+    ${can ? `<div class="obl ed">${items.map(i => `<label><b>${i + 1}</b><textarea class="inp" rows="2" data-op="${i}" placeholder="${T('obsPh')} ${i + 1}">${esc(pts[i] || '')}</textarea></label>`).join('')}</div><div class="cre"><button class="btn y sv">Simpan</button></div>`
+      : `<ol class="obl">${items.map(i => `<li>${pts[i] ? esc(pts[i]).replace(/\n/g, '<br>') : `<span class="mut">TBA</span>`}</li>`).join('')}</ol>`}</div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove(); el.querySelector('.x').onclick = close; el.addEventListener('click', e => { if (e.target === el) close(); });
+  const sv = el.querySelector('.sv'); if (sv) sv.onclick = async () => { ST.data.obsPoints = ST.data.obsPoints || {}; ST.data.obsPoints[div] = items.map(i => el.querySelector(`[data-op="${i}"]`).value.trim()); await persistData('Poin observation tersimpan ✓'); close(); };
+}
+document.addEventListener('click', e => { if (TEXTING) return; const c = e.target.closest('[data-obs]'); if (c) { e.preventDefault(); openObs(c.dataset.obs); } });
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-obs]')) { e.preventDefault(); openObs(e.target.dataset.obs); } });
+$('#textBtn').onclick = async () => { if (!canEdit() || LOCKED[ST.period]) return;
+  if (!TEXTING) { TEXTING = true; ST.textDirty = false; document.body.classList.add('texting'); $('#textBtn').textContent = '✓ Selesai edit text'; gtDeck(); toast('Klik teks di slide untuk mengubah · kosongkan untuk kembali ke teks asli'); return; }
+  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  TEXTING = false; document.body.classList.remove('texting'); $('#textBtn').textContent = '✎ Edit text'; gtDeck();
+  if (ST.textDirty) { ST.textDirty = false; await persistData('Teks slide tersimpan ✓'); } };
+$('#presentBtn').onclick = () => present(0);
+$('#printBtn').onclick = () => window.print();
+(async () => {
+  await loadList();
+  if (!ST.open && ST.online === true && ls.get(KEY_PUB)) ST.authed = await verifyKey(ls.get(KEY_PUB));
+  ST.period = defaultPeriod(); fillPeriods();
+  await loadPeriod(ST.period);
+  // cek perubahan dari perangkat lain tiap 30 detik
+  setInterval(async () => {
+    if (ST.editing || PV || document.hidden || ST.online !== true) return;
+    try { const r = await api('?list=1'); if (r.status !== 200) return; const it = (r.j.items || []).find(x => x.period === ST.period);
+      if (it && it.revision !== ST.revision) { await loadPeriod(ST.period); toast('Data diperbarui dari perangkat lain'); } } catch (e) {}
+  }, 30000);
+})();
+</script>
+</body>
+</html>

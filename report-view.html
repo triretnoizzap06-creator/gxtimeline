@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Management Report · GX CS</title>
+<link rel="icon" href="mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F5F5F7;--card:#FFFFFF;--ink:#1D1D1F;--muted:#6E6E73;--line:#E5E5EA;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0B0D;--card:#161618;--ink:#F5F5F7;--muted:#98989D;--line:#2C2C2E;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0B0B0D;--card:#161618;--ink:#F5F5F7;--muted:#98989D;--line:#2C2C2E;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1240px;margin:0 auto;padding:22px 16px 40px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}.top img{height:22px}.top .sp{flex:1}
+.top h1{font-size:15px;margin:0;color:var(--muted);font-weight:700}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><img src="wordmark.png" alt="GlobalXtreme" id="wm"><h1 id="ttl">Management Report</h1><span class="sp"></span></div>
+  <div id="deck"><div class="msg">Memuat report…</div></div>
+</main>
+<script src="mreport.js"></script>
+<script>
+/* Viewer Management Report (tanpa login) — membaca snapshot yang dipublish SPV dari Helpdesk Management. */
+(function () {
+  try { if (matchMedia('(prefers-color-scheme: dark)').matches) document.getElementById('wm').src = 'wordmark-white.png'; } catch (e) {}
+  const p = new URLSearchParams(location.search), r = (p.get('r') || 'h2-2026').toLowerCase();
+  const el = document.getElementById('deck');
+  const fail = t => { el.innerHTML = `<div class="msg">${t}</div>`; };
+  if (!/^[a-z0-9-]{3,30}$/.test(r)) return fail('Link report tidak valid.');
+  const show = S => { document.title = (S.title || 'Management Report') + ' · GX CS'; document.getElementById('ttl').textContent = S.title || 'Management Report'; MReport.render(el, S, { start: +(p.get('p') || 0) }); };
+  fetch('/api/todo?doc=mr-' + r, { cache: 'no-store' }).then(async res => {
+    let j = null; try { j = await res.json(); } catch (e) {}
+    if (res.status === 200 && j && j.data && j.data.months) return show(j.data);
+    if (j) return fail('Report ini belum dipublish. Minta SPV membuka Management Report di Helpdesk Management sekali agar link viewer aktif.');
+    throw new Error('no-api');
+  }).catch(() => {
+    let S = null; try { S = JSON.parse(localStorage.getItem('gx-preview-mr-' + r) || 'null'); } catch (e) {}
+    if (S && S.months) show(S); else fail('Mode preview — buka Management Report di halaman Helpdesk Management dulu.');
+  });
+})();
+</script>
+</body>
+</html>

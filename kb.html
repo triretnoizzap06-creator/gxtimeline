@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Knowledge Base · GX CS</title>
+<link rel="icon" href="mark.png">
+<script>(function(){try{var m=localStorage.getItem("gx-theme");if(m==="dark"||m==="light")document.documentElement.setAttribute("data-theme",m)}catch(e){}})()</script>
+<style>
+:root{--bg:#F5F5F7;--card:#FFFFFF;--ink:#1D1D1F;--muted:#6E6E73;--line:#E5E5EA;--line-h:#F5C518;--chip:#FFF6D1;--chip-ink:#7A5B00;--soft:#FAFAFA;--hd:#0E7490;--hdbg:#CFFAFE;--am:#7C3AED;--ambg:#EDE9FE;
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0B0D;--card:#161618;--ink:#F5F5F7;--muted:#98989D;--line:#2C2C2E;--chip:#3A3115;--chip-ink:#FFD866;--soft:#1C1C1F;--hdbg:#083344;--hd:#67E8F9;--ambg:#2E1065;--am:#C4B5FD;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0B0B0D;--card:#161618;--ink:#F5F5F7;--muted:#98989D;--line:#2C2C2E;--chip:#3A3115;--chip-ink:#FFD866;--soft:#1C1C1F;--hdbg:#083344;--hd:#67E8F9;--ambg:#2E1065;--am:#C4B5FD;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:10px;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.logo{height:24px;display:block}.logo.dk{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo.lt{display:none}:root:not([data-theme="light"]) .logo.dk{display:block}}
+:root[data-theme="dark"] .logo.lt{display:none}:root[data-theme="dark"] .logo.dk{display:block}
+.top .sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}.btn.danger{color:#DC2626}.btn.sm{padding:5px 9px;font-size:12px}
+main{max-width:1180px;margin:0 auto;padding:30px 20px 60px}
+.hero h1{margin:0 0 6px;font-size:24px;letter-spacing:-.01em}.hero p{margin:0 0 18px;color:var(--muted);font-size:14px}
+.search{width:100%;font-size:15px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px;outline:none}.search:focus{border-color:var(--line-h)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 6px}
+.chipf{font:600 13px var(--font);border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}.chipf[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.bar .sp{flex:1}
+.ksec{margin-top:26px}.ksec-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding-bottom:10px;margin-bottom:14px;border-bottom:2px solid var(--line-h)}
+.ksec-h h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.ksec-h span{font-size:12.5px;color:var(--muted)}.ksec-h .sp{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.art{position:relative;display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--hd);border-radius:12px;padding:14px 16px;text-decoration:none;color:inherit}
+.art.AM{border-left-color:var(--am)}a.art:hover{border-color:var(--line-h);border-left-color:var(--line-h)}
+.art b{font-size:15px;line-height:1.35}.art p{margin:0;font-size:13px;color:var(--muted);line-height:1.5;white-space:pre-line}
+.art .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto}.tag{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--chip);color:var(--chip-ink)}
+.art .src{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px}.art .src svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2}
+.art .ed{position:absolute;top:10px;right:10px;display:none;gap:4px}.editing .art .ed{display:flex}
+mark{background:#FDE68A;color:inherit;border-radius:3px;padding:0 1px}
+.empty{color:var(--muted);font-size:14px;padding:16px 0}
+.banner{border-radius:12px;padding:10px 14px;font-size:13px;margin:0 0 14px;background:#FEF3C7;color:#92400E}
+.md{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.mdb{width:100%;max-width:560px;background:var(--card);border-radius:16px;padding:20px 22px;box-shadow:0 30px 80px rgba(0,0,0,.3)}.mdb h3{margin:0 0 14px}
+.f{margin-bottom:12px}.f label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:5px}.f input,.f textarea,.f select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px;font-size:13.5px}
+.mfoot{display:flex;gap:8px;align-items:center;margin-top:6px}.mfoot .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1D1D1F;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:opacity .2s}.toast.on{opacity:1}
+@media (max-width:600px){.top{padding:10px 12px}.top .hide-sm{display:none}main{padding:20px 14px 50px}.grid{grid-template-columns:1fr}}
+
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+.cnt{font-size:11px;font-weight:700;opacity:.65;margin-left:4px}
+.catdesc{font-size:12.5px;color:var(--muted)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.mat{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;color:inherit;font:inherit;position:relative}
+.mat:hover{border-color:var(--line-h)}.mat b{font-size:15px;line-height:1.35}.mat p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+.mat .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;align-items:center}
+.pill{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--soft);border:1px solid var(--line);color:var(--muted)}
+.pill.c-helpdesk{background:var(--hdbg);color:var(--hd);border-color:transparent}.pill.c-admin{background:#FEF3C7;color:#92400E;border-color:transparent}
+.pill.c-teknis{background:#DCFCE7;color:#166534;border-color:transparent}.pill.c-umum{background:var(--ambg);color:var(--am);border-color:transparent}.pill.c-sdm{background:#FCE7F3;color:#9D174D;border-color:transparent}
+.pill.done{background:#DCFCE7;color:#166534;border-color:transparent}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pill.c-admin{background:#3A2A08;color:#FCD34D}:root:not([data-theme="light"]) .pill.c-teknis,:root:not([data-theme="light"]) .pill.done{background:#052E16;color:#86EFAC}}
+:root[data-theme="dark"] .pill.c-admin{background:#3A2A08;color:#FCD34D}:root[data-theme="dark"] .pill.c-teknis,:root[data-theme="dark"] .pill.done{background:#052E16;color:#86EFAC}
+.mat .ed{position:absolute;top:10px;right:10px;display:none}.editing .mat .ed{display:flex}
+.reader{max-width:820px;margin:0 auto}
+.crumb{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.reader h1{font-size:26px;letter-spacing:-.01em;margin:6px 0 8px;line-height:1.25}.reader .lead{color:var(--muted);font-size:14.5px;margin:0 0 18px;line-height:1.55}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 22px 18px;font-size:14.5px;line-height:1.65}
+.doc h3{font-size:15px;margin:20px 0 6px;padding-top:4px}.doc ul,.doc ol{margin:6px 0;padding-left:22px}.doc li{margin:3px 0}.doc p{margin:8px 0}
+.doc a{color:inherit;text-decoration:underline;text-decoration-color:var(--line-h);text-underline-offset:2px;word-break:break-word}
+.doc .note{border-left:4px solid var(--line-h);background:var(--chip);color:var(--ink);border-radius:8px;padding:9px 12px;margin:10px 0}
+.srcl{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin-top:12px;text-decoration:none}.srcl:hover{color:var(--ink)}
+.srcl svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2}
+.quiz{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 22px}
+.quiz h2{margin:0 0 4px;font-size:17px}.quiz .qsub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.qq{border-top:1px solid var(--line);padding:14px 0}.qq:first-of-type{border-top:0}
+.qq .qt{font-weight:700;font-size:14.5px;margin-bottom:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 12px;margin:6px 0;cursor:pointer;font-size:14px;color:inherit}
+.opt:hover:not([disabled]){border-color:var(--line-h)}.opt .k{font-weight:800;color:var(--muted);min-width:16px}
+.opt.sel{border-color:var(--ink)}.opt.ok{border-color:#16A34A;background:#DCFCE7;color:#14532D}.opt.bad{border-color:#DC2626;background:#FEE2E2;color:#7F1D1D}
+.opt[disabled]{cursor:default}
+.exp{font-size:13px;margin-top:6px;color:var(--muted);line-height:1.5}.exp b{color:var(--ink)}
+.qbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.score{font-weight:800;font-size:15px}
+.nav2{display:flex;gap:10px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
+.f textarea.code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.hidden{display:none!important}
+@media (max-width:600px){.doc{padding:4px 14px 14px}.quiz{padding:14px}.reader h1{font-size:21px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a href="/"><img class="logo lt" src="wordmark.png" alt="GlobalXtreme"><img class="logo dk" src="wordmark-white.png" alt="GlobalXtreme"></a>
+  <div class="sp"></div>
+  <a class="btn" href="/quiz" style="background:#F5C518;border-color:#F5C518;color:#111">🎯 Quiz</a><a class="btn hide-sm" href="/dashboard-helpdesk">Dashboard Helpdesk</a><a class="btn hide-sm" href="/dashboard-am">Dashboard AM</a><a class="btn" href="/">Beranda</a>
+</header>
+<main>
+  <div id="home">
+    <div class="hero"><h1>Knowledge Base</h1><p>Materi tim Helpdesk Customer Support & Account Manager — dikelompokkan per Info Helpdesk, Administrasi, Teknis, SDM & Schedule, serta Handling & Kebijakan. Quiz ada di halaman terpisah.</p></div>
+    <div id="banner"></div>
+    <input class="search" id="q" type="search" placeholder="Cari materi, SOP, template… (mis. grace, BOD, power ONU, tanggal 25)" aria-label="Cari knowledge base">
+    <div class="bar"><div class="tabs" id="chips"></div><span class="sp"></span><button class="btn" id="edBtn" style="display:none">✎ Edit</button><span id="saveState" style="font-size:12px;color:var(--muted)"></span></div>
+    <div id="list"></div>
+  </div>
+  <div id="read" class="reader hidden"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="kb-data.js"></script>
+<script>
+/* Knowledge Base — materi (kb-data.js, hasil crawling Notion) + link referensi Helpdesk/AM.
+   Dibaca tim tanpa login. Edit (link, override materi, materi baru) hanya untuk SPV yang sudah login. */
+const DOC = 'knowledge-base';
+const SECT = [['HD', 'Link Helpdesk', 'Helpdesk Customer Support'], ['AM', 'Link Account Manager', 'Account Manager VIP']];
+const A = (title, desc, url, source, tags) => ({ title, desc, url, source, tags });
+const KB_DEFAULT = {
+  HD: [
+    A('SOP Flow Handling Helpdesk', 'Alur penanganan Customer Support. Sudah direvisi mengikuti alur kerja baru di Omnichannel Qiscus (per 25 Mei 2026).', 'https://melon-lime-e28.notion.site/SOP-Flow-Handling-Helpdesk-1d69b0fbceac80b98317da1a66743b16', 'Notion', ['SOP', 'Qiscus']),
+    A('Scope Penanganan Helpdesk Customer Support', 'Materi Weekly Meeting Helpdesk — kategori & scope penanganan.', 'https://www.figma.com/make/Q14wKSakut2DPzwoZqt7qf/Scope-Penanganan-Helpdesk-Customer-Support', 'Figma', ['Kategori', 'Weekly Meeting']),
+    A('Flow Helpdesk', 'Materi Weekly Meeting SOP Helpdesk.', 'https://www.figma.com/make/4dlhK0WIMX8zgXY3xvseCn/Flow-Helpdesk', 'Figma', ['SOP', 'Weekly Meeting']),
+    A('Monitoring Customer Support — Tracking sheet', 'Sheet monitoring group & tracking Customer Support.', 'https://docs.google.com/spreadsheets/d/1tTr6PTJpeNfgpxzwMov6vmDJgQxnl_hFqhjLvyx2AJ4/edit?gid=452219871#gid=452219871', 'Google Sheets', ['Monitoring']),
+    A('GX CS Connect', 'Portal GX Connect Customer Support.', 'https://gxcsconnect.globalxtreme-solutions.net/', 'Web', ['Tools']),
+    A('CSO Workspace', 'Detail observation & AFR (Operations / Helpdesk).', 'https://cso-workspace.vercel.app', 'Web', ['Observation', 'AFR']),
+  ],
+  AM: [
+    A('Flow Account Manager', 'Alur handling VIP Group oleh Account Manager.', 'https://app.notion.com/p/Flow-Account-Manager-2fe9b0fbceac808ba433d9149a7d0a4f', 'Notion', ['SOP', 'VIP']),
+    A('Template VIP — Account Manager', 'Template Account Manager (AM) untuk handling VIP Group.', 'https://docs.google.com/document/d/1PMfOf0d9nQtInjhPHSVTWc8u26ZWL8BReIJczwF7SEc/edit', 'Google Docs', ['Template', 'VIP']),
+    A('Masterlist VIP Group', 'Data list group VIP GX (update data VIP & Intracity).', 'https://docs.google.com/spreadsheets/d/1LRCBD_d1KjX1HQ4cIyAakXVlkPwQTg8mBv7E5QoMBkU/edit?gid=0#gid=0', 'Google Sheets', ['Data VIP']),
+    A('Monitoring VIP Group — Tracking sheet', 'Sheet monitoring group & tracking VIP.', 'https://docs.google.com/spreadsheets/d/1nfn0cazlhz0Vck7vz5WikBnIV9LFTBWZXLfk8Q34xuk/edit?gid=480098290#gid=480098290', 'Google Sheets', ['Monitoring', 'VIP']),
+    A('Reminder Bill 25 — VIP & Intracity', 'Sheet update INV VIP setiap tanggal 25 (pembagian per orang ada di materi Pembagian Update INV VIP).', 'https://docs.google.com/spreadsheets/d/19mNgXyeEei_hIwdwS9gfphbzlbPVjdn-/edit?gid=138707526#gid=138707526', 'Google Sheets', ['VIP', 'Tanggal 25']),
+    A('Outstanding Bills — Dedicated Package (DIA)', 'Sheet outstanding pelanggan DIA.', 'https://docs.google.com/spreadsheets/d/1p2rNp5duqp8zvWIqDWFznzCkv4TUBXY3E2WJEd_J5U0/edit?usp=sharing', 'Google Sheets', ['DIA', 'Billing']),
+    A('PPT VIP & Intracity Group', 'Presentasi daftar group VIP & Intracity.', 'https://throb-invert-82417920.figma.site/', 'Figma', ['VIP', 'Intracity']),
+  ],
+};
+const CATS = window.KB_CATS || [], BASE = window.KB_MATERI || [];
+const AM_IDS = ['flow-account-manager', 'masterlist-vip', 'inv-vip-25', 'upgrade-vip', 'tools-akses', 'observation-hd-am', 'bod-dia-intracity', 'sop-grace'];
+const CATNAME = Object.fromEntries(CATS.map(c => [c[0], c[1]]));
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
+const LSVG = '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+function toast(m) { const e = $('#toast'); e.textContent = m; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2400); }
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const HASHF = { '#hd': 'helpdesk', '#am': 'am', '#admin': 'admin', '#teknis': 'teknis', '#umum': 'umum', '#links': 'links', '#helpdesk': 'helpdesk' };
+const KB = { data: { ...JSON.parse(JSON.stringify(KB_DEFAULT)), materi: { over: {}, added: [], hidden: [] } }, rev: null, canEdit: false, online: false, edit: false, filter: HASHF[location.hash] || '*', scores: LS.get('gx-kb-scores', {}) };
+
+function materi() {
+  const m = KB.data.materi || {}, over = m.over || {}, hid = new Set(m.hidden || []);
+  return BASE.map(x => over[x.id] ? { ...x, ...over[x.id], quiz: x.quiz } : x).concat(m.added || []).filter(x => KB.edit || !hid.has(x.id));
+}
+async function load() {
+  try {
+    const r = await fetch('/api/todo?doc=' + DOC, { cache: 'no-store', credentials: 'same-origin' }); const j = await r.json();
+    KB.online = true; KB.canEdit = !!j.canEdit;
+    if (r.status === 200 && j.data && j.data.HD) { KB.data = { materi: { over: {}, added: [], hidden: [] }, ...j.data }; KB.rev = j.revision; }
+  } catch (e) { KB.online = false; KB.canEdit = true; $('#banner').innerHTML = '<div class="banner"><b>Mode preview</b> — server belum tersambung; perubahan tidak tersimpan.</div>'; }
+  $('#edBtn').style.display = KB.canEdit ? '' : 'none';
+  route();
+}
+function hl(s, q) { const e = esc(s); if (!q) return e; const i = e.toLowerCase().indexOf(esc(q).toLowerCase()); return i < 0 ? e : e.slice(0, i) + '<mark>' + e.slice(i, i + esc(q).length) + '</mark>' + e.slice(i + esc(q).length); }
+function inline(t) {
+  let h = esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  return h.replace(/(https?:\/\/[^\s<)]+[^\s<).,;:])/g, u => `<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//, '').slice(0, 70)}${u.length > 78 ? '…' : ''}</a>`);
+}
+function md(src) {
+  const out = []; let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  String(src || '').split('\n').forEach(raw => {
+    const l = raw.trim(); if (!l) { close(); return; }
+    let m;
+    if ((m = l.match(/^##\s+(.*)/))) { close(); out.push(`<h3>${inline(m[1])}</h3>`); }
+    else if ((m = l.match(/^>\s?(.*)/))) { close(); out.push(`<div class="note">${inline(m[1])}</div>`); }
+    else if ((m = l.match(/^-\s+(.*)/))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); }
+    else if ((m = l.match(/^\d+\.\s+(.*)/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); }
+    else { close(); out.push(`<p>${inline(l)}</p>`); }
+  });
+  close(); return out.join('');
+}
+const plain = s => String(s || '').replace(/\*\*/g, '');
+function match(x, ql) { return !ql || [x.title, x.summary, plain(x.body), CATNAME[x.cat], ...(x.quiz || []).map(q => q.q)].join(' ').toLowerCase().includes(ql); }
+function snippet(x, q) {
+  if (!q) return esc(x.summary || '');
+  const t = plain(x.body).replace(/\n/g, ' '), i = t.toLowerCase().indexOf(q.toLowerCase());
+  if ((x.summary || '').toLowerCase().includes(q.toLowerCase()) || i < 0) return hl(x.summary || '', q);
+  const s = Math.max(0, i - 60); return (s ? '…' : '') + hl(t.slice(s, i + 110), q) + '…';
+}
+function scorePill(x) { return `<span class="pill">${(x.quiz || []).length} soal quiz</span>`; }
+function card(x, q) {
+  const hid = (KB.data.materi.hidden || []).includes(x.id);
+  return `<button class="mat" data-open="${esc(x.id)}"${hid ? ' style="opacity:.45"' : ''}><span class="ed"><span class="btn sm" data-medit="${esc(x.id)}">Edit</span></span>
+    <b>${hl(x.title, q)}</b><p>${snippet(x, q)}</p><span class="meta"><span class="pill c-${x.cat}">${esc(CATNAME[x.cat] || x.cat)}</span>${(x.quiz || []).length ? scorePill(x) : ''}${hid ? '<span class="pill" style="color:#DC2626">dihapus</span>' : ''}</span></button>`;
+}
+function renderHome() {
+  const q = $('#q').value.trim(), ql = q.toLowerCase(), M = materi();
+  const chips = [['*', 'Semua', M.length], ...CATS.map(c => [c[0], c[1], M.filter(x => x.cat === c[0]).length]), ['am', 'Account Manager', M.filter(x => AM_IDS.includes(x.id)).length], ['links', 'Link & Referensi', (KB.data.HD || []).length + (KB.data.AM || []).length]];
+  $('#chips').innerHTML = chips.map(([k, l, n]) => `<button class="chipf" data-f="${k}" aria-pressed="${k === KB.filter}">${l}<span class="cnt">${n}</span></button>`).join('');
+  document.body.classList.toggle('editing', KB.edit);
+  $('#edBtn').textContent = KB.edit ? '✓ Selesai edit' : '✎ Edit materi & link';
+  const secs = [];
+  const cats = KB.filter === '*' ? CATS : KB.filter === 'am' ? [['am', 'Account Manager', 'Materi yang paling sering dipakai tim AM VIP']] : CATS.filter(c => c[0] === KB.filter);
+  if (KB.filter !== 'links') cats.forEach(([k, title, sub]) => {
+    const items = M.filter(x => (k === 'am' ? AM_IDS.includes(x.id) : x.cat === k) && match(x, ql));
+    if (ql && !items.length) return;
+    secs.push(`<section class="ksec" id="sec-${k}"><div class="ksec-h"><h2>${title}</h2><span class="catdesc">${esc(sub)}</span><span class="sp"></span>${KB.edit && k !== 'am' ? `<button class="btn sm" data-madd="${k}">+ Materi</button>` : ''}</div>
+      ${items.length ? `<div class="mgrid">${items.map(x => card(x, q)).join('')}</div>` : '<div class="empty">Belum ada materi.</div>'}</section>`);
+  });
+  if (KB.filter === '*' || KB.filter === 'links') SECT.forEach(([k, title, sub]) => {
+    const items = (KB.data[k] || []).map((a, i) => ({ a, i })).filter(({ a }) => !ql || [a.title, a.desc, a.source, ...(a.tags || [])].join(' ').toLowerCase().includes(ql));
+    if (ql && !items.length) return;
+    secs.push(`<section class="ksec" id="sec-${k}"><div class="ksec-h"><h2>${title}</h2><span class="catdesc">${sub} · ${(KB.data[k] || []).length} link</span><span class="sp"></span>${KB.edit ? `<button class="btn sm" data-add="${k}">+ Link</button>` : ''}</div>
+      ${items.length ? `<div class="grid">${items.map(({ a, i }) => { const u = safeUrl(a.url), tag = u && !KB.edit ? 'a' : 'div';
+        return `<${tag} class="art ${k}"${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener"` : ''}><span class="ed"><button class="btn sm" data-edit="${k}.${i}">Edit</button></span>
+          <b>${hl(a.title, q)}</b>${a.desc ? `<p>${hl(a.desc, q)}</p>` : ''}${a.source || u ? `<span class="src">${LSVG}${esc(a.source || new URL(u).hostname)}</span>` : ''}
+          ${(a.tags || []).length ? `<div class="tags">${a.tags.map(t => `<span class="tag">${hl(t, q)}</span>`).join('')}</div>` : ''}</${tag}>`; }).join('')}</div>` : '<div class="empty">Belum ada link.</div>'}</section>`);
+  });
+  $('#list').innerHTML = secs.join('') || `<div class="empty">Tidak ada yang cocok dengan “${esc(q)}”.</div>`;
+}
+/* ---------- reader + quiz ---------- */
+/* urutan opsi diacak tetap (deterministik per soal) supaya jawaban benar tidak selalu di posisi yang sama */
+function perm(seed, n) { let h = 2166136261; for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619); const a = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) { h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; const j = h % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const qOpts = (id, i, q) => perm(id + '#' + i, q.o.length);
+let QZ = null;
+function renderRead(id) {
+  const M = materi(), x = M.find(m => m.id === id);
+  if (!x) { location.hash = ''; return; }
+  const list = M.filter(m => m.cat === x.cat), i = list.indexOf(x), prev = list[i - 1], next = list[i + 1];
+  QZ = { id, ans: {}, done: false };
+  const src = safeUrl(x.src);
+  $('#read').innerHTML = `<div class="crumb"><button class="btn sm" data-back>← Semua materi</button><span class="pill c-${x.cat}">${esc(CATNAME[x.cat] || x.cat)}</span></div>
+    <h1>${esc(x.title)}</h1>${x.summary ? `<p class="lead">${esc(x.summary)}</p>` : ''}
+    <article class="doc">${md(x.body)}${src ? `<a class="srcl" href="${esc(src)}" target="_blank" rel="noopener">${LSVG}Sumber: Notion Customer Service Division</a>` : ''}</article>
+    ${(x.quiz || []).length && CATNAME[x.cat] ? `<section class="quiz"><h2>Quiz ${esc(CATNAME[x.cat])}</h2><p class="qsub">Soal dari materi ini masuk ke quiz kategori <b>${esc(CATNAME[x.cat])}</b> — latihan sendiri pakai timer, atau ikut live quiz dari SPV.</p><a class="btn pri" href="/quiz?set=${esc(x.cat)}">Latihan quiz ${esc(CATNAME[x.cat])} →</a> <a class="btn" href="/quiz">Masukkan PIN live quiz</a></section>` : ''}
+    <div class="nav2">${prev ? `<button class="btn" data-open="${esc(prev.id)}">← ${esc(prev.title)}</button>` : '<span></span>'}${next ? `<button class="btn" data-open="${esc(next.id)}">${esc(next.title)} →</button>` : ''}</div>`;
+  window.scrollTo(0, 0);
+}
+function renderQuiz() {
+  const x = materi().find(m => m.id === QZ.id), el = $('#quiz'); if (!x || !el) return;
+  const Q = x.quiz, best = KB.scores[x.id];
+  const right = Q.filter((q, i) => QZ.ans[i] === q.a).length;
+  el.innerHTML = `<h2>Quiz</h2><p class="qsub">${Q.length} soal pilihan ganda. Pilih jawaban, lalu cek hasilnya.${best ? ` Skor terbaikmu: <b>${best.best}/${best.n}</b>.` : ''}</p>
+    ${Q.map((q, i) => `<div class="qq"><div class="qt">${i + 1}. ${esc(q.q)}</div>
+      ${qOpts(x.id, i, q).map((j, pos) => { const o = q.o[j]; let c = ''; if (QZ.done) c = j === q.a ? 'ok' : QZ.ans[i] === j ? 'bad' : ''; else if (QZ.ans[i] === j) c = 'sel';
+        return `<button class="opt ${c}" data-q="${i}" data-o="${j}"${QZ.done ? ' disabled' : ''}><span class="k">${'ABCDEF'[pos]}</span><span>${esc(o)}</span></button>`; }).join('')}
+      ${QZ.done ? `<div class="exp"><b>${QZ.ans[i] === q.a ? 'Benar.' : 'Kurang tepat.'}</b> ${esc(q.e)}</div>` : ''}</div>`).join('')}
+    <div class="qbar">${QZ.done ? `<span class="score">Skor: ${right}/${Q.length}</span><button class="btn" data-retry>Ulangi quiz</button>` : `<button class="btn pri" data-check>Cek jawaban</button><span style="font-size:12.5px;color:var(--muted)">${Object.keys(QZ.ans).length}/${Q.length} terjawab</span>`}</div>`;
+}
+function route() {
+  const m = location.hash.match(/^#m\/(.+)$/);
+  $('#home').classList.toggle('hidden', !!m); $('#read').classList.toggle('hidden', !m);
+  if (m) renderRead(decodeURIComponent(m[1])); else renderHome();
+}
+/* ---------- save ---------- */
+let saveT = null;
+function save() {
+  if (!KB.online) { toast('Mode preview — tidak tersimpan'); return; }
+  clearTimeout(saveT); $('#saveState').textContent = 'Menyimpan…';
+  saveT = setTimeout(async () => {
+    let r, j = {}; try { r = await fetch('/api/todo', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ doc: DOC, data: KB.data, revision: KB.rev }) }); j = await r.json(); } catch (e) {}
+    if (r && r.status === 200) { KB.rev = j.revision; $('#saveState').textContent = 'Tersimpan ✓'; }
+    else if (r && r.status === 401) { $('#saveState').textContent = ''; toast('Sesi login habis — login lagi di Personal To-Do List'); }
+    else if (r && r.status === 409) { $('#saveState').textContent = ''; toast('Diubah di perangkat lain — muat ulang halaman'); }
+    else { $('#saveState').textContent = ''; toast('Gagal menyimpan'); }
+  }, 400);
+}
+function linkModal(k, i) {
+  const isNew = i == null, a = isNew ? { title: '', desc: '', url: '', source: '', tags: [] } : KB.data[k][i];
+  const el = document.createElement('div'); el.className = 'md';
+  el.innerHTML = `<div class="mdb"><h3>${isNew ? 'Tambah link' : 'Edit link'}</h3>
+    <div class="f"><label>Bagian</label><select data-f="k">${SECT.map(([x, t]) => `<option value="${x}" ${x === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+    <div class="f"><label>Judul</label><input data-f="title" value="${esc(a.title)}"></div>
+    <div class="f"><label>Deskripsi</label><textarea data-f="desc" rows="3">${esc(a.desc)}</textarea></div>
+    <div class="f"><label>Link (URL lengkap)</label><input data-f="url" value="${esc(a.url)}" placeholder="https://…"></div>
+    <div class="f"><label>Sumber</label><input data-f="source" value="${esc(a.source)}" placeholder="Notion / Google Docs / Figma"></div>
+    <div class="f"><label>Tag (pisahkan dengan koma)</label><input data-f="tags" value="${esc((a.tags || []).join(', '))}"></div>
+    <div class="mfoot">${isNew ? '' : '<button class="btn danger" data-act="del">Hapus</button>'}<span class="sp"></span><button class="btn" data-act="x">Batal</button><button class="btn pri" data-act="ok">Simpan</button></div></div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (e.target === el) return el.remove(); if (!b) return;
+    if (b.dataset.act === 'x') return el.remove();
+    if (b.dataset.act === 'del') { if (confirm('Hapus link ini?')) { KB.data[k].splice(i, 1); el.remove(); renderHome(); save(); } return; }
+    const g = f => el.querySelector(`[data-f="${f}"]`).value.trim();
+    if (!g('title')) return alert('Judul wajib diisi.');
+    if (g('url') && !safeUrl(g('url'))) return alert('Link harus diawali https://');
+    const nx = { title: g('title'), desc: el.querySelector('[data-f="desc"]').value.trim(), url: g('url'), source: g('source'), tags: g('tags').split(',').map(t => t.trim()).filter(Boolean) };
+    const nk = g('k');
+    if (!isNew) KB.data[k].splice(i, 1);
+    (KB.data[nk] = KB.data[nk] || []).splice(isNew || nk !== k ? KB.data[nk].length : i, 0, nx);
+    el.remove(); renderHome(); save();
+  });
+}
+function materiModal(id, cat) {
+  const M = KB.data.materi, isBase = BASE.some(b => b.id === id), cur = id ? materi().find(m => m.id === id) : { title: '', cat, summary: '', body: '', src: '' };
+  const el = document.createElement('div'); el.className = 'md';
+  el.innerHTML = `<div class="mdb" style="max-width:720px"><h3>${id ? 'Edit materi' : 'Tambah materi'}</h3>
+    <div class="f"><label>Kategori</label><select data-f="cat">${CATS.map(c => `<option value="${c[0]}" ${c[0] === cur.cat ? 'selected' : ''}>${c[1]}</option>`).join('')}</select></div>
+    <div class="f"><label>Judul</label><input data-f="title" value="${esc(cur.title)}"></div>
+    <div class="f"><label>Ringkasan</label><textarea data-f="summary" rows="2">${esc(cur.summary)}</textarea></div>
+    <div class="f"><label>Isi materi — baris "## " sub-judul, "- " poin, "1. " langkah, "> " catatan, **tebal**</label><textarea class="code" data-f="body" rows="14">${esc(cur.body)}</textarea></div>
+    <div class="f"><label>Link sumber (opsional)</label><input data-f="src" value="${esc(cur.src || '')}" placeholder="https://…"></div>
+    ${isBase ? '<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Perubahan disimpan sebagai versi edit — bisa dikembalikan ke versi asli. Materi yang dihapus tetap terlihat (pudar) di mode Edit supaya bisa dipulihkan.</p>' : ''}
+    <div class="mfoot">${id ? (isBase ? `<button class="btn ${(M.hidden || []).includes(id) ? '' : 'danger'}" data-act="hide">${(M.hidden || []).includes(id) ? 'Pulihkan materi' : 'Hapus materi'}</button>${M.over[id] ? '<button class="btn" data-act="reset">Kembalikan asli</button>' : ''}` : '<button class="btn danger" data-act="del">Hapus</button>') : ''}<span class="sp"></span><button class="btn" data-act="x">Batal</button><button class="btn pri" data-act="ok">Simpan</button></div></div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (e.target === el) return el.remove(); if (!b) return;
+    const act = b.dataset.act; if (act === 'x') return el.remove();
+    if (act === 'hide') { const h = new Set(M.hidden || []); if (!h.has(id) && !confirm('Hapus materi ini dari Knowledge Base? (bisa dipulihkan lagi dari mode Edit)')) return; h.has(id) ? h.delete(id) : h.add(id); M.hidden = [...h]; }
+    else if (act === 'reset') { delete M.over[id]; }
+    else if (act === 'del') { if (!confirm('Hapus materi ini?')) return; M.added = M.added.filter(m => m.id !== id); }
+    else {
+      const g = f => el.querySelector(`[data-f="${f}"]`).value.trim();
+      if (!g('title')) return alert('Judul wajib diisi.');
+      if (g('src') && !safeUrl(g('src'))) return alert('Link harus diawali https://');
+      const nx = { title: g('title'), cat: g('cat'), summary: g('summary'), body: el.querySelector('[data-f="body"]').value, src: g('src') };
+      if (isBase) M.over[id] = nx;
+      else if (id) Object.assign(M.added.find(m => m.id === id), nx);
+      else M.added.push({ id: 'c-' + Date.now().toString(36), quiz: [], ...nx });
+    }
+    el.remove(); renderHome(); save();
+  });
+}
+/* ---------- events ---------- */
+$('#q').addEventListener('input', renderHome);
+$('#chips').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { KB.filter = b.dataset.f; history.replaceState(null, '', b.dataset.f === '*' ? location.pathname : '#' + (b.dataset.f === 'helpdesk' ? 'hd' : b.dataset.f)); renderHome(); } });
+$('#edBtn').onclick = () => { KB.edit = !KB.edit; renderHome(); };
+document.addEventListener('click', e => {
+  const me = e.target.closest('[data-medit]'); if (me) { e.preventDefault(); e.stopPropagation(); return materiModal(me.dataset.medit); }
+  const ma = e.target.closest('[data-madd]'); if (ma) return materiModal(null, ma.dataset.madd);
+  const ed = e.target.closest('[data-edit]'); if (ed) { e.preventDefault(); const [k, i] = ed.dataset.edit.split('.'); return linkModal(k, +i); }
+  const ad = e.target.closest('[data-add]'); if (ad) return linkModal(ad.dataset.add, null);
+  const op = e.target.closest('[data-open]'); if (op) { location.hash = 'm/' + encodeURIComponent(op.dataset.open); return; }
+  if (e.target.closest('[data-back]')) { location.hash = KB.filter === '*' ? '' : (KB.filter === 'helpdesk' ? 'hd' : KB.filter); return; }
+  const o = e.target.closest('.opt[data-q]'); if (o && QZ && !QZ.done) { QZ.ans[+o.dataset.q] = +o.dataset.o; renderQuiz(); return; }
+  if (e.target.closest('[data-check]') && QZ) {
+    const x = materi().find(m => m.id === QZ.id), n = x.quiz.length;
+    if (Object.keys(QZ.ans).length < n && !confirm('Masih ada soal yang belum dijawab. Cek sekarang?')) return;
+    QZ.done = true; const right = x.quiz.filter((q, i) => QZ.ans[i] === q.a).length;
+    const prev = KB.scores[x.id]; KB.scores[x.id] = { best: Math.max(right, prev ? prev.best : 0), n, last: right }; LS.set('gx-kb-scores', KB.scores);
+    renderQuiz(); return;
+  }
+  if (e.target.closest('[data-retry]') && QZ) { QZ.ans = {}; QZ.done = false; renderQuiz(); }
+});
+window.addEventListener('hashchange', () => { const f = HASHF[location.hash]; if (f) KB.filter = f; else if (!location.hash) KB.filter = KB.filter; route(); });
+load();
+</script>
+</body>
+</html>

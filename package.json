@@ -1,11 +1,11 @@
 {
-  "name": "gx27-timeline",
+  "name": "gx-helpdesk-report",
   "private": true,
-  "description": "GX27 Festival of Connectivity \u2014 event management dashboard (static site + Vercel functions + Supabase)",
+  "type": "module",
   "engines": {
-    "node": "22.x"
+    "node": ">=20"
   },
-  "scripts": {
-    "test:api": "node tests/api.test.js"
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.3"
   }
 }
