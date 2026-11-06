@@ -148,6 +148,7 @@
   function flushIdle() { var q = idleQ; idleQ = []; q.forEach(function (f) { f(); }); }
   function typing() {
     var a = document.activeElement, m = document.getElementById('main');
+    if (document.body.classList.contains('rd-dragging')) return true;   // v55: never re-render under a drag in progress
     return !!(a && m && m.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
   }
   // re-render without yanking a field the user is typing in (or an unapplied settings form)

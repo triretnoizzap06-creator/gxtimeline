@@ -396,10 +396,18 @@ document.addEventListener('pointerdown', function (e) {
   var sibs = [].filter.call(tb.querySelectorAll('tr[data-rg]'), function (r) { return r.getAttribute('data-rg') === rg; });
   if (sibs.length < 2) { toast('Tidak ada baris lain di kelompok ini untuk ditukar.'); return; }
   rowDrag = { tr: tr, sibs: sibs, target: null, after: false, y0: e.clientY, moved: false, lastY: e.clientY, lastX: e.clientX };
+  rowDrag.box = tr.closest('.table-wrap');
   rowDrag.timer = setInterval(function () {                 // keep scrolling while the pointer rests near the top / bottom edge
     var d = rowDrag; if (!d) return;
-    var sp = d.lastY < 70 ? -(70 - d.lastY) / 2 : d.lastY > window.innerHeight - 70 ? (d.lastY - (window.innerHeight - 70)) / 2 : 0;
-    if (sp) { window.scrollBy(0, Math.max(-30, Math.min(30, sp))); document.dispatchEvent(new PointerEvent('pointermove', { clientX: d.lastX, clientY: d.lastY, bubbles: true })); }
+    var top = 0, bot = window.innerHeight, box = d.box, canBox = box && box.scrollHeight > box.clientHeight + 2;
+    if (canBox) { var br = box.getBoundingClientRect(); top = Math.max(0, br.top + 40); bot = Math.min(window.innerHeight, br.bottom); }
+    var sp = d.lastY < top + 60 ? -(top + 60 - d.lastY) / 2 : d.lastY > bot - 60 ? (d.lastY - (bot - 60)) / 2 : 0;
+    if (!sp) return;
+    sp = Math.max(-30, Math.min(30, sp));
+    var before = canBox ? box.scrollTop : window.scrollY;
+    if (canBox) box.scrollTop += sp;
+    if (!canBox || box.scrollTop === before) window.scrollBy(0, sp);
+    document.dispatchEvent(new PointerEvent('pointermove', { clientX: d.lastX, clientY: d.lastY, bubbles: true }));
   }, 30);
   try { g.setPointerCapture(e.pointerId); } catch (er) {}
   tr.classList.add('row-dragging'); document.body.classList.add('rd-dragging');
@@ -460,9 +468,10 @@ function poolDrop(d) {
 }
 function rowsReorder(rg, ids, movedId) {
   if (rg === 'cats') {                                       // Finance category blocks
-    var cur = finCategories(), rest = cur.filter(function (w) { return ids.indexOf(w) < 0; });
-    db.settings.finCatOrder = ids.concat(rest).map(wsBase);
-    commit('Urutan kategori diubah');
+    var cur = finCategories(), rest = cur.filter(function (w) { return ids.indexOf(w) < 0; }), next = ids.concat(rest);
+    if (next.join('|') === cur.join('|')) { toast('Posisinya sama. Lepaskan tepat di atas / bawah judul kategori tujuan (ada garis biru).'); return; }
+    db.settings.finCatOrder = next.map(wsBase);
+    commit('Urutan kategori diubah · ' + movedId + ' sekarang di urutan ' + (next.indexOf(movedId) + 1));
     return;
   }
   if (rg === 'tasks') {

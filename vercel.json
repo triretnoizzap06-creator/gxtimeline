@@ -1,166 +1,84 @@
 {
-  "builds": [
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
     {
-      "src": "report.js",
-      "use": "@vercel/node"
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
     },
     {
-      "src": "health.js",
-      "use": "@vercel/node"
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
     },
     {
-      "src": "perf.js",
-      "use": "@vercel/node"
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     },
     {
-      "src": "login.js",
-      "use": "@vercel/node"
+      "source": "/(app|admin|sync).js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     },
     {
-      "src": "todo.js",
-      "use": "@vercel/node"
+      "source": "/styles.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     },
     {
-      "src": "quiz.js",
-      "use": "@vercel/node"
+      "source": "/(needs|labels).js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     },
     {
-      "src": "gate.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": [
-          "helpdesk-report.html",
-          "helpdesk-performance.html",
-          "helpdesk-directory.html",
-          "spv.html"
-        ]
-      }
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "team.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "kb.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "quiz.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "employees.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "report-view.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "mreport.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "kb-data.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "qrcode.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "config.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.png",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "*.jpg",
-      "use": "@vercel/static"
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
   ],
-  "routes": [
+  "redirects": [
     {
-      "src": "/(.*)",
-      "headers": {
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "same-origin"
-      },
-      "continue": true
-    },
-    {
-      "src": "/api/login/?",
-      "dest": "/login.js"
-    },
-    {
-      "src": "/api/todo/?",
-      "dest": "/todo.js"
-    },
-    {
-      "src": "/api/quiz/?",
-      "dest": "/quiz.js"
-    },
-    {
-      "src": "/api/report/?",
-      "dest": "/report.js"
-    },
-    {
-      "src": "/api/health/?",
-      "dest": "/health.js"
-    },
-    {
-      "src": "/api/perf/?",
-      "dest": "/perf.js"
-    },
-    {
-      "src": "/api/employees/?",
-      "dest": "/employees.js"
-    },
-    {
-      "src": "/helpdesk-report(\\.html)?/?",
-      "dest": "/gate.js?page=report"
-    },
-    {
-      "src": "/helpdesk-performance(\\.html)?/?",
-      "dest": "/gate.js?page=performance"
-    },
-    {
-      "src": "/helpdesk-directory(\\.html)?/?",
-      "dest": "/gate.js?page=directory"
-    },
-    {
-      "src": "/spv(\\.html)?/?",
-      "dest": "/gate.js?page=spv"
-    },
-    {
-      "src": "/dashboard-helpdesk/?",
-      "dest": "/team.html"
-    },
-    {
-      "src": "/dashboard-am/?",
-      "dest": "/team.html"
-    },
-    {
-      "src": "/knowledge-base/?",
-      "dest": "/kb.html"
-    },
-    {
-      "src": "/quiz/?",
-      "dest": "/quiz.html"
-    },
-    {
-      "src": "/management-report/?",
-      "dest": "/report-view.html"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
+      "source": "/admin",
+      "destination": "/",
+      "permanent": false
     }
   ]
 }

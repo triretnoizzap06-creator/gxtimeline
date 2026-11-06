@@ -1,12 +1,21 @@
-// GX Helpdesk Report — koneksi Supabase dari browser.
-// Isi 2 nilai di bawah dari Supabase → Project Settings → API (atau tombol "Connect" → API Keys):
-//   url     = Project URL, contoh 'https://abcdefghijkl.supabase.co'
-//   anonKey = kunci PUBLIK: "anon public" (eyJ...) atau "publishable" (sb_publishable_...)
-// Kunci publik aman ditaruh di web: browser hanya bisa memanggil fungsi report (lihat supabase/schema.sql),
-// tidak bisa membaca/mengubah tabel langsung.
-// JANGAN pernah isi kunci service_role / secret (sb_secret_...) di file ini.
-// Kosongkan keduanya bila ingin memakai server /api/report di Vercel (env SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY).
-window.GX_SUPABASE = {
-  url: '',
-  anonKey: ''
+// GET /api/config → a small script that tells the browser how to reach Supabase.
+// Only public values: project URL + anon/publishable key (safe in the browser; RLS protects data).
+const { supabaseConfig } = require('./_lib');
+
+module.exports = (req, res) => {
+  const sb = supabaseConfig();
+  const anySet = Boolean(process.env.SUPABASE_URL || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY);
+  const cfg = {
+    configured: sb.ok,
+    supabaseUrl: sb.ok ? sb.url : null,
+    supabaseAnonKey: sb.ok ? sb.key : null,
+    configError: anySet && !sb.ok ? 'Konfigurasi Supabase di Vercel belum benar: ' + sb.problems.join('; ') + '.' : null,
+    googleLogin: process.env.SUPABASE_GOOGLE_LOGIN === 'true',
+    deployHook: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
+    deployStatus: Boolean(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID)
+  };
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end('window.GX27_CONFIG = ' + JSON.stringify(cfg) + ';\n');
 };

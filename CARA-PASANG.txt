@@ -1,3 +1,11 @@
+GX27 — Update v55 (5 Nov 2026)
+
+- Fix geser kategori/item di tabel Finance: tabelnya punya scroll sendiri, dan dulu tabel itu tidak ikut scroll saat kamu
+  menggeser ke tepi atas/bawah, jadi kategori cuma bisa dilepas di dekatnya (sering jatuh di posisi yang sama → muncul
+  "Urutan kategori diubah" padahal tidak berubah). Sekarang tabel ikut scroll, dan kalau posisinya sama muncul penjelasan.
+- Notif sekarang menyebut posisi barunya, mis. "GX Game Zone sekarang di urutan 1".
+- Saat ada update live dari orang lain, tabel tidak di-refresh di tengah kamu menggeser.
+
 GX27 — Update v54 (4 Nov 2026)
 
 - Judul kategori berwarna di Finance (mis. GX Connect, GX Game Pass) sekarang bisa langsung ditekan & digeser naik/turun
