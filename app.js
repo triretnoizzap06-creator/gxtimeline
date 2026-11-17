@@ -3929,6 +3929,7 @@ function renderFinance() {
   }
   var body = '';
   // vendor invoices: payment cells are merged (rowspan) over the vendor row and its line items
+  var INVM = {};   // v57: id → rowspan of the merged Invoice / Quotation File cell (−1 = covered)
   var MERGE = { invoice: 1, dp: 1, paid: 1, remaining: 1, paymentDeadline: 1, invoiceStatus: 1, paymentStatus: 1, receipt: 1, invoiceRef: 1, proof: 1 };
   function row(f, child, span, underParent, mirrorTag) {
     var c = calc(f), t = taskById(f.taskId) || (c.parent ? taskById(c.parent.taskId) : null);
@@ -3987,6 +3988,7 @@ function renderFinance() {
     return '<tr data-rg="' + esc(rg) + '"' + (poolRow && !efP ? ' data-sec="' + esc(parP && parP.kind === 'allocation' ? (f.section || '') : (f.poolSection || '')) + '"' : '') + '" class="row' + (child ? ' child' : '') + (mirror ? ' mirror' : '') + (f.kind ? ' parent' : '') + (span > 1 ? ' has-merge' : '') + '" style="--rowfg:' + wc[0] + ';--rowbg:' + wc[1] + '" data-act="edit-fin" data-id="' + f.id + '">' + FC.map(function (col) {
       if (col.custom) return cfCell('finance', col, f);
       if (MERGE[col.key] && underParent && c.inherited) return '';                       // covered by the vendor row above
+      if (col.key === 'invoiceRef' && INVM[f.id]) { if (INVM[f.id] < 0) return ''; return '<td rowspan="' + INVM[f.id] + '" class="fin-file merged inv-merged">' + fileCell(f.invoiceRef || INVM['ref:' + f.id]) + '</td>'; }   // v57: one invoice file for the whole No. Invoice group
       var h = cell[col.key] || '<td></td>';
       return MERGE[col.key] && span > 1 ? h.replace('<td', '<td rowspan="' + span + '" class="merged"').replace('class="merged" class="', 'class="merged ') : h;
     }).join('') + '</tr>';
@@ -4007,6 +4009,8 @@ function renderFinance() {
       if (invDone[no]) return; invDone[no] = 1;
       var mem = g.filter(function (x) { return invOf(x) === no; });
       seq.push({ __inv: no, mem: mem }); mem.forEach(function (x) { seq.push(x); });
+      var refs = {}; mem.forEach(function (x) { var r = String(x.invoiceRef || '').trim(); if (r) refs[r] = 1; });
+      if (mem.length > 1 && Object.keys(refs).length <= 1) { mem.forEach(function (x, i) { INVM[x.id] = i ? -1 : mem.length; }); INVM['ref:' + mem[0].id] = Object.keys(refs)[0] || ''; }
     });
     seq.forEach(function (f) {
       if (f.__inv) { body += invHeaderRow(f.__inv, f.mem, FC); return; }
