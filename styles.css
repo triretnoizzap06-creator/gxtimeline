@@ -1671,3 +1671,6 @@ tr.inv-grp a{margin-left:6px}
 .mt-pill[data-empty]{opacity:.45}
 tr.reimb-person td{background:var(--surface-2);font-size:12.5px;padding-top:6px !important;padding-bottom:6px !important;padding-left:28px !important}
 .mt-pill[data-ws="Event Day"]{background:#1A1A17;color:#fff;border-color:#1A1A17}.mt-pill[data-ws="Event Day"][aria-pressed=false]{background:transparent;color:var(--muted)}
+.buf-cell{font-weight:600;white-space:nowrap}
+.buf-why{white-space:normal;font-size:11px;line-height:1.3}
+.fin-table td .pool-rem .tsub{white-space:normal;max-width:220px;text-align:right}

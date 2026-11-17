@@ -3703,13 +3703,18 @@ function bufferCellHtml(f, c) {
   var par = f.parentId ? finById(f.parentId) : null;
   if (fromPool(f)) return '<span class="faint" title="' + esc(fundLabel(f)) + '">dari ' + esc(finById(f.fundPool).item) + '</span>';
   if (fromBuffer(f) && f.fundFrom && finById(f.fundFrom)) return '<span class="faint" title="Dibiayai dari sisa ' + esc(finById(f.fundFrom).item) + '">dari sisa ' + esc(finById(f.fundFrom).item) + '</span>';
-  if (fromBuffer(f)) return '<span class="from-buf" title="Cost taken from the Buffer Budget">− ' + rp(bufferCost(f, c)) + '</span>';
-  if (par && par.kind === 'allocation' && topupPart(f, c)) return '<span class="from-buf" title="' + esc(fundLabel(f)) + '">− ' + rp(topupPart(f, c)) + '</span>';
-  if (c.inherited || (par && par.kind)) return '<span class="faint" title="Included in the buffer of ' + esc((par || {}).item || 'the parent row') + '">·</span>';
+  // v56c: one consistent, readable format — amount (+ hemat / − pakai buffer) with a short reason underneath
+  var bc = function (v, why, title) { return '<span class="buf-cell ' + (v > 0 ? 'buf-pos' : v < 0 ? 'buf-neg' : 'faint') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + (v > 0 ? '+ ' : v < 0 ? '− ' : '') + rp(Math.abs(v)) + '</span>' + (why ? '<span class="tsub buf-why">' + why + '</span>' : ''); };
+  if (fromBuffer(f)) return bc(-bufferCost(f, c), 'di luar RAB · dibayar dari buffer', 'Seluruh biaya diambil dari Buffer Budget');
+  if (par && par.kind === 'allocation' && topupPart(f, c)) return bc(-topupPart(f, c), 'tambahan dari buffer', fundLabel(f));
+  if (c.inherited || (par && par.kind)) return '<span class="faint" title="Sudah dihitung di ' + esc((par || {}).item || 'baris induk') + '">—</span>';
   var b = bufferOf(f, c);
-  if (!b) return '<span class="faint" title="Needs both an estimated budget and an actual cost (invoice)">—</span>';
-  var cls = b.v > 0 ? 'buf-pos' : b.v < 0 ? 'buf-neg' : '';
-  return '<span class="' + cls + '">' + (b.v < 0 ? '− ' : '') + rp(Math.abs(b.v)) + '</span>' + (b.taken ? '<span class="tsub">setelah − ' + rp(b.taken) + ' dipakai</span>' : '') + (b.topup ? '<span class="tsub">incl. tambahan ' + rp(b.topup) + ' dari buffer</span>' : '');
+  if (!b && c.est != null && c.inv != null && Math.abs(c.est - c.inv) < 0.5) return '<span class="faint">Rp 0</span><span class="tsub buf-why">sesuai RAB</span>';
+  if (!b) return '<span class="faint" title="Perlu estimated budget dan invoice">—</span>';
+  if (!b.v) return '<span class="faint">Rp 0</span><span class="tsub buf-why">sesuai RAB</span>';
+  if (b.v > 0) return bc(b.v, 'hemat dari RAB' + (b.taken ? ' · ' + rp(b.taken) + ' sudah dipakai' : ''));
+  var tp = b.topup || 0;
+  return bc(b.v, 'over budget · ' + (tp >= -b.v - 0.5 ? 'ditutup buffer' : tp > 0 ? rp(tp) + ' ditutup buffer' : 'belum ditutup'));
 }
 function budgetStrip(f, c) {
   var b = budgetInfo(f, c); if (!b) return '';
@@ -3941,7 +3946,7 @@ function renderFinance() {
   // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
   function sumRow(cls, label, tot, tail) {
     return '<tr class="' + cls + '">' + FC.map(function (c, i) {
-      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : b.total === 'outstanding' ? rp(tot.est - tot.paid - tot.fee) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') : '';
+      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'buffer' && tot.buffer > 0 ? '+ ' + rp(tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : b.total === 'outstanding' ? rp(cls === 'grand' ? tot.est - tot.paid - tot.fee : tot.outstanding) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') : '';
       if (i === 0) return '<td>' + label + (v ? ' · ' + v : '') + '</td>';
       if (i === FC.length - 1 && tail && !v) return '<td class="muted">' + tail + '</td>';
       return '<td' + (v ? ' class="num r"' : '') + '>' + v + '</td>';
