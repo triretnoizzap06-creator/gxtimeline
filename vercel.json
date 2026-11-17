@@ -38,7 +38,7 @@
       ]
     },
     {
-      "source": "/(app|admin|sync|ai).js",
+      "source": "/(app|admin|sync).js",
       "headers": [
         {
           "key": "Cache-Control",
@@ -80,10 +80,5 @@
       "destination": "/",
       "permanent": false
     }
-  ],
-  "functions": {
-    "api/ai.js": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }
