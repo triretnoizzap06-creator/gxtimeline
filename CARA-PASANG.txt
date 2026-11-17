@@ -1,3 +1,30 @@
+=== v57 · Asisten AI (17 Nov 2026) ===
+BARU: tombol "✦ AI" di pojok kanan bawah (hanya muncul untuk admin/editor yang login).
+- Ketik permintaan pakai bahasa biasa, mis. "ubah invoice Hyrox 1 jadi 1,5 jt" / "task Playlist Music jadi In Progress".
+- AI hanya MENGUSULKAN. Kamu lihat daftar perubahan (lama → baru), lalu klik "Terapkan". Ada tombol "↶ Undo".
+- Bisa juga tanya: "berapa outstanding Entertainment?"
+- Yang bisa diubah: Finance, Tasks, Rundown (tambah / ubah / hapus). Settings & kode website tidak.
+
+WAJIB SEKALI SAJA (tanpa ini tombol AI muncul tapi akan bilang "belum aktif"):
+1. Buat API key di https://console.anthropic.com → API Keys (perlu saldo/billing aktif).
+2. Vercel → project gxtimeline → Settings → Environment Variables → tambah:
+     ANTHROPIC_API_KEY = (key dari langkah 1)      ← Production
+   (opsional) ANTHROPIC_MODEL = claude-sonnet-5-5
+3. Upload ZIP ini ke GitHub (auto-deploy). Kalau env var ditambah SETELAH deploy, klik Redeploy.
+Keamanan: key cuma disimpan di server Vercel (/api/ai), tidak pernah dikirim ke browser.
+/api/ai menolak siapa pun yang bukan admin/editor login. Password di notes task disensor sebelum dikirim ke AI.
+Biaya: tiap pesan kirim ringkasan data (~25 ribu token) → kira-kira beberapa ratus rupiah s/d ~Rp2.000 per pesan (prompt caching menurunkan biaya pesan lanjutan).
+
+File baru/berubah: ai.js (baru), api/ai.js (baru), tests/ai.test.js (baru), app.js, sync.js, styles.css, index.html, vercel.json.
+
+GX27 — Update v56 (17 Nov 2026)
+
+- Cek Data: tiap temuan bisa di-"✕ Abaikan" (kalau Cek Data salah). Yang diabaikan bisa dilihat & dikembalikan lewat
+  "Lihat n yang diabaikan". Kalau angkanya berubah, temuannya muncul lagi otomatis. Tampilan diperbaiki (nama item tidak
+  lagi jadi link biru, daftar bisa di-scroll di dalam jendela, angka di tombol = jumlah temuan aktif).
+- Field baru "No. Invoice" di form budget item. Item dengan No. Invoice yang sama otomatis dikelompokkan di tabel
+  dengan judul 🧾 No. Invoice · jumlah item · budget · invoice · dibayar · link invoice.
+
 GX27 — Update v55 (5 Nov 2026)
 
 - Fix geser kategori/item di tabel Finance: tabelnya punya scroll sendiri, dan dulu tabel itu tidak ikut scroll saat kamu

@@ -175,4 +175,6 @@
   }
   Sync.triggerDeploy = function () { return authedFetch('/api/deploy', { method: 'POST' }); };
   Sync.deployStatus = function () { return authedFetch('/api/deploy-status'); };
+  // v57: Asisten AI (server meneruskan ke Anthropic; kunci API hanya di server)
+  Sync.ai = function (body) { return authedFetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); };
 })();
