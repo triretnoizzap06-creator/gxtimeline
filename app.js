@@ -2446,6 +2446,18 @@ function mtProgramsShown() {
   });
   return out;
 }
+// v56c: the program a task is shown under — its own workstream if that is a selected program, otherwise the first
+// selected program in its extra workstreams (so hiding / labelling works for tasks that belong to several workstreams)
+function mtProg(t) {
+  var on = mtProgramsShown();
+  if (on.indexOf(t.workstream) > -1) return t.workstream;
+  return (t.workstreams || []).filter(function (w) { return on.indexOf(w) > -1; })[0] || t.workstream;
+}
+function mtPills(list) {
+  // every selected program always gets a pill (also when the filters leave it with 0 tasks), plus any other workstream shown
+  var on = mtProgramsShown(), have = mtWorkstreams(list.map(function (t) { return { workstream: mtProg(t) }; }));
+  return on.concat(have.filter(function (w) { return on.indexOf(w) < 0; }));
+}
 function mtInPrograms(t) {
   if (t.category === 'Event Day') return true;
   var on = mtProgramsShown(), ws = [t.workstream].concat(t.workstreams || []);
@@ -2556,16 +2568,16 @@ function mtCustomize() {
 function renderMaster() {
   var hide = ui.mtHide || [];
   var all = mtFiltered(), totalDl = db.tasks.filter(function (t) { return t.deadline && mtInPrograms(t); }).length;
-  var eventItems = all.filter(function (t) { return t.category === 'Event Day'; });
-  var wsShown = mtWorkstreams(all.filter(function (t) { return t.category !== 'Event Day'; }));
-  var pre = all.filter(function (t) { return t.category !== 'Event Day' && hide.indexOf(t.workstream) < 0; });
+  var EVK = 'Event Day', evAll = all.filter(function (t) { return t.category === 'Event Day'; }), eventItems = hide.indexOf(EVK) > -1 ? [] : evAll;
+  var nonEv = all.filter(function (t) { return t.category !== 'Event Day'; }), wsShown = mtPills(nonEv).concat([EVK]);   // v56c: Event Day has its own pill too
+  var pre = nonEv.filter(function (t) { return hide.indexOf(mtProg(t)) < 0; });
   var doneN = all.filter(isDone).length;
   var nextT = all.filter(function (t) { return !isDone(t) && t.deadline >= todayISO(); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; })[0];
   var h = '<div class="mt-head"><div><div class="mt-eyebrow">— Road to GX 27</div><h1 class="mt-title">MASTER <span>TIMELINE</span></h1><p>' + esc(db.settings.timelineSubtitle || '') + '</p></div>' +
     '<div class="mt-actions"><div class="mt-btns">' + (canEdit() ? '<button class="btn" data-act="mt-programs" title="Pilih program / workstream yang ditampilkan">⚙ Pilih Program (' + mtProgramsShown().length + ')</button>' : '') + (canEdit() ? '<button class="btn" data-act="mt-customize" title="Choose which tasks show as milestones">⚙ Customize</button>' : '') + '<button class="btn primary" data-act="new-milestone">+ Add Milestone</button></div><div class="mt-legend" role="group" aria-label="Show workstreams">' +
-    wsShown.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '"' + mtStyle(p, 'pill') + ' data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '">' + esc(p) + '</button>'; }).join('') +
-    (wsShown.length > 4 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Show or hide all workstreams">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
-  h += mtToolbar(all.filter(function (t) { return t.category === 'Event Day' || hide.indexOf(t.workstream) < 0; }).length, totalDl);
+    wsShown.map(function (p) { return '<button class="mt-pill ' + wsClass(p) + '"' + mtStyle(p, 'pill') + ' data-act="mt-toggle" data-ws="' + esc(p) + '" aria-pressed="' + (hide.indexOf(p) < 0) + '"' + ((p === EVK ? evAll.length : nonEv.some(function (t) { return mtProg(t) === p; })) ? '' : ' data-empty="1" title="Tidak ada task untuk filter ini"') + '>' + esc(p) + '</button>'; }).join('') +
+    (wsShown.length > 5 ? '<button class="mt-pill mt-all" data-act="mt-all" aria-label="Show or hide all workstreams">' + (hide.length ? 'Show All' : 'Hide All') + '</button>' : '') + '</div></div></div>';
+  h += mtToolbar(all.filter(function (t) { return t.category === 'Event Day' ? hide.indexOf(EVK) < 0 : hide.indexOf(mtProg(t)) < 0; }).length, totalDl);
   h += '<div class="mt-progress"><span><b>' + doneN + '/' + all.length + '</b> ' + ((ui.mtScope || 'all') === 'milestones' ? 'Milestones' : 'Tasks') + ' Done</span>' + (nextT ? '<span>Next: <b>' + fmtDate(nextT.deadline, true).toUpperCase() + '</b> ' + esc(nextT.workstream) + ' · ' + esc(nextT.name) + '</span>' : '') + '<span>' + (canEdit() ? 'Click an item to edit' : 'Click an item for details') + '</span></div>';
   // group by month (of start date) then by date label
   var months = {};
@@ -2578,10 +2590,10 @@ function renderMaster() {
       .forEach(function (t) { var lab = fmtRange(t).toUpperCase(); if (!groups[lab]) { groups[lab] = []; order.push(lab); } groups[lab].push(t); });
     var d = parseISO(m + '-01');
     var rows = order.map(function (lab) {
-      var g = groups[lab], dotCls = 'dot-' + wsClass(g[0].workstream);
-      return '<div class="mt-row"><div class="mt-date"><i class="' + dotCls + '"' + mtStyle(g[0].workstream, 'dot') + '></i>' + lab + '</div><div class="mt-items">' + g.map(function (t) {
+      var g = groups[lab], dotCls = 'dot-' + wsClass(mtProg(g[0]));
+      return '<div class="mt-row"><div class="mt-date"><i class="' + dotCls + '"' + mtStyle(mtProg(g[0]), 'dot') + '></i>' + lab + '</div><div class="mt-items">' + g.map(function (t) {
         var st = dueState(t), stColor = st.kind === 'overdue' ? 'var(--crit)' : (statusDef(t.status).color === 'neutral' ? 'transparent' : COLOR_VAR[statusDef(t.status).color] || 'transparent');
-        return '<button class="mt-item' + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(t.workstream) + '"' + mtStyle(t.workstream, 'prog') + '>' + esc(t.workstream) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '<span class="mt-st">' + statusBadge(t.status) + '</span></span></button>';
+        return '<button class="mt-item' + (isDone(t) ? ' done' : '') + '" data-act="edit-task" data-id="' + t.id + '" title="' + esc(t.status + (st.kind === 'overdue' ? ' · overdue' : '')) + '"><span class="prog ' + wsClass(mtProg(t)) + '"' + mtStyle(mtProg(t), 'prog') + '>' + esc(mtProg(t)) + '</span><span class="txt">' + esc(t.name) + (t.notes ? ' · ' + esc(t.notes.split('\n')[0]) : '') + '<span class="mt-st">' + statusBadge(t.status) + '</span></span></button>';
       }).join('') + '</div></div>';
     }).join('');
     return '<div class="mt-card"><div class="mt-card-h"><b>' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear() + '</b><span>' + months[m].length + ((ui.mtScope || 'all') === 'milestones' ? ' MILESTONES' : ' TASKS') + '</span></div><div class="mt-rows">' + rows + '</div></div>';
@@ -3775,10 +3787,18 @@ function poolSectionRows(f, kids, row, FC) {
       var rs = reimbStats(), own = list.filter(function (k) { return !rmirror[k.id]; }).length;
       out += '<tr class="pool-sec reimb-sec"' + (isEF ? '' : ' data-rg="pool:' + esc(f.id) + '" data-sec="' + esc(sname) + '" data-hdr="' + (secs0.indexOf(sname) > -1 ? '1' : 'reimb') + '"') + '><td colspan="' + FC.length + '"><span class="pool-sec-n">' + esc(sname) + '</span><span class="reimb-tag">auto</span> <span class="muted">' + rs.n + ' item reimbursement · total ' + rp(rs.total) + ' · sudah dibayar ' + rp(rs.paid) + (rs.open ? ' · <b class="buf-neg">belum ' + rp(rs.open) + '</b>' : '') + (own < list.length ? ' · ↗ = item dari kategori/section lain' : '') + '</span>' +
         (canEdit() ? '<button type="button" class="btn sm ghost" data-act="new-sub" data-id="' + f.id + '" data-section="' + esc(sname) + '">+ Item</button>' : '') + '</td></tr>';
-      list.forEach(function (k) {
-        if (!rmirror[k.id]) { out += row(k, true, 1, false); return; }
-        var where = k.parentId === f.id ? (k.section || 'No section') : (k.parentId && finById(k.parentId) ? finById(k.parentId).item : k.workstream);
-        out += row(k, true, 1, false, where);
+      // v56c: grouped per person (Reimbursement Putri, Reimbursement Esi, …) with a subtotal of what is still unpaid
+      var people = {}, porder = [];
+      list.forEach(function (k) { var who = String(k.reimburseTo || '').trim() || 'Lainnya'; if (!people[who]) { people[who] = []; porder.push(who); } people[who].push(k); });
+      porder.forEach(function (who) {
+        var pl = people[who], tot = 0, opn = 0;
+        pl.forEach(function (k) { var c = calc(k); tot += c.base || 0; opn += c.outstanding || 0; });
+        if (porder.length > 1 || who !== 'Lainnya') out += '<tr class="pool-sec reimb-person"><td colspan="' + FC.length + '"><span class="pool-sec-n">Reimbursement ' + esc(who) + '</span> <span class="muted">' + pl.length + ' item · total ' + rp(tot) + (opn ? ' · belum dibayar <b class="buf-neg">' + rp(opn) + '</b>' : ' · lunas') + '</span></td></tr>';
+        pl.forEach(function (k) {
+          if (!rmirror[k.id]) { out += row(k, true, 1, false); return; }
+          var where = k.parentId === f.id ? (k.section || 'No section') : (k.parentId && finById(k.parentId) ? finById(k.parentId).item : k.workstream);
+          out += row(k, true, 1, false, where);
+        });
       });
       return;
     }
@@ -4709,7 +4729,7 @@ function handleAct(el, e) {
       if (to >= 0 && to < li.length) { var tmp = li[ix]; li[ix] = li[to]; li[to] = tmp; persist(db); render(); closeModal(); categoryManager(el.dataset.kind); }
       break;
     case 'new-milestone': taskForm(null, { category: 'Program Milestone', workstream: '', mt: true }); break;
-    case 'mt-all': var wsAll = mtWorkstreams(mtFiltered().filter(function (t) { return t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
+    case 'mt-all': var wsAll = mtPills(mtFiltered().filter(function (t) { return t.category !== 'Event Day'; })); ui.mtHide = (ui.mtHide || []).length ? [] : wsAll; render(); break;
     case 'mt-customize': mtCustomize(); break;
     case 'mt-programs': mtProgramDialog(); break;
     case 'fund-cover': closeModal(); fundCoverDialog(id); break;

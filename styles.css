@@ -1668,3 +1668,6 @@ tr.inv-grp a{margin-left:6px}
 .ai-in{display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--line)}
 .ai-in textarea{flex:1;resize:none;border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;font:inherit;font-size:13.5px;background:var(--surface);color:var(--fg);max-height:120px}
 @media (max-width:640px){.ai-h .ai-muted{display:none}.ai-panel{right:8px;left:8px;width:auto;max-width:none;bottom:8px;height:calc(100vh - 64px)}.ai-fab{right:14px;bottom:14px}}
+.mt-pill[data-empty]{opacity:.45}
+tr.reimb-person td{background:var(--surface-2);font-size:12.5px;padding-top:6px !important;padding-bottom:6px !important;padding-left:28px !important}
+.mt-pill[data-ws="Event Day"]{background:#1A1A17;color:#fff;border-color:#1A1A17}.mt-pill[data-ws="Event Day"][aria-pressed=false]{background:transparent;color:var(--muted)}
