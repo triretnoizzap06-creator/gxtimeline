@@ -4031,7 +4031,7 @@ function renderFinance() {
   // subtotal / total rows: label in the first column, sums under Est./Invoice/Paid/Remaining wherever they are
   function sumRow(cls, label, tot, tail) {
     return '<tr class="' + cls + '">' + FC.map(function (c, i) {
-      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'buffer' && tot.buffer > 0 ? '+ ' + rp(tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : b.total === 'outstanding' ? rp(cls === 'grand' ? tot.est - tot.paid - tot.fee : tot.outstanding) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') : '';
+      var b = builtinCol('finance', c.key), v = b && b.total ? '<span class="num' + (b.total === 'buffer' ? (tot.buffer > 0 ? ' buf-pos' : tot.buffer < 0 ? ' buf-neg' : '') : '') + '">' + (b.total === 'buffer' && tot.buffer < 0 ? '− ' + rp(-tot.buffer) : b.total === 'buffer' && tot.buffer > 0 ? '+ ' + rp(tot.buffer) : b.total === 'paid' ? rp(tot.paid + tot.fee) : b.total === 'outstanding' ? rp(cls === 'grand' ? tot.est - tot.paid - tot.fee : tot.efLeft != null ? tot.efLeft : tot.outstanding) : rp(tot[b.total])) + '</span>' + (b.total === 'paid' && tot.fee ? '<span class="tsub">incl. fee ' + rp(tot.fee) + '</span>' : '') + (b.total === 'outstanding' && tot.efLeft != null && cls !== 'grand' ? '<span class="tsub">sisa dana Emergency Fund' + (tot.outstanding ? ' · belum dibayar ' + rp(tot.outstanding) : '') + '</span>' : '') : '';
       if (i === 0) return '<td>' + label + (v ? ' · ' + v : '') + '</td>';
       if (i === FC.length - 1 && tail && !v) return '<td class="muted">' + tail + '</td>';
       return '<td' + (v ? ' class="num r"' : '') + '>' + v + '</td>';
@@ -4136,6 +4136,7 @@ function renderFinance() {
           kids.forEach(function (k) { body += row(k, true, 1, f.kind === 'vendor'); });
         }
     });
+    var efA = efAlloc(); if (efA && wsBase(w) === wsBase(efA.workstream)) st.efLeft = calc(efA).fundLeft;   // v56c: same number as the Emergency Fund row / Ringkasan
     body += sumRow('subtotal', 'Subtotal ' + esc(w) + ' <span class="muted" style="font-weight:400">(' + (ob ? esc(ob) + ', not in event total' : 'auto') + ')</span>', st);
   });
   var gt = totals(list);
