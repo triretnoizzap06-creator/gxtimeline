@@ -1853,25 +1853,25 @@ function bufferDialog() {
   var b = bufferBudget();
   function table(rows, kind) {
     if (!rows.length) return '<p class="faint" style="margin:0">' + (kind === 'save' ? 'No confirmed savings yet.' : 'None.') + '</p>';
-    return '<div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Original Budget</th><th class="r">Actual Cost</th><th class="r">' + (kind === 'over' ? 'Over Budget' : 'Savings') + '</th></tr></thead><tbody>' +
+    return '<div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Budget RAB</th><th class="r">Realisasi</th><th class="r">' + (kind === 'over' ? 'Over Budget' : 'Hemat') + '</th></tr></thead><tbody>' +
       rows.map(function (r) {
         return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + esc(r.basis) + '</span></td>' +
           '<td class="num r" data-l="Original">' + rp(r.est) + '</td><td class="num r" data-l="Actual">' + rp(r.actual) + (r.taken ? '<span class="tsub">+ ' + rp(r.taken) + ' dipakai ' + esc(r.takenBy.map(function (x) { return x.f.item; }).join(', ')) + '</span>' : '') + '</td><td class="num r ' + (r.diff >= 0 ? 'buf-pos' : 'buf-neg') + '" data-l="' + (kind === 'over' ? 'Over' : 'Savings') + '">' + rp(Math.abs(r.diff)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   openModal('<div class="modal-h"><h3>Buffer Budget</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
-    '<div class="modal-b one">' +
+    '<div class="modal-b one buf-body">' +
     '<div class="buf-sum buf-sum-4">' +
-      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-save" title="Show these items in the table"><span>Savings · ' + b.items.length + '</span><b class="buf-pos">' + rp(b.savings) + '</b><i>show items →</i></button>' +
-      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-over" title="Show these items in the table"><span>Over Budget · ' + b.overItems.length + '</span><b class="buf-neg">' + rp(b.over) + '</b><i>show items →</i></button>' +
-      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-used" title="Show these items in the table"><span>Used from Buffer · ' + b.usedItems.length + '</span><b>' + rp(b.used) + '</b><i>show items →</i></button>' +
-      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-all" title="Show all buffer items in the table"><span>Available Buffer</span><b class="' + (b.available < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(b.available) + '</b><i>show all →</i></button></div>' +
-    (b.usedItems.length ? '<h4 class="buf-h">Funded from Buffer · ' + b.usedItems.length + ' item' + (b.usedItems.length === 1 ? '' : 's') + '</h4><div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Cost</th></tr></thead><tbody>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-save" title="Show these items in the table"><span>Hemat · ' + b.items.length + '</span><b class="buf-pos">' + rp(b.savings) + '</b><i>lihat di tabel →</i></button>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-over" title="Show these items in the table"><span>Over Budget · ' + b.overItems.length + '</span><b class="buf-neg">' + rp(b.over) + '</b><i>lihat di tabel →</i></button>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-used" title="Show these items in the table"><span>Dipakai dari Buffer · ' + b.usedItems.length + '</span><b>' + rp(b.used) + '</b><i>lihat di tabel →</i></button>' +
+      '<button type="button" class="buf-k" data-act="fin-amt" data-amt="buf-all" title="Show all buffer items in the table"><span>Sisa Buffer</span><b class="' + (b.available < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(b.available) + '</b><i>lihat semua →</i></button></div>' +
+    (b.usedItems.length ? '<h4 class="buf-h">Dipakai dari Buffer · ' + b.usedItems.length + ' item' + (b.usedItems.length === 1 ? '' : 's') + '</h4><div class="buf-wrap"><table class="buf-tbl"><thead><tr><th>Item</th><th class="r">Dipakai</th></tr></thead><tbody>' +
       b.usedItems.map(function (r) { return '<tr data-act="edit-fin" data-id="' + r.f.id + '"><td><b>' + esc(r.f.item || '(no name)') + '</b><span class="muted">' + esc(r.f.workstream || '—') + ' · ' + (r.overSheet != null ? 'budget di atas sheet (' + rp(r.overSheet) + ' → ' + rp(r.est) + ')' : r.inv != null ? 'invoice' : 'estimate') + '</span></td><td class="num r" data-l="Cost">' + rp(r.cost) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') +
-    '<p class="muted" style="margin:0;font-size:12.5px">Savings = original budget − actual cost, per item. Every item that has an actual cost (invoice, or transfer when fully paid) counts right away. Click a box above to see those items in the table. Line items inside a vendor invoice are compared once at invoice level; a Budget Pool (e.g. GX Create) counts its remaining (Budget − sub item costs) once every sub item has a cost; the Emergency Fund and transfer fees are excluded. Items marked "Funded from Buffer" (form → Funding) take their cost from this buffer instead of adding to Total Budget. Click a row to open the item.</p>' +
-    '<h4 class="buf-h">Savings · ' + b.items.length + ' item' + (b.items.length === 1 ? '' : 's') + '</h4>' + table(b.items, 'save') +
+    '<h4 class="buf-h">Hemat · ' + b.items.length + ' item' + (b.items.length === 1 ? '' : 's') + '</h4>' + table(b.items, 'save') +
     (b.overItems.length ? '<h4 class="buf-h">Over Budget · ' + b.overItems.length + ' item' + (b.overItems.length === 1 ? '' : 's') + '</h4>' + table(b.overItems, 'over') : '') +
     (b.pending.length ? '<details class="buf-pending"><summary>Potential savings not counted yet · ' + b.pending.length + ' item' + (b.pending.length === 1 ? '' : 's') + ' (' + rp(b.pending.reduce(function (s, r) { return s + r.diff; }, 0)) + ')</summary>' + table(b.pending, 'save') + '</details>' : '') +
+    '<details class="buf-how"><summary>Cara hitung</summary><p class="muted">Savings = original budget − actual cost, per item. Every item that has an actual cost (invoice, or transfer when fully paid) counts right away. Click a box above to see those items in the table. Line items inside a vendor invoice are compared once at invoice level; a Budget Pool (e.g. GX Create) counts its remaining (Budget − sub item costs) once every sub item has a cost; the Emergency Fund and transfer fees are excluded. Items marked "Funded from Buffer" (form → Funding) take their cost from this buffer instead of adding to Total Budget. Click a row to open the item.</p></details>' +
     '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Close</button></div></div>', 'wide', { allowReadonly: true });
 }
 /* v26: explain the difference with the budget sheet, row by row.
@@ -3909,6 +3909,90 @@ function finCollapsed(f) {
   var o = (ui.finOpen || {})[f.id];
   return o === undefined ? f.workstream === 'Doorprize' : !o;
 }
+/* v56c: Ringkasan Finance — angka utama di paling atas, tiap kotak bisa diklik untuk rinciannya */
+function finOverviewData() {
+  var all = totals(db.finance), buf = bufferBudget(), ef = efAlloc(), ec = ef ? calc(ef) : null;
+  var unpaid = db.finance.filter(function (f) { var c = calc(f); return !c.inherited && !c.allocation && (c.outstanding || 0) > 0 && !offBudgetRow(f); });
+  var unpaidSum = unpaid.reduce(function (a, f) { return a + (calc(f).outstanding || 0); }, 0);
+  return { all: all, buf: buf, ef: ef, ec: ec, unpaid: unpaid, unpaidSum: unpaidSum };
+}
+function finOverviewHtml() {
+  var D = finOverviewData(), a = D.all;
+  var open = ui.finOvOpen !== false;
+  var tile = function (k, v, sub, cls, key) { return '<button type="button" class="fov-t" data-act="fin-ov" data-k="' + key + '"><span class="k">' + k + '</span><b class="money ' + (cls || '') + '">' + v + '</b><span class="s">' + sub + ' <i>detail →</i></span></button>'; };
+  var notes = [];
+  if (D.buf.overItems.length) notes.push(D.buf.overItems.length + ' item over budget belum ditutup (' + rp(D.buf.over) + ')');
+  var rs = reimbStats(); if (rs.open) notes.push('reimbursement belum dibayar ' + rp(rs.open));
+  return '<details class="fin-ov"' + (open ? ' open' : '') + ' data-fin-ov><summary><b>Ringkasan Finance</b><span class="muted">RAB ' + rp(a.est) + ' · dibayar ' + rp(a.paid + a.fee) + ' · sisa buffer ' + rp(D.buf.available) + '</span></summary>' +
+    '<div class="fov-grid">' +
+      tile('Total Budget (RAB)', rp(a.est), a.count + ' item', '', 'cat') +
+      tile('Realisasi / Invoice', rp(a.inv), 'per kategori', '', 'cat') +
+      tile('Sudah Dibayar', rp(a.paid + a.fee), a.fee ? 'incl. biaya transfer ' + rp(a.fee) : 'semua transfer', 'buf-pos', 'cat') +
+      tile('Belum Dibayar', rp(D.unpaidSum), D.unpaid.length + ' item', D.unpaidSum > 0 ? 'buf-neg' : 'buf-pos', 'unpaid') +
+      tile('Sisa Buffer', rp(D.buf.available), 'hemat ' + rp(D.buf.savings) + ' − dipakai ' + rp(D.buf.used + D.buf.over), D.buf.available < 0 ? 'buf-neg' : 'buf-pos', 'buffer') +
+      (D.ec ? tile('Sisa Emergency Fund', rp(D.ec.fundLeft), 'dipakai ' + rp(D.ec.used) + ' dari ' + rp(D.ec.est), D.ec.fundLeft < 0 ? 'buf-neg' : 'buf-pos', 'ef') : '') +
+      tile('Total Sisa Dana', rp(D.buf.available + (D.ec ? D.ec.fundLeft : 0)), 'sisa buffer + sisa Emergency Fund', 'buf-pos fov-big', 'sisa') +
+    '</div>' + (notes.length ? '<p class="fov-note">⚠ ' + esc(notes.join(' · ')) + '</p>' : '') + '</details>';
+}
+function finOvDialog(k) {
+  if (k === 'buffer') return bufferDialog();
+  if (k === 'sisa') {
+    var D0 = finOverviewData(), efl = D0.ec ? D0.ec.fundLeft : 0;
+    return openModal('<div class="modal-h"><h3>Total Sisa Dana · ' + rp(D0.buf.available + efl) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one buf-body">' +
+      '<div class="buf-wrap"><table class="buf-tbl"><tbody>' +
+      '<tr data-act="fin-ov" data-k="buffer"><td><b>Sisa Buffer</b><span class="muted">hemat ' + rp(D0.buf.savings) + ' − dipakai ' + rp(D0.buf.used) + (D0.buf.over ? ' − over belum ditutup ' + rp(D0.buf.over) : '') + '</span></td><td class="num r">' + rp(D0.buf.available) + '</td></tr>' +
+      (D0.ec ? '<tr data-act="fin-ov" data-k="ef"><td><b>Sisa Emergency Fund</b><span class="muted">' + rp(D0.ec.est) + ' − dipakai ' + rp(D0.ec.used) + '</span></td><td class="num r">' + rp(efl) + '</td></tr>' : '') +
+      '<tr><td><b>Total Sisa Dana</b></td><td class="num r"><b class="buf-pos">' + rp(D0.buf.available + efl) + '</b></td></tr></tbody></table></div>' +
+      '<p class="muted fov-p">Klik baris untuk rinciannya.</p></div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button></div></div>', 'sm', { allowReadonly: true });
+  }
+  var D = finOverviewData(), body = '', title = '';
+  var head = function (cols) { return '<div class="buf-wrap"><table class="buf-tbl fov-tbl"><thead><tr>' + cols.map(function (c, i) { return '<th' + (i ? ' class="r"' : '') + '>' + c + '</th>'; }).join('') + '</tr></thead><tbody>'; };
+  var itemRow = function (f, cells) { return '<tr data-act="edit-fin" data-id="' + f.id + '"><td><b>' + esc(f.item || '(tanpa nama)') + '</b>' + (cells.sub ? '<span class="muted">' + cells.sub + '</span>' : '') + '</td>' + cells.td.map(function (x) { return '<td class="num r">' + x + '</td>'; }).join('') + '</tr>'; };
+  if (k === 'cat') {
+    title = 'Detail per Kategori';
+    var efc = D.ef, cats = finCategories(), sum = { est: 0, inv: 0, paid: 0, buffer: 0 };
+    body = '<p class="muted fov-p">Klik kategori untuk lihat item-nya, klik item untuk membukanya. Selisih: <b class="buf-pos">+ hemat</b> / <b class="buf-neg">− over</b> (dibandingkan RAB).</p>';
+    body += cats.map(function (w) {
+      var g = db.finance.filter(function (f) { return f.workstream === w; }), ob = offBudgetOf(w), t = totals(g, { all: !!ob });
+      var isEF = efc && wsBase(w) === wsBase(efc.workstream);
+      var rows = g.filter(function (f) { var p = f.parentId ? finById(f.parentId) : null; return !p || (p.kind === 'allocation' && p !== efc); });
+      if (isEF) rows = [efc];
+      if (!ob) { sum.est += t.est; sum.inv += t.inv; sum.paid += t.paid + t.fee; sum.buffer += t.buffer; }
+      var sel = t.buffer > 0 ? '<b class="buf-pos">+ ' + rp(t.buffer) + '</b>' : t.buffer < 0 ? '<b class="buf-neg">− ' + rp(-t.buffer) + '</b>' : '<span class="faint">0</span>';
+      return '<details class="fov-cat"><summary><span class="fov-cn">' + wsTag(w) + (ob ? ' <span class="ob-badge">di luar budget event · ' + esc(ob) + '</span>' : '') + '</span>' +
+        '<span class="fov-n"><i>RAB</i>' + rp(t.est) + '</span><span class="fov-n"><i>Realisasi</i>' + rp(t.inv) + '</span><span class="fov-n"><i>Dibayar</i>' + rp(t.paid + t.fee) + '</span><span class="fov-n"><i>Selisih</i>' + sel + '</span></summary>' +
+        head(['Item', 'RAB', 'Realisasi', 'Dibayar', 'Selisih / Buffer']) + rows.map(function (f) {
+          var c = calc(f), p = f.parentId ? finById(f.parentId) : null;
+          return itemRow(f, { sub: (p ? 'bagian dari ' + esc(p.item) : '') + (isEF ? 'detail di kotak Sisa Emergency Fund' : ''), td: [rp(c.est), c.allocation ? rp(c.used) + '<span class="tsub">terpakai</span>' : rp(c.inv), rp(c.allocation ? null : c.paid + (c.fee || 0)), bufferCellHtml(f, c)] });
+        }).join('') + '</tbody></table></div></details>';
+    }).join('');
+    body += '<div class="fov-total"><span>Total budget event</span><span class="fov-n"><i>RAB</i>' + rp(D.all.est) + '</span><span class="fov-n"><i>Realisasi</i>' + rp(D.all.inv) + '</span><span class="fov-n"><i>Dibayar</i>' + rp(D.all.paid + D.all.fee) + '</span><span class="fov-n"><i>Sisa buffer</i><b class="' + (D.buf.available < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(D.buf.available) + '</b></span></div>';
+  } else if (k === 'unpaid') {
+    title = 'Belum Dibayar · ' + rp(D.unpaidSum);
+    var grp = {}, order = [];
+    D.unpaid.forEach(function (f) { var key = f.reimburse ? 'Reimbursement ' + (f.reimburseTo || '') : f.workstream; if (!grp[key]) { grp[key] = []; order.push(key); } grp[key].push(f); });
+    body = order.length ? order.map(function (key) {
+      var l = grp[key], s = l.reduce(function (a, f) { return a + (calc(f).outstanding || 0); }, 0);
+      return '<h4 class="buf-h">' + esc(key) + ' · ' + l.length + ' item · <span class="buf-neg">' + rp(s) + '</span></h4>' + head(['Item', 'Invoice', 'Dibayar', 'Sisa']) +
+        l.map(function (f) { var c = calc(f); return itemRow(f, { sub: esc(f.paymentStatus || '') + (f.paymentDeadline ? ' · due ' + fmtDate(f.paymentDeadline, true) : ''), td: [rp(c.base), rp(c.paid), '<b class="buf-neg">' + rp(c.outstanding) + '</b>'] }); }).join('') + '</tbody></table></div>';
+    }).join('') : '<p class="faint">Semua sudah dibayar.</p>';
+  } else if (k === 'ef') {
+    var ef = D.ef, ec = D.ec; if (!ef) return;
+    title = 'Emergency Fund · sisa ' + rp(ec.fundLeft);
+    var g2 = {}, ord2 = [], add = function (name, f) { if (!g2[name]) { g2[name] = []; ord2.push(name); } g2[name].push(f); };
+    kidsOf(ef).forEach(function (f) { add(f.reimburse ? 'Reimbursement' + (f.reimburseTo ? ' ' + f.reimburseTo : '') : efGroupOf(f, ef), f); });
+    poolLinked(ef).forEach(function (f) { add(f.workstream, f); });
+    var cost = function (f) { var c = calc(f); return Math.max(0, (c.base || 0) - (f.parentId === ef.id ? bufferPart(f, c) : 0)); };
+    body = '<div class="fov-ef"><span>Alokasi <b>' + rp(ec.est) + '</b></span><span>Dipakai <b class="buf-neg">' + rp(ec.used) + '</b></span><span>Sisa <b class="' + (ec.fundLeft < 0 ? 'buf-neg' : 'buf-pos') + '">' + rp(ec.fundLeft) + '</b></span></div>';
+    body += ord2.map(function (name) {
+      var l = g2[name], s = l.reduce(function (a, f) { return a + cost(f); }, 0);
+      return '<details class="fov-cat"><summary><span class="fov-cn"><b>' + esc(name) + '</b> <span class="muted">' + l.length + ' item</span></span><span class="fov-n"><i>Dipakai</i>' + rp(s) + '</span></summary>' + head(['Item', 'Nominal', 'Status']) +
+        l.map(function (f) { var c = calc(f); return itemRow(f, { sub: f.parentId === ef.id ? '' : esc(f.workstream) + ' · dibayar dari Emergency Fund', td: [rp(cost(f)), esc(f.paymentStatus || '')] }); }).join('') + '</tbody></table></div></details>';
+    }).join('') + (ec.feeUsed ? '<p class="muted fov-p">+ biaya transfer ' + rp(ec.feeUsed) + ' ikut dihitung dari Emergency Fund.</p>' : '');
+  }
+  openModal('<div class="modal-h"><h3>' + esc(title) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div>' +
+    '<div class="modal-b one buf-body">' + body + '</div><div class="modal-f"><div class="right"><button type="button" class="btn" data-act="modal-cancel">Tutup</button></div></div>', 'wide', { allowReadonly: true });
+}
 function renderFinance() {
   var all = totals(db.finance), list = filteredFinance(), meta = db.meta ? Object.assign({}, db.meta) : null;
   if (meta && db.settings.budgetSheetUrl) meta.url = db.settings.budgetSheetUrl;
@@ -3920,6 +4004,7 @@ function renderFinance() {
       'Klik Update untuk melihat perubahan per item dan pilih yang mau diterapkan. Item yang hanya ada di app tidak disentuh.' +
       '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="budget-apply">Update dari Sheet</button><button class="btn sm ghost" data-act="budget-ignore">Abaikan</button></div></div></div>';
   }
+  h += finOverviewHtml();
   var buf = bufferBudget();
   var kbtn = function (k, v, sub, hl, amt, title) {
     var on = !!amt && ui.finAmt === amt;
@@ -4756,6 +4841,7 @@ function handleAct(el, e) {
     case 'edit-fin': e.preventDefault(); closeModal(); if (finById(id)) finForm(finById(id)); break;
     case 'link-fin': closeModal(); linkFinDialog(id); break;
     case 'buffer-detail': bufferDialog(); break;
+    case 'fin-ov': finOvDialog(el.dataset.k); break;
     case 'recon-detail': reconDialog(); break;
     case 'off-budget': closeModal(); offBudgetDialog(el.dataset.ws); break;
     case 'recon-ok': { var rk = el.dataset.key; db.settings.reconOk = Object.assign({}, db.settings.reconOk || {}); db.settings.reconOk[rk] = +el.dataset.val; persist(db); render(); reconDialog(); break; }
@@ -4932,7 +5018,7 @@ main.addEventListener('change', function (e) {
 window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if (['timeline','rundown','overview','tasks','finance','calendar','admin'].indexOf(h) > -1 && h !== ui.page) { ui.page = h; render(); } });
 window.addEventListener('storage', function (e) { if (MODE === 'local' && e.key === STORE_KEY && e.newValue) { try { db = JSON.parse(e.newValue); render(); toast('Updated from another tab'); } catch (x) {} } });
 
-document.addEventListener('toggle', function (e) { var d = e.target; if (d && d.hasAttribute && d.hasAttribute('data-fin-sum')) { ui.finSumOpen = d.open; saveUI(); } }, true);
+document.addEventListener('toggle', function (e) { var d = e.target; if (d && d.hasAttribute && d.hasAttribute('data-fin-sum')) { ui.finSumOpen = d.open; saveUI(); } if (d && d.hasAttribute && d.hasAttribute('data-fin-ov')) { ui.finOvOpen = d.open; saveUI(); } }, true);
 /* ================= Public API (used by admin.js) ================= */
 window.GX27App = {
   getDb: function () { return db; },
