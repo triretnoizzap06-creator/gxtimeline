@@ -2020,7 +2020,11 @@ function checkDialog() {
    Stored by original category name in settings.offBudget { name: budget label }, so renaming the category keeps it. */
 function offBudgetMap() { var m = db && db.settings && db.settings.offBudget; return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; }
 function offBudgetOf(ws) { var m = offBudgetMap(); return m[wsBase(ws)] || m[ws] || ''; }
-function offBudgetRow(f) { if (!f) return ''; var p = f.parentId ? finById(f.parentId) : null; return offBudgetOf(f.workstream) || (p ? offBudgetOf(p.workstream) : ''); }
+function offBudgetRow(f) {
+  if (!f) return '';
+  // v56c: a row paid from an event pool (e.g. Emergency Fund) is event spending, even if its category is outside the event budget (Manika in Tenants)
+  if (f.fundSource === 'pool' && f.fundPool) { var pl = finById(f.fundPool); if (pl && !offBudgetOf(pl.workstream)) return ''; }
+  var p = f.parentId ? finById(f.parentId) : null; return offBudgetOf(f.workstream) || (p ? offBudgetOf(p.workstream) : ''); }
 function offBudgetDialog(ws) {
   var cur = offBudgetOf(ws);
   openModal('<form id="obForm" novalidate><div class="modal-h"><h3>Budget · ' + esc(ws) + '</h3><button type="button" class="btn ghost sm" data-act="modal-cancel" aria-label="Close">✕</button></div><div class="modal-b one">' +
