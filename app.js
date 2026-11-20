@@ -3803,7 +3803,16 @@ function poolSectionRows(f, kids, row, FC) {
         var pl = people[who], tot = 0, opn = 0;
         pl.forEach(function (k) { var c = calc(k); tot += c.base || 0; opn += c.outstanding || 0; });
         if (porder.length > 1 || who !== 'Lainnya') out += '<tr class="pool-sec reimb-person"><td colspan="' + FC.length + '"><span class="pool-sec-n">Reimbursement ' + esc(who) + '</span> <span class="muted">' + pl.length + ' item · total ' + rp(tot) + (opn ? ' · belum dibayar <b class="buf-neg">' + rp(opn) + '</b>' : ' · lunas') + '</span></td></tr>';
+        var lastSub = null;
         pl.forEach(function (k) {
+          // v56c: rows named "… — 1. GX Connect: GoSend …" get a sub-header per group with its subtotal
+          var sm = /—\s*(\d+\.\s*[^:]+):/.exec(k.item || ''), sub = sm ? sm[1].trim() : null;
+          if (sub && sub !== lastSub) {
+            var sl = pl.filter(function (x) { var m2 = /—\s*(\d+\.\s*[^:]+):/.exec(x.item || ''); return m2 && m2[1].trim() === sub; });
+            var stot = sl.reduce(function (a, x) { return a + (calc(x).base || 0); }, 0);
+            out += '<tr class="pool-sec reimb-sub"><td colspan="' + FC.length + '"><b>' + esc(sub) + '</b> <span class="muted">' + sl.length + ' item · subtotal ' + rp(stot) + '</span></td></tr>';
+          }
+          lastSub = sub;
           if (!rmirror[k.id]) { out += row(k, true, 1, false); return; }
           var where = k.parentId === f.id ? (k.section || 'No section') : (k.parentId && finById(k.parentId) ? finById(k.parentId).item : k.workstream);
           out += row(k, true, 1, false, where);
@@ -4082,7 +4091,7 @@ function renderFinance() {
       iref = fileCell(f.invoiceRef);
     }
     var cell = {
-      item: '<td class="fin-item-cell">' + (canEdit() && (!mirror || (child && fromPool(f) && !mirrorTag)) ? ROW_GRIP : '') + '<span class="tname">' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.item || '(tanpa nama)') + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
+      item: '<td class="fin-item-cell">' + (canEdit() && (!mirror || (child && fromPool(f) && !mirrorTag)) ? ROW_GRIP : '') + '<span class="tname"' + (f.reimburse && /—\s*\d+\.\s*[^:]+:\s*\S/.test(f.item || '') ? ' title="' + esc(f.item) + '"' : '') + '>' + (child ? '<span class="sub-dot" aria-hidden="true"></span>' : '') + esc(f.reimburse && /—\s*\d+\.\s*[^:]+:\s*\S/.test(f.item || '') ? f.item.replace(/^.*?—\s*\d+\.\s*[^:]+:\s*/, '') : (f.item || '(tanpa nama)')) + '</span>' + (sub.length ? '<span class="tsub">' + sub.join(' · ') + '</span>' : '') + budgetStrip(f, c) +
         (f.kind === 'vendor' && kidsOf(f).length ? '<button type="button" class="btn sm ghost fin-toggle" data-act="fin-toggle" data-id="' + f.id + '">' + (finCollapsed(f) ? '▸ Tampilkan ' : '▾ Sembunyikan ') + kidsOf(f).length + ' item</button> ' : '') +
           (!child && canEdit() ? '<button type="button" class="btn sm ghost add-sub" data-act="new-sub" data-id="' + f.id + '" title="Tambah sub item di bawah ' + esc(f.item) + '">+ Sub Item</button>' : '') +
           (f.kind === 'allocation' && canEdit() && f !== efAlloc() ? ' <button type="button" class="btn sm pool-sec-btn" data-act="pool-sections" data-id="' + f.id + '" title="Atur section di dalam ' + esc(f.item) + '">⚙ Section' + (poolSections(f).length ? ' (' + poolSections(f).length + ')' : ' · tambah') + '</button>' : '') + '</td>',

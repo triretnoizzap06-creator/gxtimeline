@@ -1705,3 +1705,4 @@ tr.reimb-person td{background:var(--surface-2);font-size:12.5px;padding-top:6px 
 .fov-ef{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
 .fov-tbl td .buf-cell{font-size:13px}
 @media (max-width:640px){.fov-cat>summary,.fov-total{grid-template-columns:1fr 1fr}.fov-cn{grid-column:1/-1}}
+tr.reimb-sub td{background:transparent;font-size:12.5px;padding:5px 12px 5px 44px !important;border-top:1px dashed var(--line)}
